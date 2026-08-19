@@ -4,24 +4,17 @@
 #
 # Déclenchement : pousser un tag « v* » (ex. git tag v0.1 && git push origin v0.1),
 # ou lancer le workflow à la main depuis l'interface Codemagic.
-#
-# Prérequis dans Codemagic : Teams → Integrations → Developer Portal,
-# clé API App Store Connect (.p8 + Issuer ID + Key ID) enregistrée sous le nom
-# indiqué dans « integrations → app_store_connect » ci-dessous.
-#
-# La signature n'utilise pas le bloc « ios_signing » : celui-ci exige un profil de
-# provisioning préexistant et échoue sur un nouveau bundle (« No matching profiles
-# found »). On appelle donc fetch-signing-files avec --create, qui crée le profil
-# App Store (et le certificat de distribution s'il manque) à la première exécution.
 
 workflows:
   testflight:
     name: Honya · Archive signée → TestFlight
     max_build_duration: 45
     instance_type: mac_mini_m2
-    # « integrations » se déclare au niveau du workflow, jamais sous « environment ».
+    # Nom de l'intégration telle qu'elle est enregistrée dans Codemagic
+    # (Teams → Integrations → Developer Portal) — PAS le nom de la clé côté Apple.
+    # Cette clé porte l'Issuer ID + Key ID + .p8 et gère la signature.
     integrations:
-      app_store_connect: Codemagic
+      app_store_connect: Binjo ASC key
     triggering:
       events:
         - tag
@@ -33,9 +26,13 @@ workflows:
       vars:
         BUNDLE_ID: com.remiabbou.honya
     scripts:
-      - name: Préparer la signature (crée le profil au premier passage)
+      - name: Signature (crée le profil App Store au premier passage)
         script: |
           keychain initialize
+          # Le bloc « ios_signing » exigerait un profil PRÉEXISTANT et échoue sur un
+          # bundle neuf (« No matching profiles found »). fetch-signing-files --create
+          # crée le profil manquant pour ce bundle, et le certificat de distribution
+          # s'il n'y en a pas encore d'utilisable.
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create
@@ -54,4 +51,12 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        submit_to_testflight: true
+        # L'IPA est envoyé sur App Store Connect : il devient disponible pour le
+        # TEST INTERNE TestFlight sans revue Apple. On ne soumet pas au test externe
+        # (qui exigerait un formulaire d'infos beta et une revue).
+      email:
+        recipients:
+          - remiabbou@gmail.com
+        notify:
+          success: false
+          failure: true
