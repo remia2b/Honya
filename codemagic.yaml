@@ -54,16 +54,39 @@ workflows:
             echo "⚠️  CERTIFICATE_PRIVATE_KEY_B64 absente : création d'un nouveau certificat."
             echo "    Apple en limite le nombre — conserver cette clé pour les builds suivants."
           fi
+          echo "=== Ce que la clé API voit sur le compte Apple ==="
+          echo "--- Identifiant d'app $BUNDLE_ID ---"
+          app-store-connect bundle-ids list --bundle-id-identifier "$BUNDLE_ID" 2>&1 | head -30 || true
+          echo "--- Certificats de distribution ---"
+          app-store-connect certificates list --type IOS_DISTRIBUTION 2>&1 | head -40 || true
+          echo "--- Profils App Store existants ---"
+          app-store-connect profiles list --profile-type IOS_APP_STORE 2>&1 | head -40 || true
+
+          echo "=== Récupération / création des fichiers de signature ==="
           # --create : crée le profil manquant pour ce bundle, et le certificat au besoin.
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --certificate-key=@file:/tmp/cert_key \
-            --create
+            --create 2>&1 | tee /tmp/fetch.log
+
           keychain add-certificates
           # Génère aussi ~/export_options.json, dont build-ipa a besoin pour l'export.
-          xcode-project use-profiles --project Honya.xcodeproj
-          echo "--- Profils présents sur la machine après récupération ---"
-          find "$HOME/Library" -name '*.mobileprovision' 2>/dev/null || echo "(aucun)"
+          xcode-project use-profiles --project Honya.xcodeproj || true
+
+          echo "=== Résultat ==="
+          echo "--- Profils installés ---"
+          find "$HOME/Library" -name '*.mobileprovision' 2>/dev/null || true
+          echo "--- Certificats dans le trousseau ---"
+          security find-identity -v -p codesigning 2>&1 | head -10 || true
+
+          # L'étape doit échouer ICI si rien n'a été installé : sinon l'erreur
+          # ressort plus loin à l'archive, sous une forme trompeuse.
+          if [ -z "$(find "$HOME/Library" -name '*.mobileprovision' 2>/dev/null)" ]; then
+            echo ""
+            echo "❌ Aucun profil installé : la cause est ci-dessus, dans la sortie de"
+            echo "   fetch-signing-files ou dans les droits de la clé API."
+            exit 1
+          fi
       - name: Inscrire le profil dans le projet Xcode
         script: |
           # « xcode-project use-profiles » n'écrit rien dans ce projet : il est généré
