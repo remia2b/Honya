@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Honya — icône App Store (exporter en PNG 1024x1024 sans coins arrondis : iOS les applique) -->
+  <defs>
+    <linearGradient id="fond" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#FF9330"/>
+      <stop offset="0.62" stop-color="#E75A00"/>
+      <stop offset="1" stop-color="#C74400"/>
+    </linearGradient>
+    <linearGradient id="tranche" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#C74400" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#C74400" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="ruban" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C74400"/>
+      <stop offset="1" stop-color="#E75A00"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#fond)"/>
+
+  <!-- Livre fermé, épuré -->
+  <g>
+    <rect x="262" y="242" width="500" height="560" rx="46" fill="#FFF7EE"/>
+    <rect x="262" y="242" width="110" height="560" rx="46" fill="url(#tranche)"/>
+    <rect x="330" y="242" width="16" height="560" fill="#C74400" opacity="0.30"/>
+    <!-- Marque-page -->
+    <path d="M636 210 h96 v300 l-48 -54 -48 54 z" fill="url(#ruban)"/>
+  </g>
+</svg>

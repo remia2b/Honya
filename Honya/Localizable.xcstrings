@@ -1,0 +1,189 @@
+{
+  "sourceLanguage" : "fr",
+  "strings" : {
+    "Aujourd'hui" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Today" } } }
+    },
+    "Bibliothèque" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Library" } } }
+    },
+    "Stats" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Stats" } } }
+    },
+    "Statistiques" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Statistics" } } }
+    },
+    "Recherche" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Search" } } }
+    },
+    "Réglages" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Settings" } } }
+    },
+    "Scanner" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Scan" } } }
+    },
+    "Citations" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Quotes" } } }
+    },
+    "Nouvelle citation" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "New quote" } } }
+    },
+    "Prochaine sortie" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Next release" } } }
+    },
+    "En ce moment" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Reading now" } } }
+    },
+    "À suivre" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Up next" } } }
+    },
+    "Sorties à venir" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Upcoming releases" } } }
+    },
+    "Reprendre la lecture" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Keep reading" } } }
+    },
+    "Commencer une lecture" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Start reading" } } }
+    },
+    "Session de lecture" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Reading session" } } }
+    },
+    "Terminer la session" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "End session" } } }
+    },
+    "Belle session !" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Nice session!" } } }
+    },
+    "Où en es-tu ?" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Where are you now?" } } }
+    },
+    "J'ai terminé ce livre" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "I finished this book" } } }
+    },
+    "Terminé !" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Finished!" } } }
+    },
+    "Votre bibliothèque est vide" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Your library is empty" } } }
+    },
+    "Rien ici pour l'instant" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Nothing here yet" } } }
+    },
+    "Aucune citation" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "No quotes" } } }
+    },
+    "Ajouter" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Add" } } }
+    },
+    "Ajouter un livre" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Add a book" } } }
+    },
+    "Ajouter un tome" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Add a volume" } } }
+    },
+    "Enregistrer" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Save" } } }
+    },
+    "Annuler" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Cancel" } } }
+    },
+    "Terminé" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Done" } } }
+    },
+    "Ignorer" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Skip" } } }
+    },
+    "Modifier" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Edit" } } }
+    },
+    "Chercher" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Search" } } }
+    },
+    "Mettre à jour" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Update" } } }
+    },
+    "Tout voir" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "See all" } } }
+    },
+    "Noter" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Rate" } } }
+    },
+    "Continuer" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Continue" } } }
+    },
+    "Ouvrir ma bibliothèque" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Open my library" } } }
+    },
+    "Bienvenue dans Honya" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Welcome to Honya" } } }
+    },
+    "Progression" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Progress" } } }
+    },
+    "Résumé" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Summary" } } }
+    },
+    "Détails" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Details" } } }
+    },
+    "Tomes" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Volumes" } } }
+    },
+    "Possédés" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Owned" } } }
+    },
+    "Lus" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Read" } } }
+    },
+    "Lu" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Read" } } }
+    },
+    "Possédé" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Owned" } } }
+    },
+    "Manquant" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Missing" } } }
+    },
+    "Records" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Records" } } }
+    },
+    "Vos genres" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Your genres" } } }
+    },
+    "Objectifs" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Goals" } } }
+    },
+    "Langues de lecture" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Reading languages" } } }
+    },
+    "Données" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Data" } } }
+    },
+    "À propos" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "About" } } }
+    },
+    "Période" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Period" } } }
+    },
+    "Titre, auteur, série…" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Title, author, series…" } } }
+    },
+    "sur %lld min · aujourd'hui" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "of %lld min · today" } } }
+    },
+    "Tome %lld" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Volume %lld" } } }
+    },
+    "Lu jusqu'au chapitre %lld" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "Read up to chapter %lld" } } }
+    },
+    "%lld minutes de lecture" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld minutes of reading" } } }
+    },
+    "p. %lld sur %lld" : {
+      "localizations" : { "en" : { "stringUnit" : { "state" : "translated", "value" : "p. %lld of %lld" } } }
+    }
+  },
+  "version" : "1.0"
+}

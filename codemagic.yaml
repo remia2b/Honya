@@ -1,0 +1,68 @@
+# Codemagic — builds cloud pour Honya (pas besoin de Mac local).
+# Workflow 1 : vérification de compilation (simulateur, sans signature) — à lancer à chaque push.
+# Workflow 2 : archive signée pour TestFlight — nécessite l'intégration App Store Connect
+#              dans les réglages Codemagic (clé API) avant de servir.
+
+workflows:
+  verifier-compilation:
+    name: Honya · Build simulateur (sans signature)
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: '*'
+          include: true
+      cancel_previous_builds: true
+    environment:
+      xcode: latest
+    scripts:
+      - name: Versions des outils
+        script: |
+          xcodebuild -version
+          xcodebuild -list -project Honya.xcodeproj
+      - name: Build simulateur
+        script: |
+          xcodebuild build \
+            -project Honya.xcodeproj \
+            -scheme Honya \
+            -destination "generic/platform=iOS Simulator" \
+            CODE_SIGNING_ALLOWED=NO
+
+  testflight:
+    name: Honya · Archive signée → TestFlight
+    max_build_duration: 45
+    instance_type: mac_mini_m2
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'v*'
+          include: true
+    environment:
+      xcode: latest
+      # Renseigner dans Codemagic : App Store Connect integration + bundle id com.remiabbou.honya
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.remiabbou.honya
+    scripts:
+      - name: Archive
+        script: |
+          xcode-project use-profiles
+          xcodebuild archive \
+            -project Honya.xcodeproj \
+            -scheme Honya \
+            -archivePath build/Honya.xcarchive
+      - name: Export IPA
+        script: |
+          xcode-project build-ipa \
+            --project Honya.xcodeproj \
+            --scheme Honya
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - build/Honya.xcarchive
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
