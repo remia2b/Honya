@@ -46,10 +46,10 @@ workflows:
             --type IOS_APP_STORE \
             --create
           keychain add-certificates
-          # Applique le profil au projet. --project est explicite : le projet est au
-          # format « dossiers synchronisés » (objectVersion 70) et la détection
-          # automatique n'y est pas garantie.
+          # Génère aussi ~/export_options.json, dont build-ipa a besoin pour l'export.
           xcode-project use-profiles --project Honya.xcodeproj
+          echo "--- Profils présents sur la machine après récupération ---"
+          find "$HOME/Library" -name '*.mobileprovision' 2>/dev/null || echo "(aucun)"
       - name: Inscrire le profil dans le projet Xcode
         script: |
           # « xcode-project use-profiles » n'écrit rien dans ce projet : il est généré
@@ -57,19 +57,26 @@ workflows:
           # PROVISIONING_PROFILE_SPECIFIER, l'archive s'arrête sur « requires a
           # provisioning profile ». On applique donc les réglages nous-mêmes, à partir
           # du profil réellement installé à l'étape précédente.
-          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          # Le dossier des profils a changé avec Xcode 16 (~/Library/Developer/Xcode/
+          # UserData/… au lieu de ~/Library/MobileDevice/…) : on cherche par contenu
+          # plutôt que par chemin, ce qui reste vrai quelle que soit la version.
           PROFILE=""
-          for candidate in "$PROFILE_DIR"/*.mobileprovision; do
+          while IFS= read -r candidate; do
+            [ -f "$candidate" ] || continue
             APP_ID=$(security cms -D -i "$candidate" 2>/dev/null \
               | plutil -extract Entitlements.application-identifier raw - 2>/dev/null || true)
             case "$APP_ID" in
               *"$BUNDLE_ID") PROFILE="$candidate"; break ;;
             esac
-          done
+          done <<< "$(find "$HOME/Library" -name '*.mobileprovision' 2>/dev/null)"
 
           if [ -z "$PROFILE" ]; then
-            echo "❌ Aucun profil installé pour $BUNDLE_ID."
-            ls -1 "$PROFILE_DIR" 2>/dev/null || echo "(dossier vide)"
+            echo "❌ Aucun profil ne correspond à $BUNDLE_ID. Profils trouvés :"
+            find "$HOME/Library" -name '*.mobileprovision' 2>/dev/null | while IFS= read -r p; do
+              ID=$(security cms -D -i "$p" 2>/dev/null \
+                | plutil -extract Entitlements.application-identifier raw - 2>/dev/null || echo "illisible")
+              echo "  - $p → $ID"
+            done
             exit 1
           fi
 
