@@ -32,18 +32,32 @@ workflows:
       cancel_previous_builds: true
     environment:
       xcode: latest
+      groups:
+        # Groupe de variables Codemagic contenant CERTIFICATE_PRIVATE_KEY_B64,
+        # la clé privée du certificat de distribution déjà utilisé par Binjo.
+        # Absent ? Le build crée alors son propre certificat (voir l'étape Signature).
+        - signing
       vars:
         BUNDLE_ID: com.remiabbou.honya
     scripts:
-      - name: Signature (crée le profil App Store au premier passage)
+      - name: Signature (certificat + profil App Store)
         script: |
           keychain initialize
-          # Le bloc « ios_signing » exigerait un profil PRÉEXISTANT et échoue sur un
-          # bundle neuf (« No matching profiles found »). fetch-signing-files --create
-          # crée le profil manquant pour ce bundle, et le certificat de distribution
-          # s'il n'y en a pas encore d'utilisable.
+          # fetch-signing-files a besoin de la CLÉ PRIVÉE du certificat de distribution :
+          # sans elle il ne télécharge aucun profil — sans message d'erreur — et l'archive
+          # échoue plus loin sur « requires a provisioning profile ».
+          if [ -n "${CERTIFICATE_PRIVATE_KEY_B64:-}" ]; then
+            echo "$CERTIFICATE_PRIVATE_KEY_B64" | base64 --decode > /tmp/cert_key
+            echo "Clé privée reprise du groupe « signing » : le certificat existant est réutilisé."
+          else
+            openssl genrsa -out /tmp/cert_key 2048
+            echo "⚠️  CERTIFICATE_PRIVATE_KEY_B64 absente : création d'un nouveau certificat."
+            echo "    Apple en limite le nombre — conserver cette clé pour les builds suivants."
+          fi
+          # --create : crée le profil manquant pour ce bundle, et le certificat au besoin.
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
+            --certificate-key=@file:/tmp/cert_key \
             --create
           keychain add-certificates
           # Génère aussi ~/export_options.json, dont build-ipa a besoin pour l'export.
