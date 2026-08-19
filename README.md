@@ -18,9 +18,18 @@ dans `Honya/` est automatiquement compilé, sans toucher au `.xcodeproj`.
   - **GitHub Actions** (`.github/workflows/build.yml`) : compile à chaque push sur un
     runner macOS. Gratuit, c'est le filet anti-régression.
   - **Codemagic** (`codemagic.yaml`) : workflow `testflight`, archive signée et envoi à
-    TestFlight, déclenché par un tag `v*` (`git tag v0.1 && git push origin v0.1`).
+    TestFlight. Deux façons de le lancer :
+    1. **Manuellement** (le plus sûr) : *Start new build* → branche `main` → workflow
+       « Honya · Archive signée → TestFlight ». Ne dépend d'aucun webhook.
+    2. **Par tag** : `git tag v0.1 && git push origin v0.1` — nécessite que le webhook
+       GitHub de Codemagic soit actif.
+
     Prérequis : intégration *Developer Portal* (clé API App Store Connect) enregistrée
-    sous le nom repris dans `integrations → app_store_connect`.
+    sous le nom repris dans `integrations → app_store_connect` (ici : `Codemagic`).
+
+    ⚠️ Si Codemagic affiche une erreur de validation portant sur une version ancienne du
+    fichier, il sert un cache : cliquer le ⟳ à côté du sélecteur de branche, ou retirer
+    puis ré-ajouter l'application dans Codemagic pour forcer un nouveau clone.
 - Écrit sous Windows sans possibilité de compiler : le premier build peut révéler quelques
   erreurs de compilation mineures — collez-les à Claude pour correction immédiate.
 
