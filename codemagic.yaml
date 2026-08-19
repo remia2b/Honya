@@ -8,6 +8,11 @@
 # Prérequis dans Codemagic : Teams → Integrations → Developer Portal,
 # clé API App Store Connect (.p8 + Issuer ID + Key ID) enregistrée sous le nom
 # indiqué dans « integrations → app_store_connect » ci-dessous.
+#
+# La signature n'utilise pas le bloc « ios_signing » : celui-ci exige un profil de
+# provisioning préexistant et échoue sur un nouveau bundle (« No matching profiles
+# found »). On appelle donc fetch-signing-files avec --create, qui crée le profil
+# App Store (et le certificat de distribution s'il manque) à la première exécution.
 
 workflows:
   testflight:
@@ -25,12 +30,17 @@ workflows:
           include: true
     environment:
       xcode: latest
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.remiabbou.honya
+      vars:
+        BUNDLE_ID: com.remiabbou.honya
     scripts:
-      - name: Installer les profils de signature
-        script: xcode-project use-profiles
+      - name: Préparer la signature (crée le profil au premier passage)
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+          keychain add-certificates
+          xcode-project use-profiles
       - name: Numéro de build incrémental
         script: agvtool new-version -all $PROJECT_BUILD_NUMBER
       - name: Archive et export de l'IPA
