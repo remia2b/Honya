@@ -37,7 +37,20 @@ workflows:
             --type IOS_APP_STORE \
             --create
           keychain add-certificates
-          xcode-project use-profiles
+          # Applique le profil au projet. --project est explicite : le projet est au
+          # format « dossiers synchronisés » (objectVersion 70) et la détection
+          # automatique n'y est pas garantie.
+          xcode-project use-profiles --project Honya.xcodeproj
+      - name: Vérifier que la signature est bien appliquée
+        script: |
+          # Sans ces réglages, l'archive échoue avec « requires a provisioning profile ».
+          # Le log montre ce que use-profiles a réellement écrit dans le projet.
+          echo "--- Profils installés ---"
+          ls -1 ~/Library/MobileDevice/Provisioning\ Profiles/ 2>/dev/null || echo "(aucun)"
+          echo "--- Réglages de signature de la cible ---"
+          xcodebuild -project Honya.xcodeproj -scheme Honya -showBuildSettings 2>/dev/null \
+            | grep -E "DEVELOPMENT_TEAM|CODE_SIGN_STYLE|CODE_SIGN_IDENTITY|PROVISIONING_PROFILE" \
+            | sort -u
       - name: Numéro de build incrémental
         script: agvtool new-version -all $PROJECT_BUILD_NUMBER
       - name: Archive et export de l'IPA
