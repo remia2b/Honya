@@ -51,16 +51,18 @@ workflows:
             echo "Clé privée reprise du groupe « signing » : le certificat existant est réutilisé."
           else
             openssl genrsa -out /tmp/cert_key 2048
-            echo "⚠️  CERTIFICATE_PRIVATE_KEY_B64 absente : création d'un nouveau certificat."
-            echo "    Apple en limite le nombre — conserver cette clé pour les builds suivants."
+            echo "⚠️  CERTIFICATE_PRIVATE_KEY_B64 absente du groupe « signing »."
+            echo "    Le build génère une clé jetable et tentera de créer un certificat —"
+            echo "    ce qu'Apple refuse (409) quand la limite de certificats est atteinte."
+            echo "    Remède : rendre la clé privée de Binjo accessible à cette application."
           fi
           echo "=== Ce que la clé API voit sur le compte Apple ==="
           echo "--- Identifiant d'app $BUNDLE_ID ---"
           app-store-connect bundle-ids list --bundle-id-identifier "$BUNDLE_ID" 2>&1 | head -30 || true
-          echo "--- Certificats de distribution ---"
-          app-store-connect certificates list --type IOS_DISTRIBUTION 2>&1 | head -40 || true
-          echo "--- Profils App Store existants ---"
-          app-store-connect profiles list --profile-type IOS_APP_STORE 2>&1 | head -40 || true
+          echo "--- Certificats de distribution (nom, id, expiration) ---"
+          app-store-connect certificates list --type DISTRIBUTION 2>&1 | head -60 || true
+          echo "--- Profils existants ---"
+          app-store-connect profiles list 2>&1 | head -60 || true
 
           echo "=== Récupération / création des fichiers de signature ==="
           # --create : crée le profil manquant pour ce bundle, et le certificat au besoin.
