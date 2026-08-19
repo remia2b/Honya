@@ -46,16 +46,17 @@ workflows:
           # fetch-signing-files a besoin de la CLÉ PRIVÉE du certificat de distribution :
           # sans elle il ne télécharge aucun profil — sans message d'erreur — et l'archive
           # échoue plus loin sur « requires a provisioning profile ».
-          if [ -n "${CERTIFICATE_PRIVATE_KEY_B64:-}" ]; then
-            echo "$CERTIFICATE_PRIVATE_KEY_B64" | base64 --decode > /tmp/cert_key
-            echo "Clé privée reprise du groupe « signing » : le certificat existant est réutilisé."
-          else
-            openssl genrsa -out /tmp/cert_key 2048
-            echo "⚠️  CERTIFICATE_PRIVATE_KEY_B64 absente du groupe « signing »."
-            echo "    Le build génère une clé jetable et tentera de créer un certificat —"
-            echo "    ce qu'Apple refuse (409) quand la limite de certificats est atteinte."
-            echo "    Remède : rendre la clé privée de Binjo accessible à cette application."
+          if [ -z "${CERTIFICATE_PRIVATE_KEY_B64:-}" ]; then
+            echo "❌ CERTIFICATE_PRIVATE_KEY_B64 absente du groupe « signing »."
+            echo "   Sans la clé privée d'un certificat existant, la signature est impossible :"
+            echo "   le compte a déjà 3 certificats de distribution et Apple refuse d'en créer"
+            echo "   un de plus (HTTP 409). À définir dans Codemagic → Honya → Environment"
+            echo "   variables, groupe « signing », valeur = clé PEM encodée en base64."
+            exit 1
           fi
+          echo "$CERTIFICATE_PRIVATE_KEY_B64" | base64 --decode > /tmp/cert_key
+          openssl rsa -in /tmp/cert_key -noout -check
+          echo "Clé privée chargée depuis le groupe « signing »."
           echo "=== Ce que la clé API voit sur le compte Apple ==="
           echo "--- Identifiant d'app $BUNDLE_ID ---"
           app-store-connect bundle-ids list --bundle-id-identifier "$BUNDLE_ID" 2>&1 | head -30 || true
