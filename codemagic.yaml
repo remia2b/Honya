@@ -15,17 +15,13 @@ workflows:
     # Cette clé porte l'Issuer ID + Key ID + .p8 et gère la signature.
     integrations:
       app_store_connect: Binjo ASC key
-    # Pendant la mise au point du pipeline : chaque push sur main relance le build,
-    # pour ne pas avoir à le lancer à la main à chaque correction. Une fois la
-    # chaîne verte, retirer « push » et ne garder que les tags — un build Codemagic
-    # est facturé, alors que la compilation de contrôle est gratuite sur GitHub.
+    # Publier est un geste délibéré : seul un tag « v* » déclenche ce workflow.
+    # Les commits ordinaires sont vérifiés gratuitement par GitHub Actions.
+    #   git tag v0.2 && git push origin v0.2
+    # Un build reste lançable à la main depuis l'interface Codemagic.
     triggering:
       events:
-        - push
         - tag
-      branch_patterns:
-        - pattern: main
-          include: true
       tag_patterns:
         - pattern: 'v*'
           include: true
