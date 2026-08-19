@@ -94,3 +94,14 @@ Honya/
 ## Crédits données
 
 Google Books · Open Library · AniList. Les couvertures restent la propriété de leurs éditeurs.
+
+## Webhook Codemagic
+
+Le déclenchement automatique des builds Codemagic repose sur un webhook GitHub
+pointant vers `https://api.codemagic.io/hooks/<app-id-codemagic>` (events :
+`push`, `create`, `pull_request`). Si les builds ne partent plus tout seuls,
+vérifier sa présence :
+
+```bash
+gh api repos/remia2b/Honya/hooks --jq '.[].config.url'
+```
