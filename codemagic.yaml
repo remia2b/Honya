@@ -50,13 +50,39 @@ workflows:
           # format « dossiers synchronisés » (objectVersion 70) et la détection
           # automatique n'y est pas garantie.
           xcode-project use-profiles --project Honya.xcodeproj
-      - name: Vérifier que la signature est bien appliquée
+      - name: Inscrire le profil dans le projet Xcode
         script: |
-          # Sans ces réglages, l'archive échoue avec « requires a provisioning profile ».
-          # Le log montre ce que use-profiles a réellement écrit dans le projet.
-          echo "--- Profils installés ---"
-          ls -1 ~/Library/MobileDevice/Provisioning\ Profiles/ 2>/dev/null || echo "(aucun)"
-          echo "--- Réglages de signature de la cible ---"
+          # « xcode-project use-profiles » n'écrit rien dans ce projet : il est généré
+          # à la main au format « dossiers synchronisés » (objectVersion 70). Sans
+          # PROVISIONING_PROFILE_SPECIFIER, l'archive s'arrête sur « requires a
+          # provisioning profile ». On applique donc les réglages nous-mêmes, à partir
+          # du profil réellement installé à l'étape précédente.
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          PROFILE=""
+          for candidate in "$PROFILE_DIR"/*.mobileprovision; do
+            APP_ID=$(security cms -D -i "$candidate" 2>/dev/null \
+              | plutil -extract Entitlements.application-identifier raw - 2>/dev/null || true)
+            case "$APP_ID" in
+              *"$BUNDLE_ID") PROFILE="$candidate"; break ;;
+            esac
+          done
+
+          if [ -z "$PROFILE" ]; then
+            echo "❌ Aucun profil installé pour $BUNDLE_ID."
+            ls -1 "$PROFILE_DIR" 2>/dev/null || echo "(dossier vide)"
+            exit 1
+          fi
+
+          PROFILE_PLIST=$(security cms -D -i "$PROFILE")
+          UUID=$(printf '%s' "$PROFILE_PLIST" | plutil -extract UUID raw -)
+          NAME=$(printf '%s' "$PROFILE_PLIST" | plutil -extract Name raw -)
+          echo "Profil retenu : $NAME ($UUID)"
+
+          # Le format pbxproj accepte plusieurs réglages sur une même ligne.
+          PBX=Honya.xcodeproj/project.pbxproj
+          sed -i '' "s|CODE_SIGN_STYLE = Automatic;|CODE_SIGN_STYLE = Manual; CODE_SIGN_IDENTITY = \"Apple Distribution\"; PROVISIONING_PROFILE_SPECIFIER = \"$UUID\";|g" "$PBX"
+
+          echo "--- Réglages de signature retenus par Xcode ---"
           xcodebuild -project Honya.xcodeproj -scheme Honya -showBuildSettings 2>/dev/null \
             | grep -E "DEVELOPMENT_TEAM|CODE_SIGN_STYLE|CODE_SIGN_IDENTITY|PROVISIONING_PROFILE" \
             | sort -u
