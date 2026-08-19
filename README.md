@@ -14,10 +14,13 @@ dans `Honya/` est automatiquement compilé, sans toucher au `.xcodeproj`.
 
 - **Sur Mac** : ouvrir `Honya.xcodeproj` (Xcode 26+, cible iOS 26). Sélectionner votre équipe
   de signature dans *Signing & Capabilities*, puis ⌘R.
-- **Sans Mac (Codemagic)** : `codemagic.yaml` est fourni.
-  - Workflow `verifier-compilation` : build simulateur sans signature — à lancer à chaque push.
-  - Workflow `testflight` : archive signée → TestFlight (configurer l'intégration
-    App Store Connect dans Codemagic + le bundle `com.remiabbou.honya`).
+- **Sans Mac** — deux CI complémentaires :
+  - **GitHub Actions** (`.github/workflows/build.yml`) : compile à chaque push sur un
+    runner macOS. Gratuit, c'est le filet anti-régression.
+  - **Codemagic** (`codemagic.yaml`) : workflow `testflight`, archive signée et envoi à
+    TestFlight, déclenché par un tag `v*` (`git tag v0.1 && git push origin v0.1`).
+    Prérequis : intégration *Developer Portal* (clé API App Store Connect) enregistrée
+    sous le nom repris dans `integrations → app_store_connect`.
 - Écrit sous Windows sans possibilité de compiler : le premier build peut révéler quelques
   erreurs de compilation mineures — collez-les à Claude pour correction immédiate.
 
