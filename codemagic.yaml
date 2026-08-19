@@ -14,6 +14,9 @@ workflows:
     name: Honya · Archive signée → TestFlight
     max_build_duration: 45
     instance_type: mac_mini_m2
+    # « integrations » se déclare au niveau du workflow, jamais sous « environment ».
+    integrations:
+      app_store_connect: Codemagic
     triggering:
       events:
         - tag
@@ -25,10 +28,6 @@ workflows:
       ios_signing:
         distribution_type: app_store
         bundle_identifier: com.remiabbou.honya
-      integrations:
-        app_store_connect: Codemagic
-      vars:
-        BUNDLE_ID: com.remiabbou.honya
     scripts:
       - name: Installer les profils de signature
         script: xcode-project use-profiles
