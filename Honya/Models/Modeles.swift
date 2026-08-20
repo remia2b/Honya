@@ -100,7 +100,7 @@ final class Oeuvre {
     /// Collections personnelles auxquelles ce livre appartient.
     var collections: [Collection] = []
 
-    init(titreOriginal: String = """, auteurs: [String] = [], type: TypeOeuvre = .livre) {
+    init(titreOriginal: String = "", auteurs: [String] = [], type: TypeOeuvre = .livre) {
         self.titreOriginal = titreOriginal
         self.auteurs = auteurs
         self.typeRaw = type.rawValue
@@ -213,7 +213,7 @@ final class Serie {
     /// Collections personnelles auxquelles cette série appartient.
     var collections: [Collection] = []
 
-    init(nom: String = """, type: TypeOeuvre = .manga) {
+    init(nom: String = "", type: TypeOeuvre = .manga) {
         self.nom = nom
         self.typeRaw = type.rawValue
     }
