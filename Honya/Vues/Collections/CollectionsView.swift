@@ -18,6 +18,60 @@ struct CollectionsView: View {
     var body: some View {
         List {
             Section {
+                ForEach(StatutLecture.allCases) { statut in
+                    let livres = exemplaires.filter { $0.statut == statut }
+                    NavigationLink {
+                        GrilleOeuvres(
+                            oeuvres: livres.compactMap(\.oeuvre),
+                            series: [],
+                            langue: langue,
+                            messageVide: "Aucun livre avec ce statut."
+                        )
+                        .navigationTitle(statut.libelle)
+                        .navigationBarTitleDisplayMode(.inline)
+                    } label: {
+                        Label {
+                            HStack {
+                                Text(statut.libelle)
+                                Spacer()
+                                Text("\(livres.count)")
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+                        } icon: {
+                            Image(systemName: statut.symbole)
+                                .foregroundStyle(statut.couleur)
+                        }
+                    }
+                }
+                NavigationLink {
+                    GrilleOeuvres(
+                        oeuvres: [],
+                        series: series,
+                        langue: langue,
+                        messageVide: "Aucune série suivie."
+                    )
+                    .navigationTitle("Séries")
+                    .navigationBarTitleDisplayMode(.inline)
+                } label: {
+                    Label {
+                        HStack {
+                            Text("Séries")
+                            Spacer()
+                            Text("\(series.count)")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    } icon: {
+                        Image(systemName: "square.stack.fill")
+                            .foregroundStyle(Couleurs.accent)
+                    }
+                }
+            } header: {
+                Text("Par statut")
+            }
+
+            Section {
                 if collections.isEmpty {
                     Text("Créez une étagère pour regrouper ce qui va ensemble : une saga, une pile de vacances, les livres à offrir…")
                         .font(.caption)

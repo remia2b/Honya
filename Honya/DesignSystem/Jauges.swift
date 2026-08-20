@@ -35,6 +35,8 @@ struct ArcObjectifView: View {
         return min(1, Double(minutes) / Double(objectif))
     }
 
+    private var atteint: Bool { objectif > 0 && minutes >= objectif }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             ArcForme(fraction: 1)
@@ -43,16 +45,29 @@ struct ArcObjectifView: View {
                 .stroke(Couleurs.accent, style: StrokeStyle(lineWidth: 11, lineCap: .round))
                 .animation(.spring(duration: 0.8), value: fraction)
 
-            VStack(spacing: 2) {
-                Text("\(minutes)")
-                    .font(.chiffreSerif(36))
-                    .monospacedDigit()
-                    .contentTransition(.numericText())
-                Text("sur \(objectif) min · aujourd'hui")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
+            VStack(spacing: 3) {
+                if atteint {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 46, height: 46)
+                        .background(Couleurs.accent, in: Circle())
+                        .transition(.scale.combined(with: .opacity))
+                    Text("\(minutes) minutes")
+                        .font(.subheadline.weight(.semibold))
+                        .monospacedDigit()
+                } else {
+                    Text("\(minutes)")
+                        .font(.chiffreSerif(36))
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                    Text("sur \(objectif) min · aujourd'hui")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
             }
             .padding(.bottom, 2)
+            .animation(.spring(duration: 0.5), value: atteint)
         }
         .aspectRatio(2.1, contentMode: .fit)
         .accessibilityLabel("Objectif du jour : \(minutes) minutes sur \(objectif)")

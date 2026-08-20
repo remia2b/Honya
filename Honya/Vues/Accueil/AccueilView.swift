@@ -143,12 +143,31 @@ struct AccueilView: View {
     // MARK: - Carte objectif (arc + pilule + semaine)
 
     private var carteObjectif: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
+            VStack(spacing: 3) {
+                Text("Objectif de lecture")
+                    .font(.titreOeuvre(19))
+                Text("Lisez chaque jour : la série grandit, les statistiques suivent.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.bottom, 2)
+
             ArcObjectifView(
                 minutes: StatsEngine.minutesAujourdhui(sessions),
                 objectif: objectifMinutes
             )
             .frame(maxWidth: 240)
+
+            Button { reglagesVisibles = true } label: {
+                HStack(spacing: 2) {
+                    Text("Ajuster l'objectif")
+                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold))
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Couleurs.accent)
+            }
 
             if let courant = enCeMoment, let oeuvre = courant.oeuvre {
                 PiluleCTA(
@@ -181,18 +200,22 @@ struct AccueilView: View {
     private var legendeSerie: some View {
         let serie = StatsEngine.serieDeJours(sessions)
         let record = StatsEngine.serieMax(sessions)
-        return HStack(spacing: 4) {
-            Text("Série de lecture ·")
-            Text("\(serie) \(serie > 1 ? "jours" : "jour")")
-                .fontWeight(.bold)
-                .monospacedDigit()
-            if serie >= record && serie >= 7 {
-                Text("✦ record")
+        return VStack(spacing: 2) {
+            HStack(spacing: 4) {
+                Text("Votre série de lecture est de")
+                Text("\(serie) \(serie > 1 ? "jours" : "jour")")
+                    .fontWeight(.bold)
+                    .monospacedDigit()
+            }
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.secondary)
+
+            if serie >= 2 && serie >= record {
+                Text("Nouveau record")
+                    .font(.caption.weight(.bold))
                     .foregroundStyle(Couleurs.accent)
             }
         }
-        .font(.caption.weight(.medium))
-        .foregroundStyle(.secondary)
     }
 
     // MARK: - À suivre
