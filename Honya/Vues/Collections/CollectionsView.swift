@@ -1,0 +1,207 @@
+import SwiftUI
+import SwiftData
+
+/// Les étagères que l'on compose soi-même, à la manière des collections
+/// d'Apple Books — plus celles que Honya devine à votre place.
+struct CollectionsView: View {
+    @Environment(\.modelContext) private var contexte
+    @Query(sort: \Collection.dateCreation, order: .reverse) private var collections: [Collection]
+    @Query private var exemplaires: [Exemplaire]
+    @Query private var series: [Serie]
+    @Query private var objectifs: [Objectif]
+
+    @State private var creationVisible = false
+    @State private var nouveauNom = ""
+
+    private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
+
+    var body: some View {
+        List {
+            Section {
+                if collections.isEmpty {
+                    Text("Créez une étagère pour regrouper ce qui va ensemble : une saga, une pile de vacances, les livres à offrir…")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(collections) { collection in
+                    NavigationLink {
+                        DetailCollectionView(collection: collection, langue: langue)
+                    } label: {
+                        Label {
+                            HStack {
+                                Text(collection.nom)
+                                Spacer()
+                                Text("\(collection.nombre)")
+                                    .foregroundStyle(.secondary)
+                                    .monospacedDigit()
+                            }
+                        } icon: {
+                            Image(systemName: collection.symbole)
+                                .foregroundStyle(Couleurs.accent)
+                        }
+                    }
+                }
+                .onDelete { index in
+                    index.map { collections[$0] }.forEach(contexte.delete)
+                }
+            } header: {
+                Text("Mes étagères")
+            }
+
+            Section {
+                ForEach(CollectionAuto.allCases) { auto in
+                    let livres = auto.exemplaires(exemplaires)
+                    let sfx = auto.series(series)
+                    if !livres.isEmpty || !sfx.isEmpty {
+                        NavigationLink {
+                            DetailCollectionAutoView(auto: auto, langue: langue)
+                        } label: {
+                            Label {
+                                HStack {
+                                    Text(auto.nom)
+                                    Spacer()
+                                    Text("\(livres.count + sfx.count)")
+                                        .foregroundStyle(.secondary)
+                                        .monospacedDigit()
+                                }
+                            } icon: {
+                                Image(systemName: auto.symbole)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            } header: {
+                Text("Automatiques")
+            } footer: {
+                Text("Ces étagères se remplissent toutes seules d'après vos statuts, vos notes et vos dates d'achat.")
+            }
+        }
+        .navigationTitle("Collections")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button { creationVisible = true } label: { Image(systemName: "plus") }
+                    .accessibilityLabel("Nouvelle collection")
+            }
+        }
+        .alert("Nouvelle étagère", isPresented: $creationVisible) {
+            TextField("Son nom", text: $nouveauNom)
+            Button("Créer") {
+                let propre = nouveauNom.trimmingCharacters(in: .whitespaces)
+                guard !propre.isEmpty else { return }
+                contexte.insert(Collection(nom: propre))
+                nouveauNom = ""
+            }
+            Button("Annuler", role: .cancel) { nouveauNom = "" }
+        }
+    }
+}
+
+// MARK: - Contenu d'une étagère personnelle
+
+struct DetailCollectionView: View {
+    @Bindable var collection: Collection
+    let langue: String
+
+    var body: some View {
+        GrilleOeuvres(
+            oeuvres: collection.oeuvres,
+            series: collection.series,
+            langue: langue,
+            messageVide: "Ajoutez-y des livres depuis leur fiche, ou d'un appui long dans la bibliothèque."
+        )
+        .navigationTitle(collection.nom)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Contenu d'une étagère automatique
+
+struct DetailCollectionAutoView: View {
+    let auto: CollectionAuto
+    let langue: String
+
+    @Query private var exemplaires: [Exemplaire]
+    @Query private var series: [Serie]
+
+    var body: some View {
+        GrilleOeuvres(
+            oeuvres: auto.exemplaires(exemplaires).compactMap(\.oeuvre),
+            series: auto.series(series),
+            langue: langue,
+            messageVide: "Rien ici pour l'instant."
+        )
+        .navigationTitle(auto.nom)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+// MARK: - Grille réutilisable
+
+struct GrilleOeuvres: View {
+    let oeuvres: [Oeuvre]
+    let series: [Serie]
+    let langue: String
+    var messageVide: String
+
+    var body: some View {
+        ScrollView {
+            if oeuvres.isEmpty && series.isEmpty {
+                ContentUnavailableView(
+                    "Étagère vide",
+                    systemImage: "books.vertical",
+                    description: Text(messageVide)
+                )
+                .padding(.top, 60)
+            } else {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 100, maximum: 150), spacing: 14)],
+                    spacing: 20
+                ) {
+                    ForEach(oeuvres) { oeuvre in
+                        NavigationLink {
+                            FicheOeuvreView(oeuvre: oeuvre)
+                        } label: {
+                            CouvertureView(
+                                urlString: oeuvre.couvertureCanoniqueURL,
+                                titre: oeuvre.titre(langue),
+                                auteur: oeuvre.auteurPrincipal
+                            )
+                            .overlay(alignment: .bottomLeading) {
+                                if let statut = oeuvre.exemplaire?.statut {
+                                    BadgeStatutView(statut: statut).padding(6)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    ForEach(series) { serie in
+                        NavigationLink {
+                            FicheSerieView(serie: serie)
+                        } label: {
+                            CouvertureView(
+                                urlString: serie.couvertureURL,
+                                titre: serie.nomAffiche(langue),
+                                auteur: serie.auteur
+                            )
+                            .overlay(alignment: .topTrailing) {
+                                Text("\(serie.nbPossedes)/\(serie.tomes.count)")
+                                    .font(.system(size: 9, weight: .heavy))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3)
+                                    .background(.black.opacity(0.72), in: Capsule())
+                                    .padding(6)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(20)
+            }
+        }
+        .background(Color(uiColor: .systemGroupedBackground))
+    }
+}

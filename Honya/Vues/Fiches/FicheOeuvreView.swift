@@ -29,6 +29,7 @@ private struct ContenuFicheOeuvre: View {
     @Environment(\.modelContext) private var contexte
     @Environment(\.dismiss) private var dismiss
     @Query private var objectifs: [Objectif]
+    @Query(sort: \Collection.dateCreation, order: .reverse) private var collections: [Collection]
 
     @State private var teinte = Color(red: 0.30, green: 0.21, blue: 0.14)
     @State private var cibleSession: CibleSession?
@@ -57,9 +58,21 @@ private struct ContenuFicheOeuvre: View {
                     Text(oeuvre.titre(langue))
                         .font(.titreOeuvre(26))
                         .multilineTextAlignment(.center)
-                    Text(oeuvre.auteurs.joined(separator: " · "))
-                        .font(.subheadline)
-                        .opacity(0.8)
+                    if let auteur = oeuvre.auteurs.first, !auteur.isEmpty {
+                        NavigationLink {
+                            FicheAuteurView(auteur: auteur, langue: langue)
+                        } label: {
+                            HStack(spacing: 3) {
+                                Text(oeuvre.auteurs.joined(separator: " · "))
+                                Image(systemName: "chevron.right")
+                                    .font(.caption2.weight(.bold))
+                                    .opacity(0.7)
+                            }
+                            .font(.subheadline)
+                            .opacity(0.85)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
 
                 EtoilesNotation(note: $exemplaire.note)
@@ -384,6 +397,19 @@ private struct ContenuFicheOeuvre: View {
                 }
                 Button { pretVisible = true } label: {
                     Label("Prêter…", systemImage: "person.badge.plus")
+                }
+                if !collections.isEmpty {
+                    Menu("Ajouter à une collection") {
+                        ForEach(collections) { collection in
+                            Button {
+                                if !collection.oeuvres.contains(where: { $0.persistentModelID == oeuvre.persistentModelID }) {
+                                    collection.oeuvres.append(oeuvre)
+                                }
+                            } label: {
+                                Label(collection.nom, systemImage: collection.symbole)
+                            }
+                        }
+                    }
                 }
                 Divider()
                 Button(role: .destructive) { confirmerSuppression = true } label: {

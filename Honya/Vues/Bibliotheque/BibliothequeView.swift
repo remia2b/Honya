@@ -57,6 +57,14 @@ struct BibliothequeView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     EnteteEcran(titre: "Bibliothèque") {
                         HStack(spacing: 10) {
+                            NavigationLink {
+                                CollectionsView()
+                            } label: {
+                                Image(systemName: "square.stack.fill")
+                                    .font(.title3)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .accessibilityLabel("Collections")
                             Menu {
                                 Picker("Trier par", selection: $tri) {
                                     ForEach(TriBibli.allCases) { Text($0.rawValue).tag($0) }
@@ -263,6 +271,7 @@ private struct CelluleLivre: View {
     let langue: String
 
     @Environment(\.modelContext) private var contexte
+    @Query(sort: \Collection.dateCreation, order: .reverse) private var collections: [Collection]
     @State private var confirmerSuppression = false
 
     var body: some View {
@@ -311,6 +320,19 @@ private struct CelluleLivre: View {
                 exemplaire.aSuivre ? "Retirer d'À suivre" : "Ajouter à À suivre",
                 systemImage: exemplaire.aSuivre ? "text.badge.minus" : "text.badge.plus"
             )
+        }
+        if !collections.isEmpty {
+            Menu("Ajouter à une collection") {
+                ForEach(collections) { collection in
+                    Button {
+                        if !collection.oeuvres.contains(where: { $0.persistentModelID == oeuvre.persistentModelID }) {
+                            collection.oeuvres.append(oeuvre)
+                        }
+                    } label: {
+                        Label(collection.nom, systemImage: collection.symbole)
+                    }
+                }
+            }
         }
         Divider()
         Button(role: .destructive) {

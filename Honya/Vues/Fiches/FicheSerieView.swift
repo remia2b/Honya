@@ -98,10 +98,18 @@ struct FicheSerieView: View {
                 Text(serie.nomAffiche(langue))
                     .font(.titreOeuvre(21))
                     .lineLimit(2)
-                if let auteur = serie.auteur {
-                    Text(auteur)
+                if let auteur = serie.auteur, !auteur.isEmpty {
+                    NavigationLink {
+                        FicheAuteurView(auteur: auteur, langue: langue)
+                    } label: {
+                        HStack(spacing: 3) {
+                            Text(auteur)
+                            Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold))
+                        }
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Couleurs.accent)
+                    }
+                    .buttonStyle(.plain)
                 }
                 Text("\(serie.tomesTotal ?? serie.tomes.count) tomes · \(serie.statutParution.libelle)")
                     .font(.caption2.weight(.semibold))

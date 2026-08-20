@@ -12,7 +12,7 @@ struct HonyaApp: App {
             Oeuvre.self, Exemplaire.self,
             Serie.self, Tome.self,
             SessionLecture.self, Citation.self,
-            Objectif.self, BadgeGagne.self,
+            Objectif.self, BadgeGagne.self, Collection.self,
         ])
         // Stockage local. Pour activer la sync iCloud plus tard :
         // ModelConfiguration(schema: schema, cloudKitDatabase: .automatic) + capability iCloud/CloudKit.
@@ -47,7 +47,7 @@ enum Apercu {
     static let conteneur: ModelContainer = {
         let schema = Schema([
             Oeuvre.self, Exemplaire.self, Serie.self, Tome.self,
-            SessionLecture.self, Citation.self, Objectif.self, BadgeGagne.self,
+            SessionLecture.self, Citation.self, Objectif.self, BadgeGagne.self, Collection.self,
         ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
         let conteneur = try! ModelContainer(for: schema, configurations: [config])

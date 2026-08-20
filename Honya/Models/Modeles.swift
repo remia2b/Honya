@@ -97,7 +97,10 @@ final class Oeuvre {
     @Relationship(deleteRule: .cascade, inverse: \SessionLecture.oeuvre)
     var sessions: [SessionLecture] = []
 
-    init(titreOriginal: String = "", auteurs: [String] = [], type: TypeOeuvre = .livre) {
+    /// Collections personnelles auxquelles ce livre appartient.
+    var collections: [Collection] = []
+
+    init(titreOriginal: String = """, auteurs: [String] = [], type: TypeOeuvre = .livre) {
         self.titreOriginal = titreOriginal
         self.auteurs = auteurs
         self.typeRaw = type.rawValue
@@ -207,7 +210,10 @@ final class Serie {
     @Relationship(deleteRule: .cascade, inverse: \SessionLecture.serie)
     var sessions: [SessionLecture] = []
 
-    init(nom: String = "", type: TypeOeuvre = .manga) {
+    /// Collections personnelles auxquelles cette série appartient.
+    var collections: [Collection] = []
+
+    init(nom: String = """, type: TypeOeuvre = .manga) {
         self.nom = nom
         self.typeRaw = type.rawValue
     }
@@ -325,6 +331,87 @@ final class Objectif {
         let nouveau = Objectif()
         contexte.insert(nouveau)
         return nouveau
+    }
+}
+
+// MARK: - Collection personnelle
+//
+// L'équivalent des collections d'Apple Books : des étagères que l'on compose
+// soi-même, en plus des statuts de lecture.
+
+@Model
+final class Collection {
+    var nom: String = ""
+    var symbole: String = "square.stack"
+    var dateCreation: Date = Date()
+
+    @Relationship(inverse: \Oeuvre.collections)
+    var oeuvres: [Oeuvre] = []
+
+    @Relationship(inverse: \Serie.collections)
+    var series: [Serie] = []
+
+    init(nom: String, symbole: String = "square.stack") {
+        self.nom = nom
+        self.symbole = symbole
+    }
+
+    var nombre: Int { oeuvres.count + series.count }
+}
+
+/// Étagères calculées automatiquement : elles n'existent pas en base, elles
+/// répondent à une question qu'on se pose souvent devant sa bibliothèque.
+enum CollectionAuto: String, CaseIterable, Identifiable {
+    case seriesIncompletes, coupsDeCoeur, achetesCetteAnnee, jamaisOuverts, pretes
+
+    var id: String { rawValue }
+
+    var nom: String {
+        switch self {
+        case .seriesIncompletes: return "Séries incomplètes"
+        case .coupsDeCoeur: return "Coups de cœur"
+        case .achetesCetteAnnee: return "Achetés cette année"
+        case .jamaisOuverts: return "Jamais ouverts"
+        case .pretes: return "Prêtés"
+        }
+    }
+
+    var symbole: String {
+        switch self {
+        case .seriesIncompletes: return "square.stack.3d.up.slash"
+        case .coupsDeCoeur: return "heart.fill"
+        case .achetesCetteAnnee: return "calendar"
+        case .jamaisOuverts: return "books.vertical"
+        case .pretes: return "person.badge.clock"
+        }
+    }
+
+    func exemplaires(_ tous: [Exemplaire]) -> [Exemplaire] {
+        let annee = Calendar.current.component(.year, from: .now)
+        switch self {
+        case .coupsDeCoeur:
+            return tous.filter { ($0.note ?? 0) >= 8 }
+        case .achetesCetteAnnee:
+            return tous.filter {
+                guard let achat = $0.dateAchat else { return false }
+                return Calendar.current.component(.year, from: achat) == annee
+            }
+        case .jamaisOuverts:
+            return tous.filter { $0.possede && $0.statut == .aLire }
+        case .pretes:
+            return tous.filter { $0.preteA != nil }
+        case .seriesIncompletes:
+            return []
+        }
+    }
+
+    func series(_ toutes: [Serie]) -> [Serie] {
+        switch self {
+        case .seriesIncompletes:
+            return toutes.filter { !$0.tomes.isEmpty && $0.nbPossedes < $0.tomes.count }
+        default:
+            return []
+        }
     }
 }
 
