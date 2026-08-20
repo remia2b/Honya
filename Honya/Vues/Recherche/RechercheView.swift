@@ -167,15 +167,20 @@ struct RechercheView: View {
                     }
                 }
                 ForEach(resultats) { resultat in
-                    RangeeResultat(
-                        resultat: resultat,
-                        langue: langue,
-                        dejaAjoute: ajoutes.contains(resultat.id)
-                            || ImportService.existeDeja(resultat, dans: contexte)
-                    ) { statut in
-                        ImportService.ajouter(resultat, statut: statut, dans: contexte)
-                        ajoutes.insert(resultat.id)
+                    NavigationLink {
+                        ApercuResultatView(resultat: resultat, langue: langue)
+                    } label: {
+                        RangeeResultat(
+                            resultat: resultat,
+                            langue: langue,
+                            dejaAjoute: ajoutes.contains(resultat.id)
+                                || ImportService.existeDeja(resultat, dans: contexte)
+                        ) { statut in
+                            ImportService.ajouter(resultat, statut: statut, dans: contexte)
+                            ajoutes.insert(resultat.id)
+                        }
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }

@@ -1,0 +1,220 @@
+import SwiftUI
+import SwiftData
+
+/// La fiche d'un titre qu'on n'a pas encore : on la consulte avant de décider,
+/// exactement comme la page produit d'Apple Books quand on vient de la recherche.
+struct ApercuResultatView: View {
+    let resultat: ResultatRecherche
+    let langue: String
+
+    @Environment(\.modelContext) private var contexte
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var teinte = Color(red: 0.28, green: 0.20, blue: 0.14)
+    @State private var ajoute = false
+    @State private var resumeDeplie = false
+
+    private var dejaPresent: Bool {
+        ajoute || ImportService.existeDeja(resultat, dans: contexte)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                CouvertureView(
+                    urlString: resultat.couvertureURL,
+                    titre: resultat.titreAffiche(langue),
+                    auteur: resultat.auteurs.first,
+                    coins: 8
+                )
+                .frame(width: 148)
+                .shadow(color: .black.opacity(0.35), radius: 18, x: 0, y: 10)
+                .padding(.top, 12)
+
+                VStack(spacing: 5) {
+                    Text(resultat.titreAffiche(langue))
+                        .font(.titreOeuvre(25))
+                        .multilineTextAlignment(.center)
+                    if !resultat.auteurs.isEmpty {
+                        Text(resultat.auteurs.joined(separator: " · "))
+                            .font(.subheadline)
+                            .opacity(0.85)
+                    }
+                    // Le titre d'origine reste consultable, en second plan.
+                    if let original = resultat.titreOriginal,
+                       original != resultat.titreAffiche(langue) {
+                        Text(original)
+                            .font(.caption)
+                            .opacity(0.55)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+
+                chips
+
+                actions
+
+                if let resume = resultat.resume, !resume.isEmpty {
+                    carte {
+                        EtiquetteCarte("Résumé")
+                        Text(resume)
+                            .font(.callout)
+                            .lineLimit(resumeDeplie ? nil : 8)
+                        Button(resumeDeplie ? "Réduire" : "Lire la suite") {
+                            withAnimation(.snappy) { resumeDeplie.toggle() }
+                        }
+                        .font(.caption.weight(.bold))
+                        .tint(.white)
+                    }
+                }
+
+                carte {
+                    EtiquetteCarte("Informations")
+                    if resultat.estSerie {
+                        ligne("Type", "Série")
+                        if let tomes = resultat.tomesTotal { ligne("Tomes parus", "\(tomes)") }
+                        if let chapitres = resultat.chapitresTotal { ligne("Chapitres", "\(chapitres)") }
+                        ligne("Parution", resultat.statutParution.libelle)
+                    } else {
+                        if let pages = resultat.pages { ligne("Pages", "\(pages)") }
+                        if let isbn = resultat.isbn { ligne("ISBN", isbn) }
+                        if let langueEdition = resultat.langue {
+                            ligne("Langue", Langues.nom(langueEdition))
+                        }
+                    }
+                    if let annee = resultat.annee { ligne("Publication", String(annee)) }
+                    if !resultat.genres.isEmpty {
+                        ligne("Genres", resultat.genres.prefix(3).joined(separator: ", "))
+                    }
+                    ligne("Source", resultat.source)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 36)
+            .foregroundStyle(.white)
+        }
+        .background(fond.ignoresSafeArea())
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .task(id: resultat.couvertureURL) {
+            guard let image = await ImageCharge.partage.uiImage(depuis: resultat.couvertureURL),
+                  let couleur = CouleurCouverture.teinteDeFond(image)
+            else { return }
+            withAnimation(.easeOut(duration: 0.5)) { teinte = couleur }
+        }
+    }
+
+    private var fond: some View {
+        LinearGradient(colors: [teinte, teinte.opacity(0.85)], startPoint: .top, endPoint: .bottom)
+            .background(teinte)
+    }
+
+    // MARK: - Chips
+
+    private var chips: some View {
+        HStack(spacing: 6) {
+            if resultat.estSerie {
+                chip("Série")
+                if let tomes = resultat.tomesTotal { chip("\(tomes) tomes") }
+            } else if let pages = resultat.pages {
+                chip("\(pages) pages")
+            }
+            if let annee = resultat.annee { chip(String(annee)) }
+            if let genre = resultat.genres.first { chip(genre) }
+        }
+        .font(.caption2.weight(.bold))
+    }
+
+    private func chip(_ texte: String) -> some View {
+        Text(texte)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(.white.opacity(0.16), in: Capsule())
+    }
+
+    // MARK: - Ajouter
+
+    @ViewBuilder
+    private var actions: some View {
+        if dejaPresent {
+            Label("Déjà dans votre bibliothèque", systemImage: "checkmark.circle.fill")
+                .font(.subheadline.weight(.bold))
+                .padding(.horizontal, 20)
+                .padding(.vertical, 11)
+                .background(.white.opacity(0.18), in: Capsule())
+        } else if resultat.estSerie {
+            Button {
+                ajouter(.aLire)
+            } label: {
+                Text("Ajouter cette série")
+                    .font(.subheadline.weight(.heavy))
+                    .frame(maxWidth: 300)
+                    .padding(.vertical, 12)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(teinte)
+            .background(.white, in: Capsule())
+        } else {
+            VStack(spacing: 8) {
+                Button {
+                    ajouter(.aLire)
+                } label: {
+                    Text("Ajouter à ma bibliothèque")
+                        .font(.subheadline.weight(.heavy))
+                        .frame(maxWidth: 300)
+                        .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(teinte)
+                .background(.white, in: Capsule())
+
+                HStack(spacing: 8) {
+                    boutonSecondaire("Je le lis", .enCours)
+                    boutonSecondaire("Déjà lu", .lu)
+                    boutonSecondaire("Wishlist", .wishlist)
+                }
+            }
+        }
+    }
+
+    private func boutonSecondaire(_ texte: String, _ statut: StatutLecture) -> some View {
+        Button {
+            ajouter(statut)
+        } label: {
+            Text(texte)
+                .font(.caption.weight(.bold))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.white.opacity(0.16), in: Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func ajouter(_ statut: StatutLecture) {
+        ImportService.ajouter(resultat, statut: statut, dans: contexte)
+        withAnimation(.snappy) { ajoute = true }
+    }
+
+    // MARK: - Aides
+
+    private func ligne(_ libelle: String, _ valeur: String) -> some View {
+        HStack(alignment: .top) {
+            Text(libelle).opacity(0.7)
+            Spacer()
+            Text(valeur)
+                .fontWeight(.semibold)
+                .multilineTextAlignment(.trailing)
+        }
+        .font(.caption)
+        .padding(.vertical, 1)
+    }
+
+    private func carte(@ViewBuilder _ contenu: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            contenu()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(.white.opacity(0.13), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
