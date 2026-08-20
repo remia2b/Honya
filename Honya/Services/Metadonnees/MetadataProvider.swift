@@ -84,6 +84,17 @@ enum ISBNUtil {
 // MARK: - Petites aides partagées
 
 enum TexteUtil {
+    /// Comparaison souple : insensible à la casse et aux accents.
+    static func contient(_ champs: [String], _ requete: String) -> Bool {
+        let besoin = normaliser(requete)
+        guard !besoin.isEmpty else { return true }
+        return champs.contains { normaliser($0).contains(besoin) }
+    }
+
+    static func normaliser(_ texte: String) -> String {
+        texte.folding(options: [.diacriticInsensitive, .caseInsensitive, .widthInsensitive], locale: .current)
+    }
+
     /// Retire les balises HTML simples (résumés AniList).
     static func sansHTML(_ texte: String) -> String {
         var resultat = texte

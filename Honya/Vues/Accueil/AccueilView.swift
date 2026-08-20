@@ -26,6 +26,28 @@ struct AccueilView: View {
             .first
     }
 
+    /// La série la plus récemment lue, quand aucun livre n'est en cours.
+    private var serieEnCours: Serie? {
+        series
+            .filter { $0.statut == .enCours || $0.prochainALire != nil }
+            .sorted { ($0.derniereLecture ?? $0.dateAjout) > ($1.derniereLecture ?? $1.dateAjout) }
+            .first
+    }
+
+    /// Derniers ajouts, livres et séries mêlés : de quoi remplir l'écran dès
+    /// le premier titre ajouté, au lieu d'un grand vide.
+    private var ajoutsRecents: [ElementBibli] {
+        let livres = exemplaires.compactMap { ex -> (Date, ElementBibli)? in
+            guard let oeuvre = ex.oeuvre else { return nil }
+            return (oeuvre.dateAjout, .livre(ex))
+        }
+        let sfx = series.map { ($0.dateAjout, ElementBibli.serie($0)) }
+        return (livres + sfx)
+            .sorted { $0.0 > $1.0 }
+            .prefix(6)
+            .map(\.1)
+    }
+
     private var aSuivre: [Exemplaire] {
         exemplaires.filter { $0.aSuivre && $0.statut != .lu }
     }
@@ -68,10 +90,17 @@ struct AccueilView: View {
                         if let courant = enCeMoment, let oeuvre = courant.oeuvre {
                             carteEnCours(courant, oeuvre: oeuvre)
                                 .padding(.horizontal, 20)
+                        } else if let serie = serieEnCours {
+                            carteSerieEnCours(serie)
+                                .padding(.horizontal, 20)
                         }
 
                         carteObjectif
                             .padding(.horizontal, 20)
+
+                        if !ajoutsRecents.isEmpty {
+                            sectionAjoutsRecents
+                        }
 
                         if !aSuivre.isEmpty {
                             sectionASuivre
@@ -177,6 +206,14 @@ struct AccueilView: View {
                     cibleSession = .oeuvre(oeuvre)
                 }
                 .frame(maxWidth: 280)
+            } else if let serie = serieEnCours {
+                PiluleCTA(
+                    titre: "Continuer la lecture",
+                    sousTitre: serie.nomAffiche(langue)
+                ) {
+                    cibleSession = .serie(serie)
+                }
+                .frame(maxWidth: 280)
             } else {
                 PiluleCTA(titre: "Commencer une lecture") {
                     allerRecherche()
@@ -214,6 +251,105 @@ struct AccueilView: View {
                 Text("Nouveau record")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(Couleurs.accent)
+            }
+        }
+    }
+
+    // MARK: - Carte « série en cours »
+
+    private func carteSerieEnCours(_ serie: Serie) -> some View {
+        NavigationLink {
+            FicheSerieView(serie: serie)
+        } label: {
+            HStack(spacing: 14) {
+                CouvertureView(
+                    urlString: serie.couvertureURL,
+                    titre: serie.nomAffiche(langue),
+                    auteur: serie.auteur
+                )
+                .frame(width: 64)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("En ce moment")
+                        .font(.caption2.weight(.heavy))
+                        .textCase(.uppercase)
+                        .foregroundStyle(.secondary)
+                        .kerning(0.5)
+                    Text(serie.nomAffiche(langue))
+                        .font(.titreOeuvre(18))
+                        .lineLimit(2)
+                    if let prochain = serie.prochainALire {
+                        Text("À lire : tome \(prochain.numero)")
+                            .font(.caption)
+                            .foregroundStyle(Couleurs.accent)
+                            .monospacedDigit()
+                    } else if let acheter = serie.prochainAAcheter {
+                        Text("À acheter : tome \(acheter)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
+                    BarreProgression(
+                        valeur: serie.tomes.isEmpty ? 0 : Double(serie.nbLus) / Double(serie.tomes.count),
+                        teinte: Couleurs.lu
+                    )
+                    .padding(.top, 3)
+                    Text("\(serie.nbLus) lus sur \(serie.tomes.count) tomes")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .monospacedDigit()
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+            .background(
+                Color(uiColor: .secondarySystemGroupedBackground),
+                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Ajouts récents
+
+    private var sectionAjoutsRecents: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            EtiquetteSection(texte: "Récemment ajoutés")
+                .padding(.horizontal, 20)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(ajoutsRecents) { element in
+                        switch element {
+                        case .livre(let exemplaire):
+                            if let oeuvre = exemplaire.oeuvre {
+                                NavigationLink {
+                                    FicheOeuvreView(oeuvre: oeuvre)
+                                } label: {
+                                    CouvertureView(
+                                        urlString: oeuvre.couvertureCanoniqueURL,
+                                        titre: oeuvre.titre(langue),
+                                        auteur: oeuvre.auteurPrincipal
+                                    )
+                                    .frame(width: 78)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        case .serie(let serie):
+                            NavigationLink {
+                                FicheSerieView(serie: serie)
+                            } label: {
+                                CouvertureView(
+                                    urlString: serie.couvertureURL,
+                                    titre: serie.nomAffiche(langue),
+                                    auteur: serie.auteur
+                                )
+                                .frame(width: 78)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
             }
         }
     }

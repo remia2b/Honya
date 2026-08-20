@@ -2,9 +2,9 @@ import SwiftUI
 import SwiftData
 
 enum PorteeRecherche: String, CaseIterable, Identifiable {
+    case tout = "Tout"
     case livres = "Livres"
     case mangas = "Mangas"
-    case bibliotheque = "Ma bibliothèque"
 
     var id: String { rawValue }
 }
@@ -18,7 +18,7 @@ struct RechercheView: View {
     @Query private var series: [Serie]
 
     @State private var texte = ""
-    @State private var portee: PorteeRecherche = .livres
+    @State private var portee: PorteeRecherche = .tout
     @State private var langueChoisie: String?      // nil = langue principale de l'utilisateur
     @State private var toutesLangues = false
     @State private var resultats: [ResultatRecherche] = []
@@ -56,7 +56,7 @@ struct RechercheView: View {
                     .pickerStyle(.segmented)
                     .padding(.horizontal, 20)
 
-                    if portee == .livres {
+                    if portee != .mangas {
                         menuLangue
                             .padding(.horizontal, 20)
                     }
@@ -152,13 +152,20 @@ struct RechercheView: View {
             .padding(.top, 40)
         } else if texte.count < 2 {
             carteInvitation
-        } else if portee == .bibliotheque {
-            resultatsLocaux
-        } else if resultats.isEmpty {
+        } else if resultats.isEmpty && trouvesLocalement.isEmpty {
             ContentUnavailableView.search(text: texte)
                 .padding(.top, 30)
         } else {
             LazyVStack(spacing: 8) {
+                if !trouvesLocalement.isEmpty {
+                    EtiquetteSection(texte: "Déjà dans votre bibliothèque")
+                        .padding(.top, 2)
+                    resultatsLocaux
+                    if !resultats.isEmpty {
+                        EtiquetteSection(texte: "Ajouter à la bibliothèque")
+                            .padding(.top, 8)
+                    }
+                }
                 ForEach(resultats) { resultat in
                     RangeeResultat(
                         resultat: resultat,
@@ -200,22 +207,22 @@ struct RechercheView: View {
 
     // MARK: - Résultats locaux
 
+    private var oeuvresLocales: [Oeuvre] {
+        texte.count >= 2 ? oeuvres.filter { $0.correspond(texte) } : []
+    }
+
+    private var seriesLocales: [Serie] {
+        texte.count >= 2 ? series.filter { $0.correspond(texte) } : []
+    }
+
+    private var trouvesLocalement: [String] {
+        oeuvresLocales.map(\.titreOriginal) + seriesLocales.map(\.nom)
+    }
+
     private var resultatsLocaux: some View {
-        let requete = texte.lowercased()
-        let oeuvresTrouvees = oeuvres.filter {
-            $0.titre(langue).lowercased().contains(requete)
-                || $0.titreOriginal.lowercased().contains(requete)
-                || $0.auteurPrincipal.lowercased().contains(requete)
-        }
-        let seriesTrouvees = series.filter {
-            $0.nomAffiche(langue).lowercased().contains(requete)
-                || $0.nom.lowercased().contains(requete)
-        }
+        let oeuvresTrouvees = oeuvresLocales
+        let seriesTrouvees = seriesLocales
         return LazyVStack(spacing: 8) {
-            if oeuvresTrouvees.isEmpty && seriesTrouvees.isEmpty {
-                ContentUnavailableView.search(text: texte)
-                    .padding(.top, 30)
-            }
             ForEach(oeuvresTrouvees) { oeuvre in
                 NavigationLink {
                     FicheOeuvreView(oeuvre: oeuvre)
@@ -266,7 +273,6 @@ struct RechercheView: View {
     // MARK: - Lancement (avec anti-rebond)
 
     private func lancerRecherche() async {
-        guard portee != .bibliotheque else { return }
         guard texte.count >= 2 else {
             resultats = []
             return
@@ -279,12 +285,15 @@ struct RechercheView: View {
         defer { enChargement = false }
 
         switch portee {
+        case .tout:
+            async let livres = AgregateurMetadonnees.partage.rechercherLivres(texte, langue: langueEffective)
+            async let mangas = AgregateurMetadonnees.partage.rechercherMangas(texte, langue: langue)
+            // Les séries d'abord : c'est ce qu'on cherche le plus souvent par leur nom.
+            resultats = await mangas + livres
         case .livres:
             resultats = await AgregateurMetadonnees.partage.rechercherLivres(texte, langue: langueEffective)
         case .mangas:
             resultats = await AgregateurMetadonnees.partage.rechercherMangas(texte, langue: langue)
-        case .bibliotheque:
-            break
         }
     }
 }

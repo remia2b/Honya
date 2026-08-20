@@ -117,6 +117,13 @@ final class Oeuvre {
     }
 
     var auteurPrincipal: String { auteurs.first ?? "" }
+
+    /// Vrai si la requête correspond à l'un des titres connus (toutes langues,
+    /// titre original, translittération) ou à un auteur.
+    func correspond(_ requete: String) -> Bool {
+        let champs = titres.values + [titreOriginal, titreRomaji].compactMap { $0 } + auteurs
+        return TexteUtil.contient(champs, requete)
+    }
 }
 
 // MARK: - Exemplaire (la relation de l'utilisateur à une œuvre)
@@ -232,6 +239,12 @@ final class Serie {
         Titres.afficher(titres: noms, original: nom, romaji: nomRomaji, langue: langue)
     }
 
+    /// Même logique que pour une œuvre : on cherche dans tous les noms connus.
+    func correspond(_ requete: String) -> Bool {
+        let champs = noms.values + [nom, nomRomaji, auteur].compactMap { $0 }
+        return TexteUtil.contient(champs, requete)
+    }
+
     var tomesTries: [Tome] { tomes.sorted { $0.numero < $1.numero } }
     var nbPossedes: Int { tomes.filter(\.possede).count }
     var nbLus: Int { tomes.filter(\.lu).count }
@@ -243,6 +256,26 @@ final class Serie {
     /// La série apparaît dans « En cours » si on a commencé sans finir.
     var lectureEnCours: Bool {
         (nbLus > 0 && nbLus < tomes.count) || (chapitresLus > 0)
+    }
+
+    /// Statut équivalent à celui d'un livre, déduit de l'état des tomes.
+    /// C'est lui qui fait vivre les filtres de la bibliothèque pour les séries.
+    var statut: StatutLecture {
+        if !tomes.isEmpty && nbLus == tomes.count { return .lu }
+        if nbLus > 0 || chapitresLus > 0 { return .enCours }
+        if nbPossedes > 0 { return .aLire }
+        return .wishlist
+    }
+
+    /// Dernière activité de lecture, pour trier « en ce moment ».
+    var derniereLecture: Date? {
+        let dates = tomes.compactMap(\.dateLu) + sessions.map(\.debut)
+        return dates.max()
+    }
+
+    /// Tome à lire ensuite : le premier possédé mais pas encore lu.
+    var prochainALire: Tome? {
+        tomesTries.first { $0.possede && !$0.lu }
     }
 }
 

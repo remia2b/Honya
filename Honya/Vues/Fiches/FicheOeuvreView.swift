@@ -81,6 +81,8 @@ private struct ContenuFicheOeuvre: View {
 
                 boutonPrincipal
 
+                selecteurStatut
+
                 chipsMoods
 
                 if exemplaire.statut == .enCours {
@@ -216,6 +218,39 @@ private struct ContenuFicheOeuvre: View {
         default:
             return "lance le chronomètre de session"
         }
+    }
+
+    // MARK: - Statut de lecture, à portée de pouce
+
+    private var selecteurStatut: some View {
+        Menu {
+            ForEach(StatutLecture.allCases) { statut in
+                Button {
+                    if statut == .lu { marquerLu() }
+                    else {
+                        exemplaire.changerStatut(statut)
+                        BadgesEngine.evaluer(dans: contexte)
+                    }
+                } label: {
+                    Label(statut.libelle, systemImage: statut.symbole)
+                }
+            }
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: exemplaire.statut.symbole)
+                Text(exemplaire.statut.libelle)
+                    .fontWeight(.bold)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 10, weight: .bold))
+                    .opacity(0.7)
+            }
+            .font(.footnote)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 9)
+            .background(.white.opacity(0.18), in: Capsule())
+            .overlay(Capsule().strokeBorder(.white.opacity(0.25), lineWidth: 1))
+        }
+        .accessibilityLabel("Statut de lecture : \(exemplaire.statut.libelle)")
     }
 
     // MARK: - Moods

@@ -6,6 +6,7 @@ struct ReglagesView: View {
     @Environment(\.dismiss) private var dismiss
     @Query private var objectifs: [Objectif]
 
+    @AppStorage("apparence") private var apparence: ApparenceHonya = .systeme
     @State private var confirmerEffacement = false
 
     var body: some View {
@@ -14,6 +15,21 @@ struct ReglagesView: View {
                 if let objectif = objectifs.first {
                     sectionObjectif(objectif)
                     sectionLangues(objectif)
+                }
+
+                Section {
+                    Picker(selection: $apparence) {
+                        ForEach(ApparenceHonya.allCases) { cas in
+                            Label(cas.libelle, systemImage: cas.symbole).tag(cas)
+                        }
+                    } label: {
+                        Label("Apparence", systemImage: "circle.lefthalf.filled")
+                    }
+                    .pickerStyle(.menu)
+                } header: {
+                    Text("Affichage")
+                } footer: {
+                    Text("« Système » suit le réglage de votre iPhone.")
                 }
 
                 Section("Données") {

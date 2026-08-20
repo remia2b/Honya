@@ -154,10 +154,13 @@ struct BibliothequeView: View {
         switch cas {
         case .tous: return exemplaires.count + series.count
         case .enCours: return exemplaires.filter { $0.statut == .enCours }.count
-            + series.filter(\.lectureEnCours).count
+            + series.filter { $0.statut == .enCours }.count
         case .aLire: return exemplaires.filter { $0.statut == .aLire }.count
+            + series.filter { $0.statut == .aLire }.count
         case .lus: return exemplaires.filter { $0.statut == .lu }.count
+            + series.filter { $0.statut == .lu }.count
         case .wishlist: return exemplaires.filter { $0.statut == .wishlist }.count
+            + series.filter { $0.statut == .wishlist }.count
         case .series: return series.count
         }
     }
@@ -171,13 +174,16 @@ struct BibliothequeView: View {
             resultat = exemplaires.map(ElementBibli.livre) + series.map(ElementBibli.serie)
         case .enCours:
             resultat = exemplaires.filter { $0.statut == .enCours }.map(ElementBibli.livre)
-                + series.filter(\.lectureEnCours).map(ElementBibli.serie)
+                + series.filter { $0.statut == .enCours }.map(ElementBibli.serie)
         case .aLire:
             resultat = exemplaires.filter { $0.statut == .aLire }.map(ElementBibli.livre)
+                + series.filter { $0.statut == .aLire }.map(ElementBibli.serie)
         case .lus:
             resultat = exemplaires.filter { $0.statut == .lu }.map(ElementBibli.livre)
+                + series.filter { $0.statut == .lu }.map(ElementBibli.serie)
         case .wishlist:
             resultat = exemplaires.filter { $0.statut == .wishlist }.map(ElementBibli.livre)
+                + series.filter { $0.statut == .wishlist }.map(ElementBibli.serie)
         case .series:
             resultat = series.map(ElementBibli.serie)
         }
@@ -370,6 +376,9 @@ private struct CelluleSerie: View {
                     titre: serie.nomAffiche(langue),
                     auteur: serie.auteur
                 )
+            }
+            .overlay(alignment: .bottomLeading) {
+                BadgeStatutView(statut: serie.statut).padding(6)
             }
             .overlay(alignment: .topTrailing) {
                 Text("\(serie.nbPossedes)/\(serie.tomesTotal ?? serie.tomes.count)")

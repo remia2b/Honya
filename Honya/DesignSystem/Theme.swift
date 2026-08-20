@@ -50,6 +50,40 @@ extension StatutLecture {
     }
 }
 
+// MARK: - Apparence claire / sombre
+//
+// Apple Books laisse choisir : Honya fait pareil, avec « Système » par défaut.
+
+enum ApparenceHonya: String, CaseIterable, Identifiable {
+    case systeme, clair, sombre
+
+    var id: String { rawValue }
+
+    var libelle: String {
+        switch self {
+        case .systeme: return "Système"
+        case .clair: return "Clair"
+        case .sombre: return "Sombre"
+        }
+    }
+
+    var symbole: String {
+        switch self {
+        case .systeme: return "iphone"
+        case .clair: return "sun.max.fill"
+        case .sombre: return "moon.fill"
+        }
+    }
+
+    var schema: ColorScheme? {
+        switch self {
+        case .systeme: return nil
+        case .clair: return .light
+        case .sombre: return .dark
+        }
+    }
+}
+
 // MARK: - Typographie
 // Deux voix, comme Apple Books : le serif (New York) pour les titres d'écrans,
 // les titres d'œuvres et les grands chiffres ; SF Pro pour l'interface.

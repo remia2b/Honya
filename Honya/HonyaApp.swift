@@ -6,6 +6,7 @@ struct HonyaApp: App {
     let conteneur: ModelContainer
 
     @AppStorage("onboardingTermine") private var onboardingTermine = false
+    @AppStorage("apparence") private var apparence: ApparenceHonya = .systeme
 
     init() {
         let schema = Schema([
@@ -35,6 +36,7 @@ struct HonyaApp: App {
                     OnboardingView()
                 }
             }
+            .preferredColorScheme(apparence.schema)
         }
         .modelContainer(conteneur)
     }
