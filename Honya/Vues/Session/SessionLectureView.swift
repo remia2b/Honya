@@ -78,7 +78,7 @@ struct SessionLectureView: View {
     @State private var confirmerAbandon = false
     @State private var couverture: UIImage?
 
-    private var langue: String { objectifs.first?.languePrincipale ?? "fr" }
+    private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
     private var objectifMinutes: Int { objectifs.first?.minutesParJour ?? 20 }
 
     var body: some View {

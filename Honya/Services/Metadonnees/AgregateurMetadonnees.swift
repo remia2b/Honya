@@ -12,14 +12,53 @@ struct AgregateurMetadonnees: Sendable {
     // MARK: Recherche texte
 
     func rechercherLivres(_ requete: String, langue: String?) async -> [ResultatRecherche] {
-        if let resultats = try? await google.rechercher(requete, langue: langue), !resultats.isEmpty {
-            return resultats
+        // Google Books d'abord (meilleure pertinence), Open Library en repli — sans clé
+        // API, Google impose un quota bas et renvoie souvent une réponse vide.
+        var resultats = (try? await google.rechercher(requete, langue: langue)) ?? []
+        if resultats.isEmpty {
+            resultats = (try? await openLibrary.rechercher(requete, langue: langue)) ?? []
         }
-        return (try? await openLibrary.rechercher(requete, langue: langue)) ?? []
+        return trierParPertinence(resultats, requete: requete, langue: langue)
     }
 
-    func rechercherMangas(_ requete: String) async -> [ResultatRecherche] {
-        (try? await aniList.rechercher(requete, langue: nil)) ?? []
+    /// Remonte les titres qui correspondent vraiment à la recherche, et repousse
+    /// ceux qu'un lecteur de cette langue ne saurait pas lire.
+    private func trierParPertinence(
+        _ resultats: [ResultatRecherche],
+        requete: String,
+        langue: String?
+    ) -> [ResultatRecherche] {
+        let besoin = requete.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+        let langueLecteur = langue ?? "en"
+
+        func score(_ r: ResultatRecherche) -> Int {
+            var points = 0
+            let titre = r.titreAffiche(langueLecteur)
+                .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            if titre == besoin { points += 100 }
+            else if titre.hasPrefix(besoin) { points += 60 }
+            else if titre.contains(besoin) { points += 40 }
+            if r.auteurs.contains(where: {
+                $0.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current).contains(besoin)
+            }) { points += 20 }
+            if r.couvertureURL != nil { points += 8 }
+            if !r.auteurs.isEmpty { points += 4 }
+            // Un titre illisible pour ce lecteur passe après les autres.
+            if !Titres.litScriptNonLatin(langueLecteur), Titres.estNonLatin(titre) { points -= 50 }
+            return points
+        }
+
+        return resultats.enumerated()
+            .sorted { a, b in
+                let sa = score(a.element), sb = score(b.element)
+                return sa == sb ? a.offset < b.offset : sa > sb
+            }
+            .map(\.element)
+    }
+
+    func rechercherMangas(_ requete: String, langue: String? = nil) async -> [ResultatRecherche] {
+        let resultats = (try? await aniList.rechercher(requete, langue: nil)) ?? []
+        return trierParPertinence(resultats, requete: requete, langue: langue)
     }
 
     // MARK: ISBN (le scanner passe par ici)

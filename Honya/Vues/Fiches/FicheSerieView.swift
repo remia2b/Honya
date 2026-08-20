@@ -15,7 +15,7 @@ struct FicheSerieView: View {
     @State private var sortieVisible = false
     @State private var confirmerSuppression = false
 
-    private var langue: String { objectifs.first?.languePrincipale ?? "fr" }
+    private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
 
     var body: some View {
         ScrollView {

@@ -16,7 +16,7 @@ struct AccueilView: View {
     @State private var cibleSession: CibleSession?
 
     private var objectifMinutes: Int { objectifs.first?.minutesParJour ?? 20 }
-    private var langue: String { objectifs.first?.languePrincipale ?? "fr" }
+    private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
 
     /// L'exemplaire « en ce moment » : en cours, dernière session la plus récente.
     private var enCeMoment: Exemplaire? {

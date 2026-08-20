@@ -8,11 +8,6 @@ struct ReglagesView: View {
 
     @State private var confirmerEffacement = false
 
-    private let langues: [(code: String, nom: String)] = [
-        ("fr", "Français"), ("en", "English"), ("ja", "日本語"),
-        ("es", "Español"), ("de", "Deutsch"), ("it", "Italiano"),
-    ]
-
     var body: some View {
         NavigationStack {
             Form {
@@ -87,7 +82,7 @@ struct ReglagesView: View {
 
     private func sectionLangues(_ objectif: Objectif) -> some View {
         Section {
-            ForEach(langues, id: \.code) { langue in
+            ForEach(Langues.toutes) { langue in
                 let actif = objectif.languesLecture.contains(langue.code)
                 Button {
                     if actif {
@@ -98,7 +93,7 @@ struct ReglagesView: View {
                     }
                 } label: {
                     HStack {
-                        Text(langue.nom)
+                        Text(langue.nomNatif)
                             .foregroundStyle(.primary)
                         Spacer()
                         if actif {

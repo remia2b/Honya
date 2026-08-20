@@ -85,11 +85,13 @@ struct AniListProvider: MetadataProvider {
 
             var resultat = ResultatRecherche(
                 id: "anilist:\(id)",
-                titre: romaji ?? anglais ?? natif ?? "Sans titre",
+                titre: anglais ?? romaji ?? natif ?? "Sans titre",
                 source: "AniList"
             )
             resultat.titreOriginal = natif ?? romaji
+            resultat.romaji = romaji
             if let anglais { resultat.titresParLangue["en"] = anglais }
+            else if let romaji { resultat.titresParLangue["en"] = romaji }
             if let natif { resultat.titresParLangue["ja"] = natif }
             resultat.auteurs = (staff?.nodes ?? []).compactMap { $0.name?.full }
             resultat.type = .manga

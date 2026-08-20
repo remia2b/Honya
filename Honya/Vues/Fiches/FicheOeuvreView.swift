@@ -38,7 +38,7 @@ private struct ContenuFicheOeuvre: View {
     @State private var confirmerSuppression = false
     @State private var celebration = false
 
-    private var langue: String { objectifs.first?.languePrincipale ?? "fr" }
+    private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
 
     var body: some View {
         ScrollView {

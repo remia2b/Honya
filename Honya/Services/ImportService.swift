@@ -46,12 +46,14 @@ enum ImportService {
         statut: StatutLecture,
         contexte: ModelContext
     ) -> Oeuvre {
+        let objectif = Objectif.courant(dans: contexte)
         let oeuvre = Oeuvre(
             titreOriginal: resultat.titreOriginal ?? resultat.titre,
             auteurs: resultat.auteurs,
             type: resultat.type
         )
         oeuvre.titres = resultat.titresParLangue
+        oeuvre.titreRomaji = resultat.romaji
         if let langue = resultat.langue, oeuvre.titres[langue] == nil {
             oeuvre.titres[langue] = resultat.titre
         }
@@ -71,7 +73,33 @@ enum ImportService {
         oeuvre.exemplaire = exemplaire
 
         contexte.insert(oeuvre)
+        resoudreTitreLocal(
+            actuel: { oeuvre.titres[objectif.languePrincipale] },
+            reference: oeuvre.titres["en"] ?? oeuvre.titreRomaji ?? oeuvre.titreOriginal,
+            langue: objectif.languePrincipale
+        ) { officiel in
+            oeuvre.titres[objectif.languePrincipale] = officiel
+        }
         return oeuvre
+    }
+
+    /// Va chercher le titre RÉELLEMENT publié dans la langue du lecteur.
+    /// Aucune traduction automatique : si l'œuvre n'a jamais paru dans cette
+    /// langue, on garde ce qu'on a et l'affichage se rabat sur l'anglais.
+    private static func resoudreTitreLocal(
+        actuel: @escaping () -> String?,
+        reference: String,
+        langue: String,
+        appliquer: @escaping (String) -> Void
+    ) {
+        guard actuel() == nil, !reference.isEmpty else { return }
+        Task { @MainActor in
+            guard let officiel = await AgregateurMetadonnees.partage
+                .titreOfficiel(reference, langue: langue) else { return }
+            // Un titre dans un script illisible n'apporte rien au lecteur.
+            guard !Titres.estNonLatin(officiel) || Titres.litScriptNonLatin(langue) else { return }
+            appliquer(officiel)
+        }
     }
 
     // MARK: - Série manga
@@ -83,6 +111,7 @@ enum ImportService {
     ) -> Serie {
         let serie = Serie(nom: resultat.titre, type: resultat.type)
         serie.noms = resultat.titresParLangue
+        serie.nomRomaji = resultat.romaji
         serie.auteur = resultat.auteurs.first
         serie.genres = resultat.genres
         serie.resume = resultat.resume
@@ -102,17 +131,14 @@ enum ImportService {
         }
         contexte.insert(serie)
 
-        // Enrichissement paresseux : le nom OFFICIEL dans la langue de l'utilisateur
-        // (édition localisée réelle — jamais de traduction automatique).
+        // Enrichissement paresseux : le nom OFFICIEL dans la langue de l'utilisateur.
         let langue = objectif.languePrincipale
-        if serie.noms[langue] == nil {
-            let reference = serie.noms["en"] ?? serie.nom
-            Task { @MainActor in
-                if let officiel = await AgregateurMetadonnees.partage.titreOfficiel(reference, langue: langue),
-                   officiel.caseInsensitiveCompare(reference) != .orderedSame {
-                    serie.noms[langue] = officiel
-                }
-            }
+        resoudreTitreLocal(
+            actuel: { serie.noms[langue] },
+            reference: serie.noms["en"] ?? serie.nomRomaji ?? serie.nom,
+            langue: langue
+        ) { officiel in
+            serie.noms[langue] = officiel
         }
         return serie
     }

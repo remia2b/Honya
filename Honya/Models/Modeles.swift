@@ -74,6 +74,8 @@ final class Oeuvre {
     var titreOriginal: String = ""
     /// Titres OFFICIELS publiés, par code langue ("fr", "en", …). Jamais de traduction automatique.
     var titres: [String: String] = [:]
+    /// Translittération latine, pour rester lisible quand seul le titre natif existe.
+    var titreRomaji: String?
     var auteurs: [String] = []
     var typeRaw: String = TypeOeuvre.livre.rawValue
     var genres: [String] = []
@@ -106,9 +108,9 @@ final class Oeuvre {
         set { typeRaw = newValue.rawValue }
     }
 
-    /// Titre affiché : officiel dans la langue demandée → anglais → original.
+    /// Titre affiché : celui qu'un lecteur de cette langue verrait en librairie.
     func titre(_ langue: String) -> String {
-        titres[langue] ?? titres["en"] ?? titreOriginal
+        Titres.afficher(titres: titres, original: titreOriginal, romaji: titreRomaji, langue: langue)
     }
 
     var auteurPrincipal: String { auteurs.first ?? "" }
@@ -181,6 +183,8 @@ final class Serie {
     var nom: String = ""
     /// Noms OFFICIELS par langue, même politique que les titres d'œuvres.
     var noms: [String: String] = [:]
+    /// Translittération latine (romaji), lisible sans connaître le script d'origine.
+    var nomRomaji: String?
     var auteur: String?
     var typeRaw: String = TypeOeuvre.manga.rawValue
     var genres: [String] = []
@@ -219,7 +223,7 @@ final class Serie {
     }
 
     func nomAffiche(_ langue: String) -> String {
-        noms[langue] ?? noms["en"] ?? nom
+        Titres.afficher(titres: noms, original: nom, romaji: nomRomaji, langue: langue)
     }
 
     var tomesTries: [Tome] { tomes.sorted { $0.numero < $1.numero } }
@@ -276,8 +280,8 @@ final class SessionLecture {
     var minutes: Int { dureeSecondes / 60 }
 
     var titreCible: String {
-        if let oeuvre { return oeuvre.titre(Locale.current.language.languageCode?.identifier ?? "fr") }
-        if let serie { return serie.nomAffiche(Locale.current.language.languageCode?.identifier ?? "fr") }
+        if let oeuvre { return oeuvre.titre(Langues.codeAppareil) }
+        if let serie { return serie.nomAffiche(Langues.codeAppareil) }
         return "Lecture"
     }
 }
@@ -305,13 +309,13 @@ final class Objectif {
     var minutesParJour: Int = 20
     var defiAnnuelLivres: Int = 26
     /// Langues de lecture préférées, codes ISO ("fr", "en"…). Pilote la recherche et l'affichage des titres.
-    var languesLecture: [String] = ["fr"]
+    var languesLecture: [String] = []
     /// Types d'œuvres qui intéressent l'utilisateur (onboarding).
     var typesPreferes: [String] = [TypeOeuvre.livre.rawValue, TypeOeuvre.manga.rawValue]
 
     init() {}
 
-    var languePrincipale: String { languesLecture.first ?? "fr" }
+    var languePrincipale: String { languesLecture.first ?? Langues.codeAppareil }
 
     /// Récupère (ou crée) l'objectif unique de l'utilisateur.
     static func courant(dans contexte: ModelContext) -> Objectif {

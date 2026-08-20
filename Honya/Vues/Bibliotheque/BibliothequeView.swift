@@ -49,7 +49,7 @@ struct BibliothequeView: View {
     @State private var enListe = false
     @State private var filtreTexte = ""
 
-    private var langue: String { objectifs.first?.languePrincipale ?? "fr" }
+    private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
 
     var body: some View {
         NavigationStack {

@@ -9,13 +9,9 @@ struct OnboardingView: View {
     @State private var etape = 0
     @State private var typesChoisis: Set<TypeOeuvre> = [.livre, .manga]
     @State private var minutesChoisies = 20
-    @State private var languesChoisies: Set<String> = [Locale.current.language.languageCode?.identifier ?? "fr"]
+    @State private var languesChoisies: Set<String> = [Langues.codeAppareil]
 
     private let optionsMinutes = [10, 15, 20, 30, 45]
-    private let langues: [(code: String, nom: String)] = [
-        ("fr", "Français"), ("en", "English"), ("ja", "日本語"),
-        ("es", "Español"), ("de", "Deutsch"), ("it", "Italiano"),
-    ]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -161,38 +157,42 @@ struct OnboardingView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
-                ForEach(langues, id: \.code) { langue in
-                    let actif = languesChoisies.contains(langue.code)
-                    Button {
-                        if actif {
-                            if languesChoisies.count > 1 { languesChoisies.remove(langue.code) }
-                        } else {
-                            languesChoisies.insert(langue.code)
-                        }
-                    } label: {
-                        HStack {
-                            Text(langue.nom)
-                                .font(.subheadline.weight(.semibold))
-                            Spacer()
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                    ForEach(Langues.toutes) { langue in
+                        let actif = languesChoisies.contains(langue.code)
+                        Button {
                             if actif {
-                                Image(systemName: "checkmark")
-                                    .font(.caption.weight(.black))
+                                if languesChoisies.count > 1 { languesChoisies.remove(langue.code) }
+                            } else {
+                                languesChoisies.insert(langue.code)
                             }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(langue.nomNatif)
+                                    .font(.subheadline.weight(.semibold))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
+                                Spacer(minLength: 0)
+                                if actif {
+                                    Image(systemName: "checkmark")
+                                        .font(.caption.weight(.black))
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 11)
+                            .background(
+                                actif ? AnyShapeStyle(Couleurs.accent.opacity(0.15)) : AnyShapeStyle(Color(uiColor: .secondarySystemGroupedBackground)),
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            )
+                            .foregroundStyle(actif ? Couleurs.accent : .primary)
                         }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 11)
-                        .background(
-                            actif ? AnyShapeStyle(Couleurs.accent.opacity(0.15)) : AnyShapeStyle(Color(uiColor: .secondarySystemGroupedBackground)),
-                            in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        )
-                        .foregroundStyle(actif ? Couleurs.accent : .primary)
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
+                .padding(.bottom, 12)
             }
-            Spacer()
-            Spacer()
+            .frame(maxHeight: 320)
         }
         .padding(.horizontal, 28)
     }
@@ -204,7 +204,7 @@ struct OnboardingView: View {
         objectif.minutesParJour = minutesChoisies
         objectif.typesPreferes = typesChoisis.map(\.rawValue)
         // La langue de l'appareil d'abord, si elle fait partie des choix.
-        let appareil = Locale.current.language.languageCode?.identifier ?? "fr"
+        let appareil = Langues.codeAppareil
         var ordonnees = Array(languesChoisies)
         if let index = ordonnees.firstIndex(of: appareil), index != 0 {
             ordonnees.swapAt(0, index)

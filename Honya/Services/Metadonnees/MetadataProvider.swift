@@ -6,6 +6,8 @@ struct ResultatRecherche: Identifiable, Hashable {
     let id: String                       // "google:xxx", "openlibrary:xxx", "anilist:123"
     var titre: String
     var titreOriginal: String?
+    /// Translittération latine (romaji AniList), lisible sans connaître le script d'origine.
+    var romaji: String?
     /// Titres officiels connus par langue (ex. romaji/anglais/natif d'AniList).
     var titresParLangue: [String: String] = [:]
     var auteurs: [String] = []
@@ -25,6 +27,16 @@ struct ResultatRecherche: Identifiable, Hashable {
     var statutParution: StatutParution = .inconnue
     var idAniList: Int?
     var source: String
+
+    /// Titre tel qu'un lecteur de cette langue le verrait en librairie.
+    func titreAffiche(_ langue: String) -> String {
+        Titres.afficher(
+            titres: titresParLangue,
+            original: titre,
+            romaji: romaji,
+            langue: langue
+        )
+    }
 }
 
 // MARK: - Protocole commun à toutes les sources

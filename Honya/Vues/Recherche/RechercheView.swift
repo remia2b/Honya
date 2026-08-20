@@ -27,7 +27,7 @@ struct RechercheView: View {
     @State private var ajoutes: Set<String> = []
     @FocusState private var champActif: Bool
 
-    private var langue: String { objectifs.first?.languePrincipale ?? "fr" }
+    private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
     private var langueEffective: String? {
         toutesLangues ? nil : (langueChoisie ?? langue)
     }
@@ -116,16 +116,17 @@ struct RechercheView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Menu {
-                ForEach(objectifs.first?.languesLecture ?? ["fr"], id: \.self) { code in
-                    Button(code.uppercased()) {
+                ForEach(objectifs.first?.languesLecture ?? [Langues.codeAppareil], id: \.self) { code in
+                    Button(Langues.nom(code)) {
                         langueChoisie = code
                         toutesLangues = false
                     }
                 }
+                Divider()
                 Button("Toutes les langues") { toutesLangues = true }
             } label: {
                 HStack(spacing: 4) {
-                    Text(toutesLangues ? "Toutes" : (langueEffective ?? langue).uppercased())
+                    Text(toutesLangues ? "Toutes" : Langues.nom(langueEffective ?? langue))
                     Image(systemName: "chevron.up.chevron.down")
                         .font(.system(size: 9, weight: .bold))
                 }
@@ -161,6 +162,7 @@ struct RechercheView: View {
                 ForEach(resultats) { resultat in
                     RangeeResultat(
                         resultat: resultat,
+                        langue: langue,
                         dejaAjoute: ajoutes.contains(resultat.id)
                             || ImportService.existeDeja(resultat, dans: contexte)
                     ) { statut in
@@ -270,7 +272,7 @@ struct RechercheView: View {
             return
         }
         // Anti-rebond : on attend que la frappe se calme.
-        try? await Task.sleep(for: .milliseconds(400))
+        try? await Task.sleep(for: .milliseconds(220))
         guard !Task.isCancelled else { return }
 
         enChargement = true
@@ -280,7 +282,7 @@ struct RechercheView: View {
         case .livres:
             resultats = await AgregateurMetadonnees.partage.rechercherLivres(texte, langue: langueEffective)
         case .mangas:
-            resultats = await AgregateurMetadonnees.partage.rechercherMangas(texte)
+            resultats = await AgregateurMetadonnees.partage.rechercherMangas(texte, langue: langue)
         case .bibliotheque:
             break
         }
@@ -291,6 +293,7 @@ struct RechercheView: View {
 
 private struct RangeeResultat: View {
     let resultat: ResultatRecherche
+    let langue: String
     let dejaAjoute: Bool
     var surAjout: (StatutLecture) -> Void
 
@@ -298,13 +301,13 @@ private struct RangeeResultat: View {
         HStack(spacing: 12) {
             CouvertureView(
                 urlString: resultat.couvertureURL,
-                titre: resultat.titre,
+                titre: resultat.titreAffiche(langue),
                 coins: 4
             )
             .frame(width: 44)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(resultat.titre)
+                Text(resultat.titreAffiche(langue))
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(2)
                 if !resultat.auteurs.isEmpty {
