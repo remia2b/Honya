@@ -105,3 +105,59 @@ vérifier sa présence :
 ```bash
 gh api repos/remia2b/Honya/hooks --jq '.[].config.url'
 ```
+
+## Comptes (Connexion avec Apple + Supabase)
+
+Deux chemins mènent au **même** compte : l'identifiant Apple, ou une adresse
+e-mail. Le jeton d'identité Apple est échangé contre une session Supabase
+(`grant_type=id_token`), donc un lecteur entré par Apple et le même lecteur
+entré par e-mail sont un seul utilisateur côté serveur.
+
+Le client d'authentification est écrit en REST à la main
+(`Honya/Services/SupabaseAuth.swift`) : **aucune dépendance n'est ajoutée au
+projet Xcode**, qui est écrit à la main et supporte mal les paquets SPM. Les
+jetons de session vivent dans le Trousseau, jamais dans les préférences.
+
+Sans configuration Supabase, l'app fonctionne : seule la connexion avec Apple
+est proposée, et le chemin e-mail explique qu'il n'est pas encore disponible.
+
+### Mise en place (une seule fois)
+
+1. **Apple** — developer.apple.com → Identifiers → `com.remiabbou.honya` →
+   cocher **Sign In with Apple** → **Save**. Sans cette capacité, le profil
+   généré par la CI ne contient pas l'entitlement et l'archive échoue.
+
+2. **Projet Supabase** — créer un projet **dédié à Honya** (les projets sont
+   étanches : base, utilisateurs et clés séparés de tout autre projet).
+
+3. **Codemagic** → Honya → Environment variables, groupe `signing`,
+   case **Secure** cochée :
+   - `SUPABASE_URL` — Settings → API → Project URL
+   - `SUPABASE_ANON_KEY` — la clé publique `anon`
+
+   Ces valeurs ne sont jamais dans le dépôt : la CI les écrit dans
+   `Honya/Config/Secrets.swift` juste avant la compilation.
+
+4. **Provider Apple dans Supabase** — Authentication → Providers → Apple :
+   activer, et mettre `com.remiabbou.honya` en *Client ID*. (Le flux est
+   natif : aucun secret OAuth n'est nécessaire.)
+
+5. **Suppression de compte** — Apple exige qu'une app qui crée des comptes
+   permette aussi de les supprimer. Le client appelle une fonction Postgres,
+   pour n'avoir jamais besoin d'une clé d'administration. Dans le SQL Editor :
+
+   ```sql
+   create or replace function public.supprimer_mon_compte()
+   returns void
+   language sql
+   security definer
+   set search_path = ''
+   as $$ delete from auth.users where id = auth.uid(); $$;
+
+   revoke all on function public.supprimer_mon_compte() from anon;
+   grant execute on function public.supprimer_mon_compte() to authenticated;
+   ```
+
+6. **Confirmation par e-mail** — Authentication → Providers → Email. Si elle
+   reste activée, l'inscription affiche « ouvrez le courrier de confirmation »
+   ; désactivée, l'inscription connecte directement.
