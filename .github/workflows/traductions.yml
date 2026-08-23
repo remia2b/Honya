@@ -1,24 +1,39 @@
-name: Extraire les clés de traduction
+name: Traduire les nouveaux textes
 
-# Xcode extrait lui-même les chaînes traduisibles du code, avec les bons
-# spécificateurs de format (%lld pour un entier, %@ pour un texte…). Deviner
-# ces formats à la main est une source d'erreurs qui ne se voient qu'à
-# l'exécution.
+# Tout texte ajouté à l'application doit exister dans les 14 langues avant
+# d'arriver chez les utilisateurs : un écran à moitié traduit est pire qu'un
+# écran en anglais, parce qu'il mélange deux langues dans la même phrase.
 #
-# `xcodebuild` en ligne de commande ne réécrit PAS Localizable.xcstrings —
-# en revanche il produit des fichiers .stringsdata qui contiennent
-# l'extraction. On les rassemble ici en un JSON lisible depuis Windows.
+# Ce travail fait la chaîne complète, tout seul :
+#   1. Xcode compile et extrait les chaînes traduisibles du code, avec leurs
+#      vrais spécificateurs de format (%lld pour un entier, %@ pour un texte).
+#      Les deviner à la main est une source d'erreurs invisibles à la
+#      compilation, qui ne se voient qu'à l'exécution.
+#   2. On compare l'extraction au catalogue et on fait traduire ce qui manque.
+#   3. On vérifie chaque traduction (formats, alphabet) avant de l'écrire.
+#   4. On committe.
 #
-# Lancement manuel : gh workflow run traductions.yml
+# Lancement : automatique à chaque poussée touchant du code ou des textes,
+# ou à la main avec `gh workflow run traductions.yml`.
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'Honya/**/*.swift'
+      - 'Honya/Localizable.xcstrings'
 
 permissions:
   contents: write
 
+# Deux exécutions en parallèle se marcheraient dessus au moment du commit.
+concurrency:
+  group: traductions
+  cancel-in-progress: false
+
 jobs:
-  extraire:
+  traduire:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -44,15 +59,24 @@ jobs:
           done
           python3 .github/rassembler_cles.py
 
-      - name: Committer la liste
+      - name: Ajouter au catalogue les textes nouvellement repérés
+        run: python3 .github/completer_catalogue.py
+
+      - name: Traduire ce qui manque dans les 14 langues
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python3 .github/traduire.py
+
+      - name: Committer
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Honya/Localizable.xcstrings Design/cles-extraites.json
           # `git diff` ignore les fichiers non suivis : on indexe d'abord.
-          git add Design/cles-extraites.json
           if git diff --cached --quiet; then
-            echo "Liste inchangée."
+            echo "Rien de neuf à traduire."
             exit 0
           fi
-          git commit -m "Clés de traduction extraites par Xcode [skip ci]"
+          git commit -m "Traductions à jour dans les 14 langues [skip ci]"
           git push

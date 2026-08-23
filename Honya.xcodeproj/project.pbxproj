@@ -99,9 +99,15 @@
 				es,
 				"es-419",
 				it,
-				ja,
+				nl,
 				pl,
 				"pt-BR",
+				sv,
+				tr,
+				ru,
+				ja,
+				ko,
+				"zh-Hans",
 				Base,
 			);
 			mainGroup = 000000000000000000000008;
