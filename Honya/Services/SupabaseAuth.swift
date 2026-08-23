@@ -24,7 +24,7 @@ enum SupabaseAuth {
         var errorDescription: String? {
             switch self {
             case .nonConfigure:
-                return "Les comptes par adresse e-mail ne sont pas encore configurés dans cette version."
+                return String(localized: "Les comptes par adresse e-mail ne sont pas encore configurés dans cette version.")
             case .message(let texte):
                 return texte
             }
@@ -109,7 +109,7 @@ enum SupabaseAuth {
         do {
             return try JSONDecoder().decode(T.self, from: donnees)
         } catch {
-            throw Souci.message("Réponse inattendue du serveur.")
+            throw Souci.message(String(localized: "Réponse inattendue du serveur."))
         }
     }
 
@@ -152,23 +152,25 @@ enum SupabaseAuth {
 
         let minuscule = texte.lowercased()
         if minuscule.contains("invalid login") || minuscule.contains("invalid credentials") {
-            return "Adresse e-mail ou mot de passe incorrect."
+            return String(localized: "Adresse e-mail ou mot de passe incorrect.")
         }
         if minuscule.contains("already registered") || minuscule.contains("already exists") {
-            return "Un compte existe déjà avec cette adresse. Connectez-vous."
+            return String(localized: "Un compte existe déjà avec cette adresse. Connectez-vous.")
         }
         if minuscule.contains("password") && minuscule.contains("least") {
-            return "Le mot de passe doit faire au moins 6 caractères."
+            return String(localized: "Le mot de passe doit faire au moins 6 caractères.")
         }
         if minuscule.contains("email") && minuscule.contains("invalid") {
-            return "Cette adresse e-mail ne semble pas valide."
+            return String(localized: "Cette adresse e-mail ne semble pas valide.")
         }
         if minuscule.contains("not confirmed") {
-            return "Confirmez d'abord votre adresse : un courrier vous attend."
+            return String(localized: "Confirmez d'abord votre adresse : un courrier vous attend.")
         }
         if minuscule.contains("rate limit") || code == 429 {
-            return "Trop de tentatives. Réessayez dans quelques minutes."
+            return String(localized: "Trop de tentatives. Réessayez dans quelques minutes.")
         }
-        return texte.isEmpty ? "La connexion a échoué (erreur \(code))." : texte
+        return texte.isEmpty
+            ? String(localized: "La connexion a échoué (erreur \(code)).")
+            : texte
     }
 }

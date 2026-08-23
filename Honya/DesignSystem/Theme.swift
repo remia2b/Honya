@@ -61,9 +61,9 @@ enum ApparenceHonya: String, CaseIterable, Identifiable {
 
     var libelle: String {
         switch self {
-        case .systeme: return "Système"
-        case .clair: return "Clair"
-        case .sombre: return "Sombre"
+        case .systeme: return String(localized: "Système")
+        case .clair: return String(localized: "Clair")
+        case .sombre: return String(localized: "Sombre")
         }
     }
 

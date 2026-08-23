@@ -254,9 +254,9 @@ private struct ContenuFicheOeuvre: View {
 
     private var libelleSession: String {
         switch exemplaire.statut {
-        case .enCours: return "Reprendre · p. \(exemplaire.pageCourante)"
-        case .lu: return "Relire"
-        default: return "Session de lecture"
+        case .enCours: return String(localized: "Reprendre · p. \(exemplaire.pageCourante)")
+        case .lu: return String(localized: "Relire")
+        default: return String(localized: "Session de lecture")
         }
     }
 

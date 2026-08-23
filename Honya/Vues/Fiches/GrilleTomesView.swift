@@ -19,8 +19,8 @@ struct GrilleTomesView: View {
 
         var titre: String {
             switch self {
-            case .possedes: return "Possédés jusqu'au tome"
-            case .lus: return "Lus jusqu'au tome"
+            case .possedes: return String(localized: "Possédés jusqu'au tome")
+            case .lus: return String(localized: "Lus jusqu'au tome")
             }
         }
 
@@ -311,9 +311,9 @@ private struct FeuilleJusquA: View {
     private var explication: String {
         switch reglage {
         case .possedes:
-            return "Les tomes 1 à \(Int(numero)) seront marqués comme possédés. Les suivants passent en manquants."
+            return String(localized: "Les tomes 1 à \(Int(numero)) seront marqués comme possédés. Les suivants passent en manquants.")
         case .lus:
-            return "Les tomes 1 à \(Int(numero)) seront marqués comme lus — et donc possédés."
+            return String(localized: "Les tomes 1 à \(Int(numero)) seront marqués comme lus — et donc possédés.")
         }
     }
 

@@ -298,9 +298,9 @@ struct StatsView: View {
     }
 
     private func texteRythme(_ avance: Int) -> String {
-        if avance > 0 { return "en avance de \(avance)" }
-        if avance < 0 { return "en retard de \(-avance)" }
-        return "pile dans le rythme"
+        if avance > 0 { return String(localized: "en avance de \(avance)") }
+        if avance < 0 { return String(localized: "en retard de \(-avance)") }
+        return String(localized: "pile dans le rythme")
     }
 
     // MARK: - Le mois, jour par jour
@@ -524,8 +524,11 @@ struct StatsView: View {
     private func formaterHeures(_ minutes: Int) -> String {
         let heures = minutes / 60
         let reste = minutes % 60
-        if heures > 0 { return "\(heures) h \(String(format: "%02d", reste))" }
-        return "\(reste) min"
+        if heures > 0 {
+            let minutes = String(format: "%02d", reste)
+            return String(localized: "\(heures) h \(minutes)")
+        }
+        return String(localized: "\(reste) min")
     }
 }
 

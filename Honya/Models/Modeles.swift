@@ -10,9 +10,9 @@ enum TypeOeuvre: String, Codable, CaseIterable, Identifiable {
 
     var libelle: String {
         switch self {
-        case .livre: return "Livre"
-        case .manga: return "Manga"
-        case .bd: return "BD"
+        case .livre: return String(localized: "Livre")
+        case .manga: return String(localized: "Manga")
+        case .bd: return String(localized: "BD")
         }
     }
 }
@@ -24,11 +24,11 @@ enum StatutLecture: String, Codable, CaseIterable, Identifiable {
 
     var libelle: String {
         switch self {
-        case .aLire: return "À lire"
-        case .enCours: return "En cours"
-        case .lu: return "Lu"
-        case .abandonne: return "Abandonné"
-        case .wishlist: return "À acheter"
+        case .aLire: return String(localized: "À lire")
+        case .enCours: return String(localized: "En cours")
+        case .lu: return String(localized: "Lu")
+        case .abandonne: return String(localized: "Abandonné")
+        case .wishlist: return String(localized: "À acheter")
         }
     }
 }
@@ -40,11 +40,11 @@ enum FormatLivre: String, Codable, CaseIterable, Identifiable {
 
     var libelle: String {
         switch self {
-        case .poche: return "Poche"
-        case .grandFormat: return "Grand format"
-        case .relie: return "Relié"
-        case .numerique: return "Numérique"
-        case .audio: return "Audio"
+        case .poche: return String(localized: "Poche")
+        case .grandFormat: return String(localized: "Grand format")
+        case .relie: return String(localized: "Relié")
+        case .numerique: return String(localized: "Numérique")
+        case .audio: return String(localized: "Audio")
         }
     }
 }
@@ -54,9 +54,9 @@ enum StatutParution: String, Codable {
 
     var libelle: String {
         switch self {
-        case .enCours: return "En cours de parution"
-        case .terminee: return "Terminée"
-        case .inconnue: return "Parution inconnue"
+        case .enCours: return String(localized: "En cours de parution")
+        case .terminee: return String(localized: "Terminée")
+        case .inconnue: return String(localized: "Parution inconnue")
         }
     }
 }
@@ -356,7 +356,7 @@ final class SessionLecture {
     var titreCible: String {
         if let oeuvre { return oeuvre.titre(Langues.codeAppareil) }
         if let serie { return serie.nomAffiche(Langues.codeAppareil) }
-        return "Lecture"
+        return String(localized: "Lecture")
     }
 }
 
@@ -436,11 +436,11 @@ enum CollectionAuto: String, CaseIterable, Identifiable {
 
     var nom: String {
         switch self {
-        case .seriesIncompletes: return "Séries incomplètes"
-        case .coupsDeCoeur: return "Coups de cœur"
-        case .achetesCetteAnnee: return "Achetés cette année"
-        case .jamaisOuverts: return "Jamais ouverts"
-        case .pretes: return "Prêtés"
+        case .seriesIncompletes: return String(localized: "Séries incomplètes")
+        case .coupsDeCoeur: return String(localized: "Coups de cœur")
+        case .achetesCetteAnnee: return String(localized: "Achetés cette année")
+        case .jamaisOuverts: return String(localized: "Jamais ouverts")
+        case .pretes: return String(localized: "Prêtés")
         }
     }
 

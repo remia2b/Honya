@@ -10,27 +10,27 @@ enum TypeBadge: String, CaseIterable, Identifiable {
 
     var nom: String {
         switch self {
-        case .marathon: return "Marathon"
-        case .nyctalope: return "Nyctalope"
-        case .completiste: return "Complétiste"
-        case .polygraphe: return "Polygraphe"
-        case .devoreur: return "Dévoreur"
-        case .grandePile: return "La Grande Pile"
-        case .aube: return "Aube"
-        case .fidele: return "Fidèle"
+        case .marathon: return String(localized: "Marathon")
+        case .nyctalope: return String(localized: "Nyctalope")
+        case .completiste: return String(localized: "Complétiste")
+        case .polygraphe: return String(localized: "Polygraphe")
+        case .devoreur: return String(localized: "Dévoreur")
+        case .grandePile: return String(localized: "La Grande Pile")
+        case .aube: return String(localized: "Aube")
+        case .fidele: return String(localized: "Fidèle")
         }
     }
 
     var condition: String {
         switch self {
-        case .marathon: return "2 h de lecture d'affilée"
-        case .nyctalope: return "10 sessions après minuit"
-        case .completiste: return "Une série finie à 100 %"
-        case .polygraphe: return "5 genres dans le même mois"
-        case .devoreur: return "5 tomes en un week-end"
-        case .grandePile: return "50 livres non lus possédés"
-        case .aube: return "Lire avant 7 h, 5 fois"
-        case .fidele: return "Série de 30 jours"
+        case .marathon: return String(localized: "2 h de lecture d'affilée")
+        case .nyctalope: return String(localized: "10 sessions après minuit")
+        case .completiste: return String(localized: "Une série finie à 100 %")
+        case .polygraphe: return String(localized: "5 genres dans le même mois")
+        case .devoreur: return String(localized: "5 tomes en un week-end")
+        case .grandePile: return String(localized: "50 livres non lus possédés")
+        case .aube: return String(localized: "Lire avant 7 h, 5 fois")
+        case .fidele: return String(localized: "Série de 30 jours")
         }
     }
 

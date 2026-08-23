@@ -58,11 +58,15 @@ final class Compte {
     var nomAffiche: String {
         if let nom, !nom.isEmpty { return nom }
         if let email, !email.isEmpty { return email }
-        return methode == .apple ? "Compte Apple" : "Compte Honya"
+        return methode == .apple
+            ? String(localized: "Compte Apple")
+            : String(localized: "Compte Honya")
     }
 
     var libelleMethode: String {
-        methode == .apple ? "Connexion avec Apple" : "Adresse e-mail"
+        methode == .apple
+            ? String(localized: "Connexion avec Apple")
+            : String(localized: "Adresse e-mail")
     }
 
     // MARK: - Apple
@@ -113,7 +117,7 @@ final class Compte {
     func inscrire(email adresse: String, motDePasse: String) async throws -> String? {
         let session = try await SupabaseAuth.inscrire(email: adresse, motDePasse: motDePasse)
         guard let session else {
-            return "Compte créé. Ouvrez le courrier de confirmation, puis connectez-vous."
+            return String(localized: "Compte créé. Ouvrez le courrier de confirmation, puis connectez-vous.")
         }
         adopter(session, adresse: adresse)
         return nil

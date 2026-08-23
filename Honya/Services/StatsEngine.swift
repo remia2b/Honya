@@ -195,10 +195,10 @@ enum StatsEngine {
 
         var libelle: String {
             switch self {
-            case .semaine: return "Semaine"
-            case .mois: return "Mois"
-            case .annee: return "Année"
-            case .tout: return "Tout"
+            case .semaine: return String(localized: "Semaine")
+            case .mois: return String(localized: "Mois")
+            case .annee: return String(localized: "Année")
+            case .tout: return String(localized: "Tout")
             }
         }
     }
