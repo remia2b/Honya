@@ -20,7 +20,8 @@ struct DecouverteView: View {
     private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
 
     /// Les rayons du fond de boutique, servis par le catalogue du pays.
-    private static let rayonsCatalogue: [(cle: String, titre: String, terme: String)] = [
+    private static let rayonsCatalogue:
+        [(cle: String, titre: LocalizedStringKey, terme: String)] = [
         ("manga", "Mangas populaires", "manga"),
         ("polar", "Polars & thrillers", "thriller"),
         ("romance", "Romance", "romance"),
@@ -28,7 +29,8 @@ struct DecouverteView: View {
     ]
 
     /// Les grandes portes d'entrée, comme « Parcourir par genre » chez Apple.
-    private static let genres: [(nom: String, terme: String, symbole: String, teinte: Color)] = [
+    private static let genres:
+        [(nom: LocalizedStringKey, terme: String, symbole: String, teinte: Color)] = [
         ("Romance", "romance", "heart.fill", Color(red: 0.85, green: 0.44, blue: 0.58)),
         ("Polar", "thriller", "magnifyingglass", Color(red: 0.34, green: 0.42, blue: 0.58)),
         ("SF & Fantasy", "fantasy", "moon.stars.fill", Color(red: 0.48, green: 0.38, blue: 0.72)),
@@ -384,7 +386,7 @@ struct DecouverteView: View {
                 ],
                 spacing: 12
             ) {
-                ForEach(Self.genres, id: \.nom) { genre in
+                ForEach(Self.genres, id: \.terme) { genre in
                     NavigationLink {
                         RayonCompletView(titre: genre.nom, terme: genre.terme, langue: langue)
                     } label: {
@@ -492,7 +494,7 @@ struct DecouverteView: View {
 // MARK: - Un rayon en entier (grille 3 colonnes)
 
 struct RayonCompletView: View {
-    let titre: String
+    let titre: LocalizedStringKey
     let terme: String
     let langue: String
 

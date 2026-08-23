@@ -58,7 +58,10 @@ struct StatsView: View {
         let totalMinutes = filtrees.reduce(0) { $0 + $1.dureeSecondes } / 60
         let joursActifs = StatsEngine.joursActifs(filtrees).count
         return BandeSection {
-            TitreSection(titre: "Temps de lecture", sousTitre: periode.libelle)
+            TitreSection(
+                titre: "Temps de lecture",
+                sousTitre: LocalizedStringKey(periode.libelle)
+            )
                 .padding(.horizontal, 20)
 
             HStack(alignment: .lastTextBaseline, spacing: 8) {
