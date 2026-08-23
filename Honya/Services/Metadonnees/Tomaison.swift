@@ -17,9 +17,16 @@ enum Tomaison {
     /// « Fahrenheit 451 » ou « 1984 ».
     private static let motifImplicite = #"\s+(\d{1,2})\s*$"#
 
+    /// « Série (Tome 3) », « Série (Vol. 3) » — le numéro entre parenthèses.
+    private static let motifParenthese =
+        #"\s*\((?:vol(?:ume)?\.?|t(?:ome)?\.?)\s*(\d{1,4})\)\s*$"#
+
     static func decomposer(_ titre: String) -> (base: String, numero: Int?) {
         let propre = titre.trimmingCharacters(in: .whitespacesAndNewlines)
 
+        if let resultat = extraire(propre, motif: motifParenthese, maxNumero: 4000) {
+            return resultat
+        }
         if let resultat = extraire(propre, motif: motifExplicite, maxNumero: 4000) {
             return resultat
         }

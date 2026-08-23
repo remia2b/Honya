@@ -51,4 +51,21 @@ enum Langues {
     static func nom(_ code: String) -> String {
         LangueLecture(code: code).nomNatif
     }
+
+    /// Storefront Apple Books du lecteur : la région de l'iPhone d'abord,
+    /// sinon le pays le plus naturel pour sa langue de lecture.
+    static func storefront(pourLangue langue: String) -> String {
+        if let region = Locale.current.region?.identifier, region.count == 2 {
+            return region
+        }
+        let parDefaut: [String: String] = [
+            "fr": "FR", "en": "US", "ja": "JP", "es": "ES", "de": "DE",
+            "it": "IT", "pt": "BR", "nl": "NL", "sv": "SE", "da": "DK",
+            "no": "NO", "fi": "FI", "pl": "PL", "cs": "CZ", "hu": "HU",
+            "ro": "RO", "el": "GR", "tr": "TR", "ru": "RU", "uk": "UA",
+            "ar": "SA", "he": "IL", "hi": "IN", "th": "TH", "vi": "VN",
+            "id": "ID", "ko": "KR", "zh": "CN", "ca": "ES", "eu": "ES",
+        ]
+        return parDefaut[langue] ?? "US"
+    }
 }

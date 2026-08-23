@@ -57,12 +57,16 @@ enum Titres {
         romaji: String? = nil,
         langue: String
     ) -> String {
-        // 1. Le titre officiel dans la langue du lecteur : toujours le meilleur.
-        if let officiel = titres[langue], !officiel.isEmpty {
+        let lisible: (String) -> Bool = { texte in
+            !estNonLatin(texte) || litScriptNonLatin(langue)
+        }
+        // 1. Le titre officiel dans la langue du lecteur : toujours le meilleur —
+        //    sauf si une donnée corrompue y a glissé un script illisible.
+        if let officiel = titres[langue], !officiel.isEmpty, lisible(officiel) {
             return officiel
         }
         // 2. L'anglais fait office de langue véhiculaire.
-        if let anglais = titres["en"], !anglais.isEmpty {
+        if let anglais = titres["en"], !anglais.isEmpty, lisible(anglais) {
             return anglais
         }
         // 3. Sinon, tout titre déjà connu dans un script lisible par ce lecteur.

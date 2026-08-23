@@ -20,6 +20,7 @@ actor CacheRecherche {
 struct AgregateurMetadonnees: Sendable {
     static let partage = AgregateurMetadonnees()
 
+    private let appleBooks = AppleBooksProvider()
     private let google = GoogleBooksProvider()
     private let openLibrary = OpenLibraryProvider()
     private let aniList = AniListProvider()
@@ -30,9 +31,17 @@ struct AgregateurMetadonnees: Sendable {
         let cle = "livres|" + requete.lowercased() + "|" + (langue ?? "-")
         if let connu = await CacheRecherche.partage.lire(cle) { return connu }
 
-        // Google Books d'abord (meilleure pertinence), Open Library en repli — sans clé
-        // API, Google impose un quota bas et renvoie souvent une réponse vide.
-        var resultats = (try? await google.rechercher(requete, langue: langue)) ?? []
+        // Le catalogue Apple Books du pays du lecteur d'abord — la même base
+        // que son app Apple Books : éditions locales, couvertures HD, tri
+        // d'Apple. Google puis Open Library ne sont que des replis.
+        let langueLecteur = langue ?? Langues.codeAppareil
+        let pays = Langues.storefront(pourLangue: langueLecteur)
+        var resultats = (try? await appleBooks.rechercher(
+            requete, pays: pays, langue: langueLecteur
+        )) ?? []
+        if resultats.isEmpty {
+            resultats = (try? await google.rechercher(requete, langue: langue)) ?? []
+        }
         if resultats.isEmpty {
             resultats = (try? await openLibrary.rechercher(requete, langue: langue)) ?? []
         }
@@ -112,6 +121,14 @@ struct AgregateurMetadonnees: Sendable {
 
     func parISBN(_ isbn: String) async -> ResultatRecherche? {
         if let resultat = (try? await google.parISBN(isbn)) ?? nil {
+            return complete(resultat, isbn: isbn)
+        }
+        let langueLecteur = ISBNUtil.langueProbable(isbn) ?? Langues.codeAppareil
+        if let resultat = await appleBooks.parISBN(
+            isbn,
+            pays: Langues.storefront(pourLangue: langueLecteur),
+            langue: langueLecteur
+        ) {
             return complete(resultat, isbn: isbn)
         }
         if let resultat = (try? await openLibrary.parISBN(isbn)) ?? nil {

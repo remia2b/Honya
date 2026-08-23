@@ -8,8 +8,8 @@ enum Onglet: Hashable {
 struct RacineView: View {
     @Environment(\.modelContext) private var contexte
     @State private var onglet: Onglet = .accueil
-    /// Nettoyage one-shot des couvertures héritées d'autres éditions (VO, EN…).
-    @AppStorage("editionsLocalesV9") private var editionsMigrees = false
+    /// Nettoyage one-shot des données héritées ou corrompues des vieux bugs.
+    @AppStorage("editionsLocalesV10") private var editionsMigrees = false
 
     var body: some View {
         TabView(selection: $onglet) {
@@ -41,11 +41,23 @@ struct RacineView: View {
         let oeuvres = (try? contexte.fetch(FetchDescriptor<Oeuvre>())) ?? []
 
         if !editionsMigrees {
-            // Une seule fois : les métadonnées héritées d'une autre édition
-            // (couverture VO du tome 1, titres VIZ…) repartent à zéro.
+            // Une seule fois : purge des dégâts des anciens bugs — noms écrasés
+            // par un script illisible ou par un AUTRE livre, couvertures d'une
+            // autre édition (VO, VIZ, Carlsen…). Les états lu/possédé restent.
             editionsMigrees = true
             for serie in series {
+                let referenceBase = Tomaison.decomposer(
+                    serie.noms["en"] ?? serie.nomRomaji ?? serie.nom
+                ).base
+                for (code, nom) in serie.noms {
+                    let base = Tomaison.decomposer(nom).base
+                    let illisible = Titres.estNonLatin(base) && !Titres.litScriptNonLatin(code)
+                    if illisible || !Tomaison.memeSerie(base, referenceBase) {
+                        serie.noms[code] = nil
+                    }
+                }
                 serie.couvertureLocaleURL = nil
+                serie.resumeLocal = nil
                 for tome in serie.tomes {
                     tome.couvertureURL = nil
                     tome.titre = nil
@@ -54,12 +66,26 @@ struct RacineView: View {
                 }
                 ResolveurTomes.reinitialiser(serie)
             }
+            for oeuvre in oeuvres {
+                let referenceBase = Tomaison.decomposer(
+                    oeuvre.titres["en"] ?? oeuvre.titreRomaji ?? oeuvre.titreOriginal
+                ).base
+                for (code, titre) in oeuvre.titres where code != "en" {
+                    let base = Tomaison.decomposer(titre).base
+                    let illisible = Titres.estNonLatin(base) && !Titres.litScriptNonLatin(code)
+                    if illisible || !Tomaison.memeSerie(base, referenceBase) {
+                        oeuvre.titres[code] = nil
+                    }
+                }
+                oeuvre.couvertureLocaleURL = nil
+                oeuvre.resumeLocal = nil
+            }
         }
 
-        // Rattrapage permanent : tout ce qui n'a pas encore son édition locale
-        // la récupère, en file indienne pour respecter les quotas.
+        // Rattrapage permanent, en file indienne : une requête par série
+        // remplit son nom local ET les couvertures de tous ses tomes.
         for serie in series where serie.couvertureLocaleURL == nil {
-            await EditionsLocales.rafraichirSerie(serie, langue: langue)
+            await EditionsLocales.rafraichirSerieComplete(serie, langue: langue)
         }
         for oeuvre in oeuvres where oeuvre.couvertureLocaleURL == nil {
             await EditionsLocales.rafraichirOeuvre(oeuvre, langue: langue)

@@ -160,49 +160,11 @@ enum ImportService {
         oeuvre.exemplaire = exemplaire
 
         contexte.insert(oeuvre)
-        resoudreEditionLocale(
-            reference: oeuvre.titres["en"] ?? oeuvre.titreRomaji ?? oeuvre.titreOriginal,
-            langue: objectif.languePrincipale,
-            titreActuel: { oeuvre.titres[objectif.languePrincipale] }
-        ) { titre, couverture in
-            if let titre { oeuvre.titres[objectif.languePrincipale] = titre }
-            if oeuvre.couvertureLocaleURL == nil { oeuvre.couvertureLocaleURL = couverture }
-        } surResume: { resume in
-            if oeuvre.resumeLocal == nil, let resume, !resume.isEmpty {
-                oeuvre.resumeLocal = resume
-            }
+        let langue = objectif.languePrincipale
+        Task { @MainActor in
+            await EditionsLocales.rafraichirOeuvre(oeuvre, langue: langue)
         }
         return oeuvre
-    }
-
-    /// Va chercher l'édition RÉELLEMENT publiée dans la langue du lecteur :
-    /// son titre officiel ET sa couverture (celle qu'il verrait en librairie).
-    /// Aucune traduction automatique : si l'œuvre n'a jamais paru dans cette
-    /// langue, on garde ce qu'on a et l'affichage se rabat sur l'anglais.
-    private static func resoudreEditionLocale(
-        reference: String,
-        langue: String,
-        titreActuel: @escaping () -> String?,
-        appliquer: @escaping (_ titre: String?, _ couverture: String?) -> Void,
-        surResume: ((String?) -> Void)? = nil
-    ) {
-        guard !reference.isEmpty else { return }
-        Task { @MainActor in
-            let resultats = await AgregateurMetadonnees.partage
-                .rechercherLivres(reference, langue: langue)
-            let bon = resultats.first { $0.langue == langue && $0.couvertureURL != nil }
-                ?? resultats.first { $0.couvertureURL != nil }
-                ?? resultats.first
-            guard let bon else { return }
-
-            var titre: String?
-            if titreActuel() == nil,
-               !Titres.estNonLatin(bon.titre) || Titres.litScriptNonLatin(langue) {
-                titre = bon.titre
-            }
-            appliquer(titre, bon.couvertureURL)
-            surResume?(bon.resume)
-        }
     }
 
     // MARK: - Série manga
@@ -234,24 +196,11 @@ enum ImportService {
         }
         contexte.insert(serie)
 
-        // Enrichissement paresseux : le nom officiel ET la couverture de
-        // l'édition locale (Kana, Glénat… pour un lecteur français).
+        // Enrichissement automatique : l'édition du pays du lecteur — nom,
+        // couvertures de tous les tomes, résumé — en une seule requête.
         let langue = objectif.languePrincipale
-        resoudreEditionLocale(
-            reference: serie.noms["en"] ?? serie.nomRomaji ?? serie.nom,
-            langue: langue,
-            titreActuel: { serie.noms[langue] }
-        ) { titre, couverture in
-            // Le premier résultat est souvent un TOME (« Kagurabachi, Vol. 1 ») :
-            // on n'en garde que le nom de série.
-            if let titre {
-                serie.noms[langue] = Tomaison.decomposer(titre).base
-            }
-            if serie.couvertureLocaleURL == nil { serie.couvertureLocaleURL = couverture }
-        } surResume: { resume in
-            if serie.resumeLocal == nil, let resume, !resume.isEmpty {
-                serie.resumeLocal = resume
-            }
+        Task { @MainActor in
+            await EditionsLocales.rafraichirSerieComplete(serie, langue: langue)
         }
         return serie
     }

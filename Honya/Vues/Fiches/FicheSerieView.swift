@@ -80,7 +80,7 @@ struct FicheSerieView: View {
         .onAppear(perform: synchroniserTomes)
         .task {
             if serie.couvertureLocaleURL == nil {
-                await EditionsLocales.rafraichirSerie(serie, langue: langue)
+                await EditionsLocales.rafraichirSerieComplete(serie, langue: langue)
             }
         }
     }
@@ -106,7 +106,7 @@ struct FicheSerieView: View {
         serie.noms[langue] = nil
         serie.couvertureLocaleURL = nil
         serie.resumeLocal = nil
-        await EditionsLocales.rafraichirSerie(serie, langue: langue)
+        await EditionsLocales.rafraichirSerieComplete(serie, langue: langue)
         synchroniserTomes()
         // Les tomes gardent leurs états lu/possédé, mais leurs métadonnées
         // héritées d'une autre édition (couverture VO ou anglaise, titre, ISBN)
