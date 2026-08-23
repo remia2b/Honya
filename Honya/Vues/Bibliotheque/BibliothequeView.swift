@@ -8,7 +8,7 @@ enum FiltreBibli: String, CaseIterable, Identifiable {
     case enCours = "En cours"
     case aLire = "À lire"
     case lus = "Lus"
-    case wishlist = "Wishlist"
+    case wishlist = "À acheter"
     case series = "Séries"
 
     var id: String { rawValue }
@@ -392,6 +392,7 @@ private struct CelluleSerie: View {
             }
         }
         .buttonStyle(.plain)
+        .menuSerie(serie, langue: langue)
     }
 }
 
@@ -482,6 +483,71 @@ private struct RangeeSerie: View {
             )
         }
         .buttonStyle(.plain)
+        .menuSerie(serie, langue: langue)
+    }
+}
+
+// MARK: - Appui long sur une série : changer l'état sans ouvrir la fiche
+
+private struct MenuSerie: ViewModifier {
+    let serie: Serie
+    let langue: String
+
+    @Environment(\.modelContext) private var contexte
+    @State private var confirmerSuppression = false
+
+    func body(content: Content) -> some View {
+        content
+            .contextMenu {
+                if let prochain = serie.prochainALire {
+                    Button {
+                        prochain.lu = true
+                        prochain.dateLu = Date()
+                        BadgesEngine.evaluer(dans: contexte)
+                        if serie.estTerminee {
+                            Celebrations.partage.feter("Série terminée !")
+                        }
+                    } label: {
+                        Label("Tome \(prochain.numero) lu", systemImage: "checkmark.circle")
+                    }
+                }
+                if !serie.estTerminee && !serie.tomesParus.isEmpty {
+                    Button {
+                        for tome in serie.tomesParus {
+                            tome.possede = true
+                            if !tome.lu {
+                                tome.lu = true
+                                tome.dateLu = Date()
+                            }
+                        }
+                        BadgesEngine.evaluer(dans: contexte)
+                        Celebrations.partage.feter("Série terminée !")
+                    } label: {
+                        Label("Toute la série lue", systemImage: "checkmark.seal")
+                    }
+                }
+                Divider()
+                Button(role: .destructive) {
+                    confirmerSuppression = true
+                } label: {
+                    Label("Retirer de ma bibliothèque", systemImage: "trash")
+                }
+            }
+            .confirmationDialog(
+                "Retirer « \(serie.nomAffiche(langue)) » et tous ses tomes ?",
+                isPresented: $confirmerSuppression,
+                titleVisibility: .visible
+            ) {
+                Button("Retirer", role: .destructive) {
+                    contexte.delete(serie)
+                }
+            }
+    }
+}
+
+private extension View {
+    func menuSerie(_ serie: Serie, langue: String) -> some View {
+        modifier(MenuSerie(serie: serie, langue: langue))
     }
 }
 

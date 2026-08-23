@@ -101,7 +101,6 @@ private struct ContenuFicheOeuvre: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar { barreActions }
-        .overlay { if celebration { vueCelebration } }
         .sensoryFeedback(.success, trigger: celebration)
         .fullScreenCover(item: $cibleSession) { SessionLectureView(cible: $0) }
         .sheet(isPresented: $majPageVisible) {
@@ -491,33 +490,13 @@ private struct ContenuFicheOeuvre: View {
         }
     }
 
-    // MARK: - Fin de livre (petit moment de fête, sobre)
+    // MARK: - Fin de livre (confettis plein écran)
 
     private func marquerLu() {
         exemplaire.changerStatut(.lu)
         BadgesEngine.evaluer(dans: contexte)
-        withAnimation(.spring(duration: 0.4)) { celebration = true }
-        Task {
-            try? await Task.sleep(for: .seconds(1.8))
-            withAnimation(.easeOut(duration: 0.4)) { celebration = false }
-        }
-    }
-
-    private var vueCelebration: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "checkmark.seal.fill")
-                .font(.system(size: 56))
-                .symbolEffect(.bounce, value: celebration)
-            Text("Terminé !")
-                .font(.titreOeuvre(24))
-            Text("Un de plus sur l'étagère des lus.")
-                .font(.caption)
-                .opacity(0.8)
-        }
-        .foregroundStyle(.white)
-        .padding(30)
-        .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .transition(.scale(scale: 0.8).combined(with: .opacity))
+        celebration.toggle()
+        Celebrations.partage.feter("Terminé !")
     }
 
     // MARK: - Aides

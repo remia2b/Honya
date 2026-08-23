@@ -376,16 +376,16 @@ private struct RangeeResultat: View {
             } else {
                 Menu {
                     Button { surAjout(.aLire) } label: {
-                        Label("À lire", systemImage: "book.closed")
+                        Label("Je le possède · à lire", systemImage: "books.vertical.fill")
                     }
                     Button { surAjout(.enCours) } label: {
-                        Label("Je le lis en ce moment", systemImage: "book")
+                        Label("Je suis en train de le lire", systemImage: "book.fill")
                     }
                     Button { surAjout(.lu) } label: {
-                        Label("Déjà lu", systemImage: "checkmark.circle")
+                        Label("Je l'ai lu", systemImage: "checkmark.circle.fill")
                     }
                     Button { surAjout(.wishlist) } label: {
-                        Label("Wishlist", systemImage: "heart")
+                        Label("À acheter", systemImage: "cart.fill")
                     }
                 } label: {
                     Image(systemName: "plus.circle.fill")

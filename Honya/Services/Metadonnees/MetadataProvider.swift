@@ -15,6 +15,8 @@ struct ResultatRecherche: Identifiable, Hashable {
     var resume: String?
     var pages: Int?
     var annee: Int?
+    /// Date de parution complète — future pour une précommande.
+    var dateSortie: Date?
     var genres: [String] = []
     var couvertureURL: String?
     var isbn: String?

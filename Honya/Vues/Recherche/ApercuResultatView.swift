@@ -155,39 +155,45 @@ struct ApercuResultatView: View {
             .foregroundStyle(teinte)
             .background(.white, in: Capsule())
         } else {
-            VStack(spacing: 8) {
+            // Un seul bouton, et l'état se choisit au moment d'ajouter :
+            // fini le livre rangé « à lire » qu'on a en fait déjà fini.
+            Menu {
                 Button {
                     ajouter(.aLire)
                 } label: {
+                    Label("Je le possède · à lire", systemImage: "books.vertical.fill")
+                }
+                Button {
+                    ajouter(.enCours)
+                } label: {
+                    Label("Je suis en train de le lire", systemImage: "book.fill")
+                }
+                Button {
+                    ajouter(.lu)
+                } label: {
+                    Label("Je l'ai lu", systemImage: "checkmark.circle.fill")
+                }
+                Button {
+                    ajouter(.wishlist)
+                } label: {
+                    Label("À acheter", systemImage: "cart.fill")
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "plus")
+                        .font(.subheadline.weight(.heavy))
                     Text("Ajouter à ma bibliothèque")
                         .font(.subheadline.weight(.heavy))
-                        .frame(maxWidth: 300)
-                        .padding(.vertical, 12)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 11, weight: .bold))
+                        .opacity(0.55)
                 }
-                .buttonStyle(.plain)
+                .frame(maxWidth: 300)
+                .padding(.vertical, 12)
                 .foregroundStyle(teinte)
                 .background(.white, in: Capsule())
-
-                HStack(spacing: 8) {
-                    boutonSecondaire("Je le lis", .enCours)
-                    boutonSecondaire("Déjà lu", .lu)
-                    boutonSecondaire("Wishlist", .wishlist)
-                }
             }
         }
-    }
-
-    private func boutonSecondaire(_ texte: String, _ statut: StatutLecture) -> some View {
-        Button {
-            ajouter(statut)
-        } label: {
-            Text(texte)
-                .font(.caption.weight(.bold))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(.white.opacity(0.16), in: Capsule())
-        }
-        .buttonStyle(.plain)
     }
 
     private func ajouter(_ statut: StatutLecture) {

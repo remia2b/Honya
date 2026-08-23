@@ -136,10 +136,12 @@ private struct CaseTome: View {
                 coins: 5,
                 manga: serie.type != .livre
             )
-            .saturation(tome.possede ? 1 : 0.15)
-            .opacity(tome.possede ? 1 : 0.45)
+            .saturation(tome.possede ? 1 : 0.3)
+            .opacity(tome.possede ? 1 : 0.55)
             .overlay {
-                if !tome.possede {
+                // Le pointillé ne sert qu'aux cases SANS couverture : posé
+                // par-dessus une vraie couverture, il salissait la grille.
+                if !tome.possede && tome.couvertureURL == nil {
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
                         .strokeBorder(
                             .secondary.opacity(0.5),
@@ -158,10 +160,17 @@ private struct CaseTome: View {
             }
             .shadow(color: .black.opacity(tome.possede ? 0.3 : 0.1), radius: 6, y: 3)
 
-            Text("Tome \(tome.numero)")
-                .font(.caption2.weight(.semibold))
-                .monospacedDigit()
-                .foregroundStyle(tome.possede ? .primary : .secondary)
+            VStack(spacing: 1) {
+                Text("Tome \(tome.numero)")
+                    .font(.caption2.weight(.semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(tome.possede ? .primary : .secondary)
+                if let sortie = tome.dateSortie, sortie > Date() {
+                    Text(sortie, format: .dateTime.day().month())
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(Couleurs.accent)
+                }
+            }
         }
         .accessibilityLabel("Tome \(tome.numero)")
         .accessibilityValue(tome.lu ? "lu" : tome.possede ? "possédé" : "manquant")
@@ -238,6 +247,10 @@ private struct FeuilleTome: View {
         tome.dateLu = valeur ? Date() : nil
         if valeur { tome.possede = true }
         BadgesEngine.evaluer(dans: contexte)
+        if valeur, serie.estTerminee {
+            dismiss()
+            Celebrations.partage.feter("Série terminée !")
+        }
     }
 
     private func appliquerJusquIci() {
@@ -249,6 +262,9 @@ private struct FeuilleTome: View {
             }
         }
         BadgesEngine.evaluer(dans: contexte)
+        if serie.estTerminee {
+            Celebrations.partage.feter("Série terminée !")
+        }
     }
 }
 
@@ -336,5 +352,8 @@ private struct FeuilleJusquA: View {
             }
         }
         BadgesEngine.evaluer(dans: contexte)
+        if reglage == .lus, serie.estTerminee {
+            Celebrations.partage.feter("Série terminée !")
+        }
     }
 }

@@ -28,7 +28,7 @@ enum StatutLecture: String, Codable, CaseIterable, Identifiable {
         case .enCours: return "En cours"
         case .lu: return "Lu"
         case .abandonne: return "Abandonné"
-        case .wishlist: return "Wishlist"
+        case .wishlist: return "À acheter"
         }
     }
 }
@@ -272,13 +272,13 @@ final class Serie {
 
     /// La série apparaît dans « En cours » si on a commencé sans finir.
     var lectureEnCours: Bool {
-        (nbLus > 0 && nbLus < tomes.count) || (chapitresLus > 0)
+        (nbLus > 0 && !estTerminee) || (chapitresLus > 0)
     }
 
     /// Statut équivalent à celui d'un livre, déduit de l'état des tomes.
     /// C'est lui qui fait vivre les filtres de la bibliothèque pour les séries.
     var statut: StatutLecture {
-        if !tomes.isEmpty && nbLus == tomes.count { return .lu }
+        if estTerminee { return .lu }
         if nbLus > 0 || chapitresLus > 0 { return .enCours }
         if nbPossedes > 0 { return .aLire }
         return .wishlist
@@ -293,6 +293,18 @@ final class Serie {
     /// Tome à lire ensuite : le premier possédé mais pas encore lu.
     var prochainALire: Tome? {
         tomesTries.first { $0.possede && !$0.lu }
+    }
+
+    /// Tomes déjà en rayon — une date de sortie future est une précommande.
+    var tomesParus: [Tome] {
+        tomes.filter { ($0.dateSortie ?? .distantPast) <= Date() }
+    }
+
+    /// Série terminée : tout ce qui est paru est lu. Un tome à paraître
+    /// n'empêche pas de fêter — on ne peut pas lire l'avenir.
+    var estTerminee: Bool {
+        let parus = tomesParus
+        return !parus.isEmpty && parus.allSatisfy(\.lu)
     }
 }
 
@@ -309,6 +321,8 @@ final class Tome {
     var titre: String?
     var couvertureURL: String?
     var pages: Int?
+    /// Date de parution — future pour une précommande : le tome « à paraître ».
+    var dateSortie: Date?
 
     var serie: Serie?
 

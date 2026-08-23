@@ -65,8 +65,37 @@ enum EditionsLocales {
                 tome.couvertureURL = couverture
             }
             tome.titre = edition.titre
+            tome.dateSortie = edition.dateSortie ?? tome.dateSortie
             if tome.pages == nil { tome.pages = edition.pages }
             if tome.isbn == nil { tome.isbn = edition.isbn }
+        }
+
+        // Le rayon COMPLET : tout tome du catalogue absent de la série est
+        // créé, grisé tant qu'il n'est pas possédé — précommandes comprises.
+        let numerosConnus = Set(serie.tomes.map(\.numero))
+        for (numero, edition) in parNumero where !numerosConnus.contains(numero) {
+            let tome = Tome(numero: numero)
+            tome.titre = edition.titre
+            tome.couvertureURL = edition.couvertureURL
+            tome.pages = edition.pages
+            tome.isbn = edition.isbn
+            tome.dateSortie = edition.dateSortie
+            serie.tomes.append(tome)
+        }
+        if let maxNumero = parNumero.keys.max() {
+            serie.tomesTotal = max(serie.tomesTotal ?? 0, maxNumero)
+        }
+
+        // Les précommandes du catalogue donnent la prochaine sortie, tout seul.
+        let aVenir = parNumero
+            .compactMap { numero, edition -> (Int, Date)? in
+                guard let date = edition.dateSortie, date > Date() else { return nil }
+                return (numero, date)
+            }
+            .min { $0.1 < $1.1 }
+        if let (numero, date) = aVenir {
+            serie.prochaineSortieNumero = numero
+            serie.prochaineSortieDate = date
         }
     }
 

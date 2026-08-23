@@ -129,10 +129,10 @@ struct ScannerSheet: View {
                                 .foregroundStyle(Couleurs.lu)
                         } else {
                             Menu {
-                                Button("À lire") { ajouter(resultat, statut: .aLire) }
-                                Button("Je le lis en ce moment") { ajouter(resultat, statut: .enCours) }
-                                Button("Déjà lu") { ajouter(resultat, statut: .lu) }
-                                Button("Wishlist") { ajouter(resultat, statut: .wishlist) }
+                                Button("Je le possède · à lire") { ajouter(resultat, statut: .aLire) }
+                                Button("Je suis en train de le lire") { ajouter(resultat, statut: .enCours) }
+                                Button("Je l'ai lu") { ajouter(resultat, statut: .lu) }
+                                Button("À acheter") { ajouter(resultat, statut: .wishlist) }
                             } label: {
                                 Image(systemName: "plus.circle.fill")
                                     .font(.title3)

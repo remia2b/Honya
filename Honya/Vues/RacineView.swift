@@ -10,6 +10,9 @@ struct RacineView: View {
     @State private var onglet: Onglet = .accueil
     /// Nettoyage one-shot des données héritées ou corrompues des vieux bugs.
     @AppStorage("editionsLocalesV10") private var editionsMigrees = false
+    /// Une seule fois : chaque série existante gagne le rayon complet du catalogue.
+    @AppStorage("catalogueCompletV11") private var catalogueComplet = false
+    @State private var celebrations = Celebrations.partage
 
     var body: some View {
         TabView(selection: $onglet) {
@@ -28,6 +31,12 @@ struct RacineView: View {
             }
         }
         .tint(Couleurs.accent)
+        .overlay {
+            if celebrations.actif {
+                ConfettisView(message: celebrations.message)
+                    .transition(.opacity)
+            }
+        }
         .task { await demarrage() }
     }
 
@@ -80,6 +89,15 @@ struct RacineView: View {
                 oeuvre.couvertureLocaleURL = nil
                 oeuvre.resumeLocal = nil
             }
+        }
+
+        // Une seule fois : les séries d'avant la v0.11 récupèrent le rayon
+        // complet — tous les tomes parus du catalogue, et les précommandes.
+        if !catalogueComplet {
+            for serie in series where serie.couvertureLocaleURL != nil {
+                await EditionsLocales.rafraichirSerieComplete(serie, langue: langue)
+            }
+            catalogueComplet = true
         }
 
         // Rattrapage permanent, en file indienne : une requête par série

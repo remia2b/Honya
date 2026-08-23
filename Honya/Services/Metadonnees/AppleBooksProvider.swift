@@ -79,6 +79,9 @@ struct AppleBooksProvider: Sendable {
             resultat.langue = langue
             resultat.resume = description.map(TexteUtil.sansHTML)
             resultat.annee = TexteUtil.annee(releaseDate)
+            if let releaseDate {
+                resultat.dateSortie = ISO8601DateFormatter().date(from: releaseDate)
+            }
             resultat.couvertureURL = artworkUrl100.map(Self.hauteResolution)
 
             let genresUtiles = (genres ?? []).filter { $0 != "Livres" && $0 != "Books" }
