@@ -125,6 +125,11 @@ private struct ContenuFicheOeuvre: View {
                 dismiss()
             }
         }
+        .task {
+            if oeuvre.couvertureLocaleURL == nil {
+                await EditionsLocales.rafraichirOeuvre(oeuvre, langue: langue)
+            }
+        }
         .task(id: oeuvre.couvertureAffichee) {
             guard let image = await ImageCharge.partage.uiImage(depuis: oeuvre.couvertureAffichee),
                   let couleur = CouleurCouverture.teinteDeFond(image)

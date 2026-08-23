@@ -78,6 +78,11 @@ struct FicheSerieView: View {
             SortieSheet(serie: serie, langue: langue)
         }
         .onAppear(perform: synchroniserTomes)
+        .task {
+            if serie.couvertureLocaleURL == nil {
+                await EditionsLocales.rafraichirSerie(serie, langue: langue)
+            }
+        }
     }
 
     /// Re-résout la série depuis AniList (auteur, tomes, résumé) et relance
@@ -101,15 +106,17 @@ struct FicheSerieView: View {
         serie.noms[langue] = nil
         serie.couvertureLocaleURL = nil
         serie.resumeLocal = nil
-        let base = Tomaison.decomposer(serie.nom).base
-        let editions = await AgregateurMetadonnees.partage.rechercherLivres(base, langue: langue)
-        if let locale = editions.first(where: { $0.langue == langue && $0.couvertureURL != nil })
-            ?? editions.first(where: { $0.couvertureURL != nil }) {
-            serie.noms[langue] = Tomaison.decomposer(locale.titre).base
-            serie.couvertureLocaleURL = locale.couvertureURL
-            if let resume = locale.resume, !resume.isEmpty { serie.resumeLocal = resume }
-        }
+        await EditionsLocales.rafraichirSerie(serie, langue: langue)
         synchroniserTomes()
+        // Les tomes gardent leurs états lu/possédé, mais leurs métadonnées
+        // héritées d'une autre édition (couverture VO ou anglaise, titre, ISBN)
+        // repartent à zéro : chacun retrouvera l'édition de la langue du lecteur.
+        for tome in serie.tomes {
+            tome.couvertureURL = nil
+            tome.titre = nil
+            tome.isbn = nil
+            tome.pages = nil
+        }
         ResolveurTomes.reinitialiser(serie)
     }
 

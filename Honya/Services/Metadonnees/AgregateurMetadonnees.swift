@@ -79,6 +79,13 @@ struct AgregateurMetadonnees: Sendable {
             }) { points += 20 }
             if r.couvertureURL != nil { points += 8 }
             if !r.auteurs.isEmpty { points += 4 }
+            // L'édition dans la langue du lecteur passe devant les autres :
+            // un francophone doit voir Kana avant VIZ.
+            if let langueResultat = r.langue {
+                if langueResultat == langueLecteur { points += 30 }
+                else if !Titres.litScriptNonLatin(langueLecteur),
+                        Titres.litScriptNonLatin(langueResultat) { points -= 15 }
+            }
             // Un titre illisible pour ce lecteur passe après les autres.
             if !Titres.litScriptNonLatin(langueLecteur), Titres.estNonLatin(titre) { points -= 50 }
             return points

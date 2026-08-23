@@ -44,13 +44,15 @@ enum ResolveurTomes {
         for requete in ["\(base) T\(tome.numero)", "\(base) \(tome.numero)"] {
             let resultats = await AgregateurMetadonnees.partage
                 .rechercherLivres(requete, langue: langue)
-            // Correspondance STRICTE : même série ET même numéro de tome.
-            candidat = resultats.first { resultat in
+            // Correspondance STRICTE : même série ET même numéro de tome —
+            // et parmi les éditions valables, celle de la langue du lecteur d'abord.
+            let valables = resultats.filter { resultat in
                 guard resultat.couvertureURL != nil else { return false }
                 let (candidatBase, candidatNumero) = Tomaison.decomposer(resultat.titre)
                 return candidatNumero == tome.numero
                     && Tomaison.memeSerie(candidatBase, base)
             }
+            candidat = valables.first { $0.langue == langue } ?? valables.first
             if candidat != nil { break }
         }
 
