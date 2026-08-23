@@ -30,7 +30,6 @@ struct FicheSerieView: View {
                 }
                 .frame(maxWidth: 280)
                 carteTomes
-                carteChapitres
                 carteSortie
                 if let resume = serie.resumeAffiche, !resume.isEmpty {
                     carte {
@@ -224,26 +223,6 @@ struct FicheSerieView: View {
     private var carteTomes: some View {
         carte {
             GrilleTomesView(serie: serie, langue: langue)
-        }
-    }
-
-    // MARK: - Chapitres (prépublication)
-
-    private var carteChapitres: some View {
-        carte {
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Chapitres (prépublication)")
-                        .font(.subheadline.weight(.semibold))
-                    Text("Lu jusqu'au chapitre \(serie.chapitresLus)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-                Spacer()
-                Stepper("Chapitres lus", value: $serie.chapitresLus, in: 0...(serie.chapitresTotal ?? 9999))
-                    .labelsHidden()
-            }
         }
     }
 

@@ -56,13 +56,11 @@ struct BibliothequeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     EnteteEcran(titre: "Bibliothèque") {
-                        HStack(spacing: 10) {
+                        HStack(spacing: 12) {
                             NavigationLink {
                                 CollectionsView()
                             } label: {
-                                Image(systemName: "square.stack.fill")
-                                    .font(.title3)
-                                    .foregroundStyle(.secondary)
+                                boutonRond("square.stack.fill")
                             }
                             .accessibilityLabel("Collections")
                             Menu {
@@ -79,14 +77,10 @@ struct BibliothequeView: View {
                                     )
                                 }
                             } label: {
-                                Image(systemName: "line.3.horizontal.decrease.circle.fill")
-                                    .font(.title2)
-                                    .foregroundStyle(.secondary)
+                                boutonRond("line.3.horizontal.decrease")
                             }
                             Button(action: allerRecherche) {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.title2)
-                                    .foregroundStyle(Couleurs.accent)
+                                boutonRond("plus", accent: true)
                             }
                             .accessibilityLabel("Ajouter")
                         }
@@ -129,6 +123,20 @@ struct BibliothequeView: View {
             .background(Color(uiColor: .systemGroupedBackground))
             .toolbar(.hidden, for: .navigationBar)
         }
+    }
+
+    /// Boutons ronds de l'en-tête, à la Apple Books : plus gros, plus francs.
+    private func boutonRond(_ symbole: String, accent: Bool = false) -> some View {
+        Image(systemName: symbole)
+            .font(.system(size: 15, weight: .semibold))
+            .foregroundStyle(accent ? Color.white : .primary)
+            .frame(width: 36, height: 36)
+            .background(
+                accent
+                    ? AnyShapeStyle(Couleurs.accent)
+                    : AnyShapeStyle(Color(uiColor: .secondarySystemFill)),
+                in: Circle()
+            )
     }
 
     // MARK: - Chips
@@ -284,14 +292,18 @@ private struct CelluleLivre: View {
         NavigationLink {
             FicheOeuvreView(oeuvre: oeuvre)
         } label: {
-            CouvertureView(
-                urlString: oeuvre.couvertureAffichee,
-                titre: oeuvre.titre(langue),
-                auteur: oeuvre.auteurPrincipal
-            )
-            .overlay(alignment: .bottomLeading) {
-                BadgeStatutView(statut: exemplaire.statut)
-                    .padding(6)
+            VStack(alignment: .leading, spacing: 6) {
+                CouvertureView(
+                    urlString: oeuvre.couvertureAffichee,
+                    titre: oeuvre.titre(langue),
+                    auteur: oeuvre.auteurPrincipal
+                )
+                // Le badge vit SOUS la couverture, comme chez Apple Books :
+                // l'image reste propre.
+                HStack {
+                    BadgeStatutView(statut: exemplaire.statut)
+                    Spacer(minLength: 0)
+                }
             }
         }
         .buttonStyle(.plain)
@@ -359,36 +371,35 @@ private struct CelluleSerie: View {
         NavigationLink {
             FicheSerieView(serie: serie)
         } label: {
-            ZStack {
-                // Effet de pile : deux « cartes » derrière la couverture.
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(Color(uiColor: .systemFill))
-                    .aspectRatio(2.0 / 3.0, contentMode: .fit)
-                    .scaleEffect(0.9)
-                    .offset(y: -10)
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemFill))
-                    .aspectRatio(2.0 / 3.0, contentMode: .fit)
-                    .scaleEffect(0.95)
-                    .offset(y: -5)
-                CouvertureView(
-                    urlString: serie.couvertureAffichee,
-                    titre: serie.nomAffiche(langue),
-                    auteur: serie.auteur
-                )
-            }
-            .overlay(alignment: .bottomLeading) {
-                BadgeStatutView(statut: serie.statut).padding(6)
-            }
-            .overlay(alignment: .topTrailing) {
-                Text("\(serie.nbPossedes)/\(serie.tomesTotal ?? serie.tomes.count)")
-                    .font(.system(size: 9, weight: .heavy))
-                    .monospacedDigit()
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 3)
-                    .background(.black.opacity(0.72), in: Capsule())
-                    .padding(6)
+            VStack(alignment: .leading, spacing: 6) {
+                ZStack {
+                    // Effet de pile : deux « cartes » derrière la couverture.
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(Color(uiColor: .systemFill))
+                        .aspectRatio(2.0 / 3.0, contentMode: .fit)
+                        .scaleEffect(0.9)
+                        .offset(y: -10)
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
+                        .fill(Color(uiColor: .secondarySystemFill))
+                        .aspectRatio(2.0 / 3.0, contentMode: .fit)
+                        .scaleEffect(0.95)
+                        .offset(y: -5)
+                    CouvertureView(
+                        urlString: serie.couvertureAffichee,
+                        titre: serie.nomAffiche(langue),
+                        auteur: serie.auteur
+                    )
+                }
+                // Badge et progression SOUS la couverture, comme chez Apple
+                // Books : la couverture reste propre.
+                HStack {
+                    BadgeStatutView(statut: serie.statut)
+                    Spacer(minLength: 0)
+                    Text("\(serie.nbPossedes)/\(serie.tomesTotal ?? serie.tomes.count)")
+                        .font(.caption2.weight(.bold))
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
             }
         }
         .buttonStyle(.plain)

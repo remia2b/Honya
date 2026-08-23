@@ -25,6 +25,7 @@ struct RechercheView: View {
     @State private var enChargement = false
     @State private var scannerVisible = false
     @State private var ajoutes: Set<String> = []
+    @State private var tendances: [ResultatRecherche] = []
     @FocusState private var champActif: Bool
 
     private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
@@ -151,7 +152,7 @@ struct RechercheView: View {
             }
             .padding(.top, 40)
         } else if texte.count < 2 {
-            carteInvitation
+            suggestions
         } else if resultats.isEmpty && trouvesLocalement.isEmpty {
             ContentUnavailableView.search(text: texte)
                 .padding(.top, 30)
@@ -184,6 +185,80 @@ struct RechercheView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Suggestions (avant même de taper)
+
+    private var suggestions: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            carteInvitation
+
+            if !tendances.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    TitreSection(titre: "Populaires en ce moment")
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(alignment: .top, spacing: 14) {
+                            ForEach(tendances.prefix(12)) { resultat in
+                                NavigationLink {
+                                    ApercuResultatView(resultat: resultat, langue: langue)
+                                } label: {
+                                    CouvertureView(
+                                        urlString: resultat.couvertureURL,
+                                        titre: resultat.titre,
+                                        coins: 6
+                                    )
+                                    .frame(width: 92)
+                                    .shadow(color: .black.opacity(0.35), radius: 9, y: 5)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    TitreSection(titre: "Tendances des recherches")
+                    ForEach(termesTendance, id: \.self) { terme in
+                        Button {
+                            texte = terme
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundStyle(Couleurs.accent)
+                                Text(terme)
+                                    .font(.callout)
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                                Spacer()
+                            }
+                            .padding(.vertical, 9)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        Divider()
+                    }
+                }
+            }
+        }
+        .task {
+            guard tendances.isEmpty else { return }
+            tendances = await Decouverte.classement(gratuits: false, langue: langue)
+        }
+    }
+
+    /// Les titres du top du pays, transformés en termes de recherche propres
+    /// (nom de série sans numéro de tome, dédoublonnés).
+    private var termesTendance: [String] {
+        var vus = Set<String>()
+        let bases = tendances.compactMap { resultat -> String? in
+            let base = Tomaison.decomposer(resultat.titre).base
+            let cle = TexteUtil.normaliser(base)
+            guard !cle.isEmpty, vus.insert(cle).inserted else { return nil }
+            return base
+        }
+        return Array(bases.prefix(8))
     }
 
     private var carteInvitation: some View {

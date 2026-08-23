@@ -57,21 +57,9 @@ struct GrilleTomesView: View {
     // MARK: - En-tête
 
     private var entete: some View {
-        HStack {
-            EtiquetteCarte("Tomes")
-            Spacer()
-            Button {
-                let prochain = (serie.tomes.map(\.numero).max() ?? 0) + 1
-                serie.tomes.append(Tome(numero: prochain))
-                if let total = serie.tomesTotal, prochain > total {
-                    serie.tomesTotal = prochain
-                }
-            } label: {
-                Label("Ajouter", systemImage: "plus")
-                    .font(.caption.weight(.bold))
-            }
-            .tint(Couleurs.accent)
-        }
+        // Plus de bouton « Ajouter » : le catalogue remplit la série tout
+        // seul, sorties futures comprises.
+        EtiquetteCarte("Tomes")
     }
 
     // MARK: - Grille de couvertures

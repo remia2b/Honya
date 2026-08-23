@@ -170,9 +170,9 @@ struct ChipFiltre: View {
                         .monospacedDigit()
                 }
             }
-            .font(.footnote.weight(.semibold))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
+            .font(.subheadline.weight(.semibold))
+            .padding(.horizontal, 15)
+            .padding(.vertical, 9)
             .background(
                 actif ? AnyShapeStyle(Color.primary) : AnyShapeStyle(Color(uiColor: .secondarySystemBackground)),
                 in: Capsule()

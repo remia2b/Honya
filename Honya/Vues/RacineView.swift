@@ -2,7 +2,7 @@ import SwiftUI
 import SwiftData
 
 enum Onglet: Hashable {
-    case accueil, bibliotheque, stats, recherche
+    case accueil, bibliotheque, decouverte, stats, recherche
 }
 
 struct RacineView: View {
@@ -21,6 +21,9 @@ struct RacineView: View {
             }
             Tab("Bibliothèque", systemImage: "books.vertical.fill", value: Onglet.bibliotheque) {
                 BibliothequeView(allerRecherche: { onglet = .recherche })
+            }
+            Tab("Découverte", systemImage: "sparkles", value: Onglet.decouverte) {
+                DecouverteView()
             }
             Tab("Stats", systemImage: "chart.bar.fill", value: Onglet.stats) {
                 StatsView()
