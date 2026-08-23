@@ -12,15 +12,31 @@ enum ImportService {
     }
 
     static func existeDeja(_ resultat: ResultatRecherche, dans contexte: ModelContext) -> Bool {
+        let series = (try? contexte.fetch(FetchDescriptor<Serie>())) ?? []
         if resultat.estSerie {
-            let series = (try? contexte.fetch(FetchDescriptor<Serie>())) ?? []
             return series.contains { $0.idAniList != nil && $0.idAniList == resultat.idAniList }
+        }
+        // Un tome (« Kagurabachi T3 ») est « déjà là » si la série le possède.
+        let (base, numero) = Tomaison.decomposer(resultat.titre)
+        if let numero,
+           let serie = serieCorrespondante(base, dans: series),
+           let tome = serie.tomes.first(where: { $0.numero == numero }),
+           tome.possede {
+            return true
         }
         let oeuvres = (try? contexte.fetch(FetchDescriptor<Oeuvre>())) ?? []
         return oeuvres.contains { oeuvre in
             oeuvre.idExterne == resultat.id
                 || (oeuvre.titreOriginal.caseInsensitiveCompare(resultat.titre) == .orderedSame
                     && oeuvre.auteurPrincipal == (resultat.auteurs.first ?? oeuvre.auteurPrincipal))
+        }
+    }
+
+    private static func serieCorrespondante(_ nom: String, dans series: [Serie]) -> Serie? {
+        series.first { serie in
+            Tomaison.memeSerie(serie.nom, nom)
+                || serie.noms.values.contains { Tomaison.memeSerie($0, nom) }
+                || (serie.nomRomaji.map { Tomaison.memeSerie($0, nom) } ?? false)
         }
     }
 
@@ -36,7 +52,78 @@ enum ImportService {
         if resultat.estSerie {
             return .serie(ajouterSerie(resultat, contexte: contexte, objectif: objectif))
         }
+
+        // Un tome rejoint sa série : « Kagurabachi T3 » va dans Kagurabachi,
+        // qu'elle existe déjà ou qu'il faille la créer — comme chez Apple Books.
+        let (base, numero) = Tomaison.decomposer(resultat.titre)
+        if let numero, estTomaison(resultat) {
+            let series = (try? contexte.fetch(FetchDescriptor<Serie>())) ?? []
+            let serie = serieCorrespondante(base, dans: series)
+                ?? creerSerieDepuisTome(base: base, resultat: resultat, contexte: contexte)
+            integrerTome(numero: numero, depuis: resultat, statut: statut, dans: serie)
+            return .serie(serie)
+        }
+
         return .oeuvre(ajouterOeuvre(resultat, statut: statut, contexte: contexte))
+    }
+
+    /// Ce résultat ressemble-t-il à un tome de série ? (BD/manga, ou série déjà connue)
+    private static func estTomaison(_ resultat: ResultatRecherche) -> Bool {
+        if resultat.type != .livre { return true }
+        let genres = resultat.genres.joined(separator: " ").lowercased()
+        return genres.contains("comic") || genres.contains("manga")
+            || genres.contains("bande dessinée") || genres.contains("graphic")
+    }
+
+    private static func creerSerieDepuisTome(
+        base: String,
+        resultat: ResultatRecherche,
+        contexte: ModelContext
+    ) -> Serie {
+        let serie = Serie(nom: base, type: resultat.type == .livre ? .manga : resultat.type)
+        serie.auteur = resultat.auteurs.first
+        serie.genres = resultat.genres
+        serie.couvertureLocaleURL = resultat.couvertureURL
+        if let langue = resultat.langue {
+            serie.noms[langue] = base
+        }
+        contexte.insert(serie)
+        return serie
+    }
+
+    private static func integrerTome(
+        numero: Int,
+        depuis resultat: ResultatRecherche,
+        statut: StatutLecture,
+        dans serie: Serie
+    ) {
+        let tome: Tome
+        if let existant = serie.tomes.first(where: { $0.numero == numero }) {
+            tome = existant
+        } else {
+            tome = Tome(numero: numero)
+            serie.tomes.append(tome)
+            if let total = serie.tomesTotal, numero > total { serie.tomesTotal = numero }
+        }
+        tome.titre = resultat.titre
+        tome.couvertureURL = resultat.couvertureURL ?? tome.couvertureURL
+        tome.isbn = resultat.isbn ?? tome.isbn
+        tome.pages = resultat.pages ?? tome.pages
+
+        switch statut {
+        case .lu:
+            tome.possede = true
+            if !tome.lu { tome.dateLu = Date() }
+            tome.lu = true
+        case .wishlist:
+            break // le tome reste manquant : il est « à acheter »
+        default:
+            tome.possede = true
+        }
+        // Le tome 1 donne sa couverture à la série si elle n'en a pas de locale.
+        if numero == 1, serie.couvertureLocaleURL == nil {
+            serie.couvertureLocaleURL = resultat.couvertureURL
+        }
     }
 
     // MARK: - Livre
@@ -80,6 +167,10 @@ enum ImportService {
         ) { titre, couverture in
             if let titre { oeuvre.titres[objectif.languePrincipale] = titre }
             if oeuvre.couvertureLocaleURL == nil { oeuvre.couvertureLocaleURL = couverture }
+        } surResume: { resume in
+            if oeuvre.resumeLocal == nil, let resume, !resume.isEmpty {
+                oeuvre.resumeLocal = resume
+            }
         }
         return oeuvre
     }
@@ -92,7 +183,8 @@ enum ImportService {
         reference: String,
         langue: String,
         titreActuel: @escaping () -> String?,
-        appliquer: @escaping (_ titre: String?, _ couverture: String?) -> Void
+        appliquer: @escaping (_ titre: String?, _ couverture: String?) -> Void,
+        surResume: ((String?) -> Void)? = nil
     ) {
         guard !reference.isEmpty else { return }
         Task { @MainActor in
@@ -109,6 +201,7 @@ enum ImportService {
                 titre = bon.titre
             }
             appliquer(titre, bon.couvertureURL)
+            surResume?(bon.resume)
         }
     }
 
@@ -149,8 +242,16 @@ enum ImportService {
             langue: langue,
             titreActuel: { serie.noms[langue] }
         ) { titre, couverture in
-            if let titre { serie.noms[langue] = titre }
+            // Le premier résultat est souvent un TOME (« Kagurabachi, Vol. 1 ») :
+            // on n'en garde que le nom de série.
+            if let titre {
+                serie.noms[langue] = Tomaison.decomposer(titre).base
+            }
             if serie.couvertureLocaleURL == nil { serie.couvertureLocaleURL = couverture }
+        } surResume: { resume in
+            if serie.resumeLocal == nil, let resume, !resume.isEmpty {
+                serie.resumeLocal = resume
+            }
         }
         return serie
     }

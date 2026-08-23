@@ -77,7 +77,7 @@ private struct ContenuFicheOeuvre: View {
                     carteProgression
                 }
 
-                if let resume = oeuvre.resume, !resume.isEmpty {
+                if let resume = oeuvre.resumeAffiche, !resume.isEmpty {
                     sectionEditeur(resume)
                 }
 

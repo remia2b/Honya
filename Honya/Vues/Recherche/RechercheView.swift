@@ -331,6 +331,14 @@ private struct RangeeResultat: View {
                         .lineLimit(1)
                 }
                 HStack(spacing: 4) {
+                    if let numero = Tomaison.decomposer(resultat.titre).numero, !resultat.estSerie {
+                        Text("Tome \(numero)")
+                            .font(.system(size: 9, weight: .heavy))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Couleurs.lu.opacity(0.15), in: Capsule())
+                            .foregroundStyle(Couleurs.lu)
+                    }
                     if resultat.estSerie {
                         Text("Série")
                             .font(.system(size: 9, weight: .heavy))

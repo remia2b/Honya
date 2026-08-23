@@ -80,6 +80,8 @@ final class Oeuvre {
     var typeRaw: String = TypeOeuvre.livre.rawValue
     var genres: [String] = []
     var resume: String?
+    /// Résumé de l'édition dans la langue du lecteur (la quatrième de couverture qu'il lirait).
+    var resumeLocal: String?
     var anneePublication: Int?
     var pages: Int?
     /// Couverture canonique GLOBALE : la même pour tout le monde (politique produit).
@@ -122,6 +124,8 @@ final class Oeuvre {
 
     /// Couverture affichée : l'édition locale d'abord, la canonique en repli.
     var couvertureAffichee: String? { couvertureLocaleURL ?? couvertureCanoniqueURL }
+
+    var resumeAffiche: String? { resumeLocal ?? resume }
 
     /// Vrai si la requête correspond à l'un des titres connus (toutes langues,
     /// titre original, translittération) ou à un auteur.
@@ -204,6 +208,8 @@ final class Serie {
     var typeRaw: String = TypeOeuvre.manga.rawValue
     var genres: [String] = []
     var resume: String?
+    /// Résumé de l'édition locale (celui de la quatrième de couverture Kana, Glénat…).
+    var resumeLocal: String?
     /// Couverture canonique globale de la série.
     var couvertureURL: String?
     /// Couverture de l'édition locale (Kana, Glénat… pour un lecteur français).
@@ -253,6 +259,8 @@ final class Serie {
     }
 
     var couvertureAffichee: String? { couvertureLocaleURL ?? couvertureURL }
+
+    var resumeAffiche: String? { resumeLocal ?? resume }
 
     var tomesTries: [Tome] { tomes.sorted { $0.numero < $1.numero } }
     var nbPossedes: Int { tomes.filter(\.possede).count }

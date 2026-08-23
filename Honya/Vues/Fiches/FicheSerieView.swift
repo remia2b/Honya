@@ -32,9 +32,9 @@ struct FicheSerieView: View {
                 carteTomes
                 carteChapitres
                 carteSortie
-                if let resume = serie.resume, !resume.isEmpty {
+                if let resume = serie.resumeAffiche, !resume.isEmpty {
                     carte {
-                        EtiquetteCarte("Résumé")
+                        EtiquetteCarte("De l\u2019éditeur")
                         Text(resume)
                             .font(.caption)
                             .foregroundStyle(.secondary)

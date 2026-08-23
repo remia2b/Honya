@@ -19,19 +19,23 @@ enum ResolveurTomes {
               !tentes.contains(tome.persistentModelID) else { return }
         tentes.insert(tome.persistentModelID)
 
-        let nom = serie.nomAffiche(langue)
-        let resultats = await AgregateurMetadonnees.partage
-            .rechercherLivres("\(nom) \(tome.numero)", langue: langue)
+        // Le nom de série NETTOYÉ : chercher « Kagurabachi 3 », jamais
+        // « Kagurabachi, Vol. 1 3 » — c'est ce qui collait la couverture du
+        // tome 1 sur tous les tomes.
+        let base = Tomaison.decomposer(serie.nomAffiche(langue)).base
 
-        // Le bon candidat : une couverture, un titre qui cite la série,
-        // et idéalement le numéro du tome.
-        let numero = String(tome.numero)
-        let candidat = resultats.first {
-            $0.couvertureURL != nil
-                && TexteUtil.contient([$0.titre], nom)
-                && $0.titre.contains(numero)
-        } ?? resultats.first {
-            $0.couvertureURL != nil && TexteUtil.contient([$0.titre], nom)
+        var candidat: ResultatRecherche?
+        for requete in ["\(base) T\(tome.numero)", "\(base) \(tome.numero)"] {
+            let resultats = await AgregateurMetadonnees.partage
+                .rechercherLivres(requete, langue: langue)
+            // Correspondance STRICTE : même série ET même numéro de tome.
+            candidat = resultats.first { resultat in
+                guard resultat.couvertureURL != nil else { return false }
+                let (candidatBase, candidatNumero) = Tomaison.decomposer(resultat.titre)
+                return candidatNumero == tome.numero
+                    && Tomaison.memeSerie(candidatBase, base)
+            }
+            if candidat != nil { break }
         }
 
         guard let candidat else { return }
@@ -39,5 +43,9 @@ enum ResolveurTomes {
         if tome.titre == nil { tome.titre = candidat.titre }
         if tome.pages == nil { tome.pages = candidat.pages }
         if tome.isbn == nil { tome.isbn = candidat.isbn }
+        // Le tome 1 peut offrir sa couverture à la série.
+        if tome.numero == 1, serie.couvertureLocaleURL == nil {
+            serie.couvertureLocaleURL = candidat.couvertureURL
+        }
     }
 }
