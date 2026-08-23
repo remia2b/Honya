@@ -244,9 +244,9 @@ struct BarreProgression: View {
 // MARK: - Étiquette de carte (petit titre en capitales, hérite de la couleur du contexte)
 
 struct EtiquetteCarte: View {
-    let texte: String
+    let texte: LocalizedStringKey
 
-    init(_ texte: String) { self.texte = texte }
+    init(_ texte: LocalizedStringKey) { self.texte = texte }
 
     var body: some View {
         Text(texte)
@@ -288,8 +288,8 @@ struct EtiquetteSection: View {
 // capitales grises font « application utilitaire ».
 
 struct TitreSection: View {
-    let titre: String
-    var sousTitre: String? = nil
+    let titre: LocalizedStringKey
+    var sousTitre: LocalizedStringKey? = nil
     var action: (() -> Void)? = nil
 
     var body: some View {

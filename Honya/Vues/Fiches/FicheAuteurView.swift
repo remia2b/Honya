@@ -72,7 +72,7 @@ struct FicheAuteurView: View {
         .background(Color(uiColor: .systemGroupedBackground))
     }
 
-    private func statistique(_ valeur: String, _ libelle: String) -> some View {
+    private func statistique(_ valeur: String, _ libelle: LocalizedStringKey) -> some View {
         VStack(spacing: 1) {
             Text(valeur)
                 .font(.system(size: 17, weight: .bold, design: .serif))
@@ -89,6 +89,8 @@ struct FicheAuteurView: View {
     }
 
     private var dureeLisible: String {
-        minutes >= 60 ? "\(minutes / 60) h" : "\(minutes) min"
+        minutes >= 60
+            ? String(localized: "\(minutes / 60) h")
+            : String(localized: "\(minutes) min")
     }
 }

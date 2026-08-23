@@ -92,7 +92,11 @@ struct GrilleTomesView: View {
         }
     }
 
-    private func bouton(_ reglage: ReglageRapide, systemImage: String, texte: String) -> some View {
+    private func bouton(
+        _ reglage: ReglageRapide,
+        systemImage: String,
+        texte: LocalizedStringKey
+    ) -> some View {
         Button {
             reglageRapide = reglage
         } label: {

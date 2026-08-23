@@ -309,7 +309,13 @@ struct StatsView: View {
         let jours = StatsEngine.moisCourant(sessions: sessions)
         return BandeSection(teintee: true) {
             HStack(alignment: .lastTextBaseline) {
-                TitreSection(titre: Date.now.formatted(.dateTime.month(.wide).year()).capitalized)
+                // Un nom de mois est déjà dans la langue du lecteur : il ne
+                // passe donc pas par le catalogue, seulement par la mise en page.
+                TitreSection(
+                    titre: LocalizedStringKey(
+                        Date.now.formatted(.dateTime.month(.wide).year()).capitalized
+                    )
+                )
                 Spacer()
                 Text("moins → plus")
                     .font(.caption2)
@@ -410,7 +416,7 @@ struct StatsView: View {
         }
     }
 
-    private func rangee(_ libelle: String, valeur: String) -> some View {
+    private func rangee(_ libelle: LocalizedStringKey, valeur: String) -> some View {
         HStack {
             Text(libelle)
                 .font(.subheadline)
@@ -491,7 +497,7 @@ struct StatsView: View {
 
     // MARK: - Aides
 
-    private func grandChiffre(_ valeur: String, _ libelle: String) -> some View {
+    private func grandChiffre(_ valeur: String, _ libelle: LocalizedStringKey) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(valeur)
                 .font(.chiffreSerif(30))
@@ -507,7 +513,7 @@ struct StatsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func miniStat(_ valeur: String, _ libelle: String) -> some View {
+    private func miniStat(_ valeur: String, _ libelle: LocalizedStringKey) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(valeur)
                 .font(.chiffreSerif(24))

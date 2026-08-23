@@ -247,7 +247,9 @@ private struct ContenuFicheOeuvre: View {
     private var sousInfos: String {
         var morceaux: [String] = []
         if let annee = oeuvre.anneePublication { morceaux.append(String(annee)) }
-        if let pages = oeuvre.pages { morceaux.append("\(pages) pages") }
+        if let pages = oeuvre.pages {
+            morceaux.append(String(localized: "\(pages) pages"))
+        }
         if let format = exemplaire.format { morceaux.append(format.libelle) }
         return morceaux.joined(separator: " · ")
     }
@@ -287,7 +289,7 @@ private struct ContenuFicheOeuvre: View {
 
     // MARK: - Sections, avec les titres serif d'Apple Books
 
-    private func titreSerif(_ texte: String) -> some View {
+    private func titreSerif(_ texte: LocalizedStringKey) -> some View {
         Text(texte)
             .font(.system(size: 21, weight: .semibold, design: .serif))
     }
@@ -490,7 +492,11 @@ private struct ContenuFicheOeuvre: View {
 
     // MARK: - Aides
 
-    private func rangee(_ libelle: String, valeur: String, mono: Bool = false) -> some View {
+    private func rangee(
+        _ libelle: LocalizedStringKey,
+        valeur: String,
+        mono: Bool = false
+    ) -> some View {
         HStack {
             Text(libelle).opacity(0.7)
             Spacer()

@@ -25,6 +25,13 @@ struct BienvenueView: View {
         case connexion = "Se connecter"
 
         var id: String { rawValue }
+
+        var libelle: String {
+            switch self {
+            case .inscription: return String(localized: "Créer un compte")
+            case .connexion: return String(localized: "Se connecter")
+            }
+        }
     }
 
     var body: some View {
@@ -75,8 +82,8 @@ struct BienvenueView: View {
 
     private var sousTitreEmail: String {
         mode == .inscription
-            ? "Créez votre compte avec une adresse e-mail."
-            : "Content de vous revoir."
+            ? String(localized: "Créez votre compte avec une adresse e-mail.")
+            : String(localized: "Content de vous revoir.")
     }
 
     // MARK: - Le fond, chaud comme une lampe de chevet
@@ -173,7 +180,11 @@ struct BienvenueView: View {
         }
     }
 
-    private func argument(_ symbole: String, _ titre: String, _ detail: String) -> some View {
+    private func argument(
+        _ symbole: String,
+        _ titre: LocalizedStringKey,
+        _ detail: LocalizedStringKey
+    ) -> some View {
         HStack(alignment: .top, spacing: 14) {
             Image(systemName: symbole)
                 .font(.system(size: 17, weight: .semibold))
@@ -275,7 +286,7 @@ struct BienvenueView: View {
         VStack(spacing: 14) {
             Picker("", selection: $mode) {
                 ForEach(Mode.allCases) { cas in
-                    Text(cas.rawValue).tag(cas)
+                    Text(cas.libelle).tag(cas)
                 }
             }
             .pickerStyle(.segmented)

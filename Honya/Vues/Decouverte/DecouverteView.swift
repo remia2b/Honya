@@ -324,7 +324,10 @@ struct DecouverteView: View {
         }
     }
 
-    private func colonneClassement(_ titre: String, resultats: [ResultatRecherche]) -> some View {
+    private func colonneClassement(
+        _ titre: LocalizedStringKey,
+        resultats: [ResultatRecherche]
+    ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(titre)
                 .font(.headline)
@@ -437,8 +440,8 @@ struct DecouverteView: View {
     }
 
     private func enTete(
-        _ titre: String,
-        sousTitre: String? = nil,
+        _ titre: LocalizedStringKey,
+        sousTitre: LocalizedStringKey? = nil,
         chevron: Bool = false
     ) -> some View {
         VStack(alignment: .leading, spacing: 3) {

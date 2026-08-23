@@ -107,7 +107,7 @@ extension Font {
 
 struct EnteteEcran<Accessoire: View>: View {
     let titre: LocalizedStringKey
-    var sousTitre: String?
+    var sousTitre: LocalizedStringKey?
     @ViewBuilder var accessoire: Accessoire
 
     var body: some View {
@@ -131,7 +131,7 @@ struct EnteteEcran<Accessoire: View>: View {
 }
 
 extension EnteteEcran where Accessoire == EmptyView {
-    init(titre: LocalizedStringKey, sousTitre: String? = nil) {
+    init(titre: LocalizedStringKey, sousTitre: LocalizedStringKey? = nil) {
         self.titre = titre
         self.sousTitre = sousTitre
         self.accessoire = EmptyView()

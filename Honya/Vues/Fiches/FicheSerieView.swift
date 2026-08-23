@@ -208,7 +208,12 @@ struct FicheSerieView: View {
         }
     }
 
-    private func rangeeProgression(_ libelle: String, valeur: Double, teinte: Color, detail: String) -> some View {
+    private func rangeeProgression(
+        _ libelle: LocalizedStringKey,
+        valeur: Double,
+        teinte: Color,
+        detail: String
+    ) -> some View {
         HStack(spacing: 10) {
             Text(libelle)
                 .font(.caption.weight(.bold))

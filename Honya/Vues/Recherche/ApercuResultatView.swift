@@ -115,10 +115,12 @@ struct ApercuResultatView: View {
     private var chips: some View {
         HStack(spacing: 6) {
             if resultat.estSerie {
-                chip("Série")
-                if let tomes = resultat.tomesTotal { chip("\(tomes) tomes") }
+                chip(String(localized: "Série"))
+                if let tomes = resultat.tomesTotal {
+                    chip(String(localized: "\(tomes) tomes"))
+                }
             } else if let pages = resultat.pages {
-                chip("\(pages) pages")
+                chip(String(localized: "\(pages) pages"))
             }
             if let annee = resultat.annee { chip(String(annee)) }
             if let genre = resultat.genres.first { chip(genre) }
@@ -204,7 +206,7 @@ struct ApercuResultatView: View {
 
     // MARK: - Aides
 
-    private func ligne(_ libelle: String, _ valeur: String) -> some View {
+    private func ligne(_ libelle: LocalizedStringKey, _ valeur: String) -> some View {
         HStack(alignment: .top) {
             Text(libelle).opacity(0.7)
             Spacer()

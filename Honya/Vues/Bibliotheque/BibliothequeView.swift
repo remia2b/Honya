@@ -12,6 +12,19 @@ enum FiltreBibli: String, CaseIterable, Identifiable {
     case series = "Séries"
 
     var id: String { rawValue }
+
+    /// Le libellé affiché passe par le catalogue ; `rawValue` reste la clé
+    /// de stockage, qui ne doit jamais changer avec la langue.
+    var libelle: String {
+        switch self {
+        case .tous: return String(localized: "Tous")
+        case .enCours: return String(localized: "En cours")
+        case .aLire: return String(localized: "À lire")
+        case .lus: return String(localized: "Lus")
+        case .wishlist: return String(localized: "À acheter")
+        case .series: return String(localized: "Séries")
+        }
+    }
 }
 
 enum TriBibli: String, CaseIterable, Identifiable {
@@ -20,6 +33,14 @@ enum TriBibli: String, CaseIterable, Identifiable {
     case note = "Note"
 
     var id: String { rawValue }
+
+    var libelle: String {
+        switch self {
+        case .recents: return String(localized: "Ajouts récents")
+        case .titre: return String(localized: "Titre")
+        case .note: return String(localized: "Note")
+        }
+    }
 }
 
 enum ElementBibli: Identifiable {
@@ -65,7 +86,7 @@ struct BibliothequeView: View {
                             .accessibilityLabel("Collections")
                             Menu {
                                 Picker("Trier par", selection: $tri) {
-                                    ForEach(TriBibli.allCases) { Text($0.rawValue).tag($0) }
+                                    ForEach(TriBibli.allCases) { Text($0.libelle).tag($0) }
                                 }
                                 Divider()
                                 Button {
@@ -146,7 +167,7 @@ struct BibliothequeView: View {
             HStack(spacing: 8) {
                 ForEach(FiltreBibli.allCases) { cas in
                     ChipFiltre(
-                        libelle: cas.rawValue,
+                        libelle: cas.libelle,
                         nombre: compte(pour: cas),
                         actif: filtre == cas
                     ) {
@@ -234,8 +255,11 @@ struct BibliothequeView: View {
 
     private var legende: String {
         let pretes = exemplaires.filter { $0.preteA != nil }.count
-        var morceaux = ["\(exemplaires.count) livres", "\(series.count) séries"]
-        if pretes > 0 { morceaux.append("\(pretes) prêtés") }
+        var morceaux = [
+            String(localized: "\(exemplaires.count) livres"),
+            String(localized: "\(series.count) séries"),
+        ]
+        if pretes > 0 { morceaux.append(String(localized: "\(pretes) prêtés")) }
         return morceaux.joined(separator: " · ")
     }
 

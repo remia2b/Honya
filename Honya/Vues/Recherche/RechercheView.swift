@@ -7,6 +7,14 @@ enum PorteeRecherche: String, CaseIterable, Identifiable {
     case mangas = "Mangas"
 
     var id: String { rawValue }
+
+    var libelle: String {
+        switch self {
+        case .tout: return String(localized: "Tout")
+        case .livres: return String(localized: "Livres")
+        case .mangas: return String(localized: "Mangas")
+        }
+    }
 }
 
 /// L'entrée de la bibliothèque : recherche en ligne (Google Books / Open Library / AniList),
@@ -51,7 +59,7 @@ struct RechercheView: View {
 
                     Picker("Portée", selection: $portee) {
                         ForEach(PorteeRecherche.allCases) { cas in
-                            Text(cas.rawValue).tag(cas)
+                            Text(cas.libelle).tag(cas)
                         }
                     }
                     .pickerStyle(.segmented)
