@@ -46,39 +46,24 @@ jobs:
           python3 - <<'PY'
           import glob, json, os
 
-          # Le format des .stringsdata varie selon les versions d'Xcode :
-          # on descend l'arbre et on ramasse toute clé de table, quelle que
-          # soit la forme rencontrée.
+          # tables.Localizable est une liste d'entrées {comment, key, location}.
           cles = set()
-          exemple = None
-
-          def ramasser(noeud):
-              if isinstance(noeud, dict):
-                  for cle, valeur in noeud.items():
-                      if cle and isinstance(valeur, dict):
-                          marqueurs = {"formatSpecifiers", "localizations", "comment", "state"}
-                          if valeur == {} or marqueurs & set(valeur):
-                              cles.add(cle)
-                      ramasser(valeur)
-              elif isinstance(noeud, list):
-                  for valeur in noeud:
-                      ramasser(valeur)
-
           for chemin in glob.glob("/tmp/cles/*.json"):
               with open(chemin, encoding="utf-8") as f:
                   donnees = json.load(f)
-              if exemple is None and donnees.get("tables"):
-                  exemple = json.dumps(donnees, ensure_ascii=False)[:1200]
-              ramasser(donnees.get("tables"))
-
-          print("--- structure d'un fichier ---")
-          print(exemple)
-          print("--- fin structure ---")
+              for entrees in (donnees.get("tables") or {}).values():
+                  if not isinstance(entrees, list):
+                      continue
+                  for entree in entrees:
+                      cle = (entree or {}).get("key")
+                      if cle:
+                          cles.add(cle)
 
           os.makedirs("Design", exist_ok=True)
           with open("Design/cles-extraites.json", "w", encoding="utf-8") as f:
               json.dump(sorted(cles), f, ensure_ascii=False, indent=1)
-              f.write("\n")
+              f.write("
+")
           print(len(cles), "clés extraites")
           for c in sorted(k for k in cles if "%" in k):
               print("  avec emplacement :", repr(c))
