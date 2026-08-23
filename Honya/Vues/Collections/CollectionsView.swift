@@ -218,7 +218,7 @@ struct GrilleOeuvres: View {
                             FicheOeuvreView(oeuvre: oeuvre)
                         } label: {
                             CouvertureView(
-                                urlString: oeuvre.couvertureCanoniqueURL,
+                                urlString: oeuvre.couvertureAffichee,
                                 titre: oeuvre.titre(langue),
                                 auteur: oeuvre.auteurPrincipal
                             )
@@ -235,7 +235,7 @@ struct GrilleOeuvres: View {
                             FicheSerieView(serie: serie)
                         } label: {
                             CouvertureView(
-                                urlString: serie.couvertureURL,
+                                urlString: serie.couvertureAffichee,
                                 titre: serie.nomAffiche(langue),
                                 auteur: serie.auteur
                             )

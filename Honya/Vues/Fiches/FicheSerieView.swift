@@ -89,11 +89,13 @@ struct FicheSerieView: View {
     private var banniere: some View {
         HStack(spacing: 14) {
             CouvertureView(
-                urlString: serie.couvertureURL,
+                urlString: serie.couvertureAffichee,
                 titre: serie.nomAffiche(langue),
-                auteur: serie.auteur
+                auteur: serie.auteur,
+                manga: serie.type != .livre
             )
-            .frame(width: 62)
+            .frame(width: 66)
+            .shadow(color: .black.opacity(0.3), radius: 7, y: 4)
             VStack(alignment: .leading, spacing: 3) {
                 Text(serie.nomAffiche(langue))
                     .font(.titreOeuvre(21))
@@ -176,7 +178,7 @@ struct FicheSerieView: View {
 
     private var carteTomes: some View {
         carte {
-            GrilleTomesView(serie: serie)
+            GrilleTomesView(serie: serie, langue: langue)
         }
     }
 

@@ -7,6 +7,9 @@ struct CouvertureView: View {
     var titre: String
     var auteur: String? = nil
     var coins: CGFloat = 6
+    /// Un manga se relie à droite (sens de lecture japonais), un roman à gauche :
+    /// la gorge du dos change de côté, comme sur les rendus d'Apple Books.
+    var manga: Bool = false
 
     @State private var image: UIImage?
 
@@ -48,24 +51,48 @@ struct CouvertureView: View {
                 .padding(.leading, 4)
             }
 
-            // Tranche (reliure) à gauche + reflet léger en haut : la matérialité Apple Books.
+            // Reflet léger en haut + voile mat : la matérialité d'un vrai livre.
             LinearGradient(
-                colors: [.black.opacity(0.30), .clear],
-                startPoint: .leading,
-                endPoint: UnitPoint(x: 0.10, y: 0.5)
+                colors: [.white.opacity(0.13), .clear],
+                startPoint: .top,
+                endPoint: UnitPoint(x: 0.5, y: 0.28)
             )
             LinearGradient(
-                colors: [.white.opacity(0.14), .clear],
+                colors: [.clear, .black.opacity(0.07)],
                 startPoint: .top,
-                endPoint: UnitPoint(x: 0.5, y: 0.3)
+                endPoint: .bottom
             )
         }
         .aspectRatio(2.0 / 3.0, contentMode: .fit)
+        .overlay(alignment: manga ? .trailing : .leading) {
+            // La gorge de reliure : ombre de pli, filet de lumière, bord du dos.
+            HStack(spacing: 0) {
+                if manga {
+                    Rectangle()
+                        .fill(LinearGradient(
+                            colors: [.clear, .black.opacity(0.30)],
+                            startPoint: .leading, endPoint: .trailing
+                        ))
+                        .frame(width: 9)
+                    Rectangle().fill(.white.opacity(0.25)).frame(width: 1)
+                    Rectangle().fill(.black.opacity(0.28)).frame(width: 2.5)
+                } else {
+                    Rectangle().fill(.black.opacity(0.28)).frame(width: 2.5)
+                    Rectangle().fill(.white.opacity(0.25)).frame(width: 1)
+                    Rectangle()
+                        .fill(LinearGradient(
+                            colors: [.black.opacity(0.30), .clear],
+                            startPoint: .leading, endPoint: .trailing
+                        ))
+                        .frame(width: 9)
+                }
+            }
+        }
         .clipShape(UnevenRoundedRectangle(
-            topLeadingRadius: 2.5,
-            bottomLeadingRadius: 2.5,
-            bottomTrailingRadius: coins,
-            topTrailingRadius: coins
+            topLeadingRadius: manga ? coins : 2.5,
+            bottomLeadingRadius: manga ? coins : 2.5,
+            bottomTrailingRadius: manga ? 2.5 : coins,
+            topTrailingRadius: manga ? 2.5 : coins
         ))
         .shadow(color: .black.opacity(0.18), radius: 7, x: 0, y: 2)
         .task(id: urlString) {
@@ -304,9 +331,10 @@ struct GrandeCouverture: View {
     var titre: String
     var auteur: String?
     var largeur: CGFloat = 158
+    var manga: Bool = false
 
     var body: some View {
-        CouvertureView(urlString: urlString, titre: titre, auteur: auteur, coins: 8)
+        CouvertureView(urlString: urlString, titre: titre, auteur: auteur, coins: 8, manga: manga)
             .frame(width: largeur)
             .shadow(color: .black.opacity(0.45), radius: 14, x: 0, y: 8)
     }

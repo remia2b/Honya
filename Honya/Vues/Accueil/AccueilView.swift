@@ -143,23 +143,51 @@ struct AccueilView: View {
         .padding(.bottom, 6)
     }
 
-    /// Le petit anneau du jour, comme celui posé près de l'avatar chez Apple Books.
+    /// L'anneau du jour : un tap lance directement le chronomètre de lecture.
     private var anneauProgression: some View {
         let fraction = objectifMinutes > 0
             ? min(1, Double(minutesDuJour) / Double(objectifMinutes)) : 0
-        return ZStack {
-            Circle()
-                .stroke(Color(uiColor: .secondarySystemFill), lineWidth: 3.5)
-            Circle()
-                .trim(from: 0, to: fraction)
-                .stroke(Couleurs.accent, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
-                .rotationEffect(.degrees(-90))
-            Text("\(minutesDuJour)")
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .monospacedDigit()
+        return Button {
+            if let oeuvre = enCeMoment?.oeuvre {
+                cibleSession = .oeuvre(oeuvre)
+            } else if let serie = serieEnCours {
+                cibleSession = .serie(serie)
+            } else {
+                allerRecherche()
+            }
+        } label: {
+            ZStack {
+                Circle()
+                    .fill(Color(uiColor: .secondarySystemFill).opacity(0.55))
+                Circle()
+                    .stroke(Color(uiColor: .secondarySystemFill), lineWidth: 3.5)
+                Circle()
+                    .trim(from: 0, to: fraction)
+                    .stroke(
+                        AngularGradient(
+                            colors: [Couleurs.accent.opacity(0.55), Couleurs.accent],
+                            center: .center,
+                            startAngle: .degrees(0),
+                            endAngle: .degrees(360 * max(fraction, 0.01))
+                        ),
+                        style: StrokeStyle(lineWidth: 3.5, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                if minutesDuJour > 0 {
+                    Text("\(minutesDuJour)")
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.primary)
+                } else {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(Couleurs.accent)
+                }
+            }
+            .frame(width: 38, height: 38)
         }
-        .frame(width: 34, height: 34)
-        .accessibilityLabel("\(minutesDuJour) minutes lues aujourd'hui")
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(minutesDuJour) minutes lues aujourd'hui — lancer une session")
     }
 
     // MARK: - En ce moment : la grande couverture qui ouvre l'écran
@@ -171,10 +199,11 @@ struct AccueilView: View {
             } label: {
                 HStack(alignment: .top, spacing: 18) {
                     GrandeCouverture(
-                        urlString: oeuvre.couvertureCanoniqueURL,
+                        urlString: oeuvre.couvertureAffichee,
                         titre: oeuvre.titre(langue),
                         auteur: oeuvre.auteurPrincipal,
-                        largeur: 118
+                        largeur: 118,
+                        manga: oeuvre.type != .livre
                     )
                     infosEnCours(
                         titre: oeuvre.titre(langue),
@@ -204,10 +233,11 @@ struct AccueilView: View {
             } label: {
                 HStack(alignment: .top, spacing: 18) {
                     GrandeCouverture(
-                        urlString: serie.couvertureURL,
+                        urlString: serie.couvertureAffichee,
                         titre: serie.nomAffiche(langue),
                         auteur: serie.auteur,
-                        largeur: 118
+                        largeur: 118,
+                        manga: serie.type != .livre
                     )
                     infosEnCours(
                         titre: serie.nomAffiche(langue),
@@ -339,9 +369,10 @@ struct AccueilView: View {
                                 FicheOeuvreView(oeuvre: oeuvre)
                             } label: {
                                 GrandeCouverture(
-                                    urlString: oeuvre.couvertureCanoniqueURL,
+                                    urlString: oeuvre.couvertureAffichee,
                                     titre: oeuvre.titre(langue),
-                                    auteur: oeuvre.auteurPrincipal
+                                    auteur: oeuvre.auteurPrincipal,
+                                    manga: oeuvre.type != .livre
                                 )
                             }
                             .buttonStyle(.plain)
@@ -351,9 +382,10 @@ struct AccueilView: View {
                             FicheSerieView(serie: serie)
                         } label: {
                             GrandeCouverture(
-                                urlString: serie.couvertureURL,
+                                urlString: serie.couvertureAffichee,
                                 titre: serie.nomAffiche(langue),
-                                auteur: serie.auteur
+                                auteur: serie.auteur,
+                                manga: serie.type != .livre
                             )
                             .overlay(alignment: .topTrailing) {
                                 Text("\(serie.nbPossedes)/\(serie.tomes.count)")
@@ -384,7 +416,7 @@ struct AccueilView: View {
                 } label: {
                     HStack(spacing: 14) {
                         CouvertureView(
-                            urlString: serie.couvertureURL,
+                            urlString: serie.couvertureAffichee,
                             titre: serie.nomAffiche(langue),
                             coins: 5
                         )

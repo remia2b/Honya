@@ -235,7 +235,7 @@ struct RechercheView: View {
                     ligneLocale(
                         titre: oeuvre.titre(langue),
                         sousTitre: oeuvre.auteurPrincipal,
-                        couverture: oeuvre.couvertureCanoniqueURL
+                        couverture: oeuvre.couvertureAffichee
                     )
                 }
                 .buttonStyle(.plain)
@@ -247,7 +247,7 @@ struct RechercheView: View {
                     ligneLocale(
                         titre: serie.nomAffiche(langue),
                         sousTitre: "\(serie.nbPossedes) possédés · \(serie.nbLus) lus",
-                        couverture: serie.couvertureURL
+                        couverture: serie.couvertureAffichee
                     )
                 }
                 .buttonStyle(.plain)

@@ -1,11 +1,13 @@
 import SwiftUI
 import SwiftData
 
-/// La grille de tomes, repensée : des numéros lisibles, un état évident,
-/// et surtout des gestes qui se devinent — cocher un tome ouvre une feuille
-/// qui dit ce qu'elle fait, au lieu de faire tourner un état caché.
+/// La grille de tomes, façon Apple Books : chaque tome est un vrai livre avec
+/// sa propre couverture — lu, possédé ou manquant se lit d'un coup d'œil, et
+/// un tap ouvre une feuille qui dit ce qu'elle fait.
 struct GrilleTomesView: View {
     @Bindable var serie: Serie
+    let langue: String
+
     @Environment(\.modelContext) private var contexte
 
     @State private var tomeChoisi: Tome?
@@ -40,12 +42,11 @@ struct GrilleTomesView: View {
             } else {
                 grille
                 boutonsRapides
-                legende
             }
         }
         .sheet(item: $tomeChoisi) { tome in
-            FeuilleTome(tome: tome, serie: serie)
-                .presentationDetents([.height(300)])
+            FeuilleTome(tome: tome, serie: serie, langue: langue)
+                .presentationDetents([.height(340)])
         }
         .sheet(item: $reglageRapide) { reglage in
             FeuilleJusquA(serie: serie, reglage: reglage)
@@ -73,20 +74,23 @@ struct GrilleTomesView: View {
         }
     }
 
-    // MARK: - Grille
+    // MARK: - Grille de couvertures
 
     private var grille: some View {
         LazyVGrid(
-            columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 5),
-            spacing: 8
+            columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
+            spacing: 16
         ) {
             ForEach(serie.tomesTries) { tome in
                 Button {
                     tomeChoisi = tome
                 } label: {
-                    CaseTome(tome: tome)
+                    CaseTome(tome: tome, serie: serie, langue: langue)
                 }
                 .buttonStyle(.plain)
+                .task(id: tome.persistentModelID) {
+                    await ResolveurTomes.completer(tome, de: serie, langue: langue)
+                }
             }
         }
     }
@@ -113,84 +117,52 @@ struct GrilleTomesView: View {
         }
         .buttonStyle(.plain)
     }
-
-    private var legende: some View {
-        HStack(spacing: 14) {
-            item(couleur: Couleurs.lu.opacity(0.22), bord: Couleurs.lu, texte: "Lu")
-            item(couleur: Couleurs.aLire.opacity(0.18), bord: Couleurs.aLire, texte: "Possédé")
-            item(couleur: .clear, bord: .secondary.opacity(0.45), texte: "Manquant", pointille: true)
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    private func item(couleur: Color, bord: Color, texte: String, pointille: Bool = false) -> some View {
-        HStack(spacing: 5) {
-            RoundedRectangle(cornerRadius: 3)
-                .strokeBorder(bord, style: StrokeStyle(lineWidth: 1, dash: pointille ? [3] : []))
-                .background(RoundedRectangle(cornerRadius: 3).fill(couleur))
-                .frame(width: 11, height: 11)
-            Text(texte)
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
-        }
-    }
 }
 
-// MARK: - Une case de tome : numéro lisible, état évident
+// MARK: - Un tome = un livre : sa couverture, son état
 
 private struct CaseTome: View {
     let tome: Tome
+    let serie: Serie
+    let langue: String
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(fond)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+        VStack(spacing: 6) {
+            CouvertureView(
+                urlString: tome.couvertureURL ?? serie.couvertureAffichee,
+                titre: "\(serie.nomAffiche(langue)) \(tome.numero)",
+                coins: 5,
+                manga: serie.type != .livre
+            )
+            .saturation(tome.possede ? 1 : 0.15)
+            .opacity(tome.possede ? 1 : 0.45)
+            .overlay {
+                if !tome.possede {
+                    RoundedRectangle(cornerRadius: 5, style: .continuous)
                         .strokeBorder(
-                            bordure,
-                            style: StrokeStyle(lineWidth: 1.4, dash: tome.possede ? [] : [4])
+                            .secondary.opacity(0.5),
+                            style: StrokeStyle(lineWidth: 1.2, dash: [5])
                         )
                 }
-                .aspectRatio(1, contentMode: .fit)
-                .overlay {
-                    Text("\(tome.numero)")
-                        .font(.system(size: 17, weight: .bold, design: .rounded))
-                        .monospacedDigit()
-                        .minimumScaleFactor(0.5)
-                        .lineLimit(1)
-                        .padding(.horizontal, 4)
-                        .foregroundStyle(couleurTexte)
-                }
-
-            if tome.lu {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 13))
-                    .foregroundStyle(Couleurs.lu)
-                    .background(Circle().fill(Color(uiColor: .systemBackground)))
-                    .offset(x: 4, y: -4)
             }
+            .overlay(alignment: .topTrailing) {
+                if tome.lu {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 17))
+                        .foregroundStyle(.white, Couleurs.lu)
+                        .background(Circle().fill(.white).padding(2))
+                        .offset(x: 6, y: -6)
+                }
+            }
+            .shadow(color: .black.opacity(tome.possede ? 0.3 : 0.1), radius: 6, y: 3)
+
+            Text("Tome \(tome.numero)")
+                .font(.caption2.weight(.semibold))
+                .monospacedDigit()
+                .foregroundStyle(tome.possede ? .primary : .secondary)
         }
         .accessibilityLabel("Tome \(tome.numero)")
         .accessibilityValue(tome.lu ? "lu" : tome.possede ? "possédé" : "manquant")
-    }
-
-    private var fond: Color {
-        if tome.lu { return Couleurs.lu.opacity(0.22) }
-        if tome.possede { return Couleurs.aLire.opacity(0.18) }
-        return .clear
-    }
-
-    private var bordure: Color {
-        if tome.lu { return Couleurs.lu.opacity(0.55) }
-        if tome.possede { return Couleurs.aLire.opacity(0.55) }
-        return .secondary.opacity(0.45)
-    }
-
-    private var couleurTexte: Color {
-        if tome.lu { return Couleurs.lu }
-        if tome.possede { return Couleurs.aLire }
-        return .secondary
     }
 }
 
@@ -199,6 +171,7 @@ private struct CaseTome: View {
 private struct FeuilleTome: View {
     @Bindable var tome: Tome
     let serie: Serie
+    let langue: String
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var contexte
@@ -228,6 +201,8 @@ private struct FeuilleTome: View {
                 } footer: {
                     if let date = tome.dateLu {
                         Text("Lu le \(date.formatted(date: .long, time: .omitted)).")
+                    } else if let pages = tome.pages {
+                        Text("\(pages) pages.")
                     }
                 }
 
@@ -246,7 +221,7 @@ private struct FeuilleTome: View {
                     }
                 }
             }
-            .navigationTitle("Tome \(tome.numero)")
+            .navigationTitle(tome.titre ?? "Tome \(tome.numero)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

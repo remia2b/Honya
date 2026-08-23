@@ -285,7 +285,7 @@ private struct CelluleLivre: View {
             FicheOeuvreView(oeuvre: oeuvre)
         } label: {
             CouvertureView(
-                urlString: oeuvre.couvertureCanoniqueURL,
+                urlString: oeuvre.couvertureAffichee,
                 titre: oeuvre.titre(langue),
                 auteur: oeuvre.auteurPrincipal
             )
@@ -372,7 +372,7 @@ private struct CelluleSerie: View {
                     .scaleEffect(0.95)
                     .offset(y: -5)
                 CouvertureView(
-                    urlString: serie.couvertureURL,
+                    urlString: serie.couvertureAffichee,
                     titre: serie.nomAffiche(langue),
                     auteur: serie.auteur
                 )
@@ -408,7 +408,7 @@ private struct RangeeLivre: View {
         } label: {
             HStack(spacing: 12) {
                 CouvertureView(
-                    urlString: oeuvre.couvertureCanoniqueURL,
+                    urlString: oeuvre.couvertureAffichee,
                     titre: oeuvre.titre(langue),
                     coins: 4
                 )
@@ -456,7 +456,7 @@ private struct RangeeSerie: View {
         } label: {
             HStack(spacing: 12) {
                 CouvertureView(
-                    urlString: serie.couvertureURL,
+                    urlString: serie.couvertureAffichee,
                     titre: serie.nomAffiche(langue),
                     coins: 4
                 )

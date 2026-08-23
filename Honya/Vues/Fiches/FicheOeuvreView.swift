@@ -1,8 +1,10 @@
 import SwiftUI
 import SwiftData
 
-/// Fiche livre : l'écran entier prend la couleur dominante de la couverture,
-/// comme les fiches d'Apple Books. Texte blanc, contrôles translucides.
+/// Fiche livre, calquée sur la page produit d'Apple Books : grande couverture
+/// au rendu de vrai livre, titre serif, auteur cliquable, carte d'informations
+/// avec les actions, « De l'éditeur », et les autres livres du même auteur.
+/// L'écran entier reste teinté par la couleur dominante de la couverture.
 struct FicheOeuvreView: View {
     var oeuvre: Oeuvre
 
@@ -29,6 +31,7 @@ private struct ContenuFicheOeuvre: View {
     @Environment(\.modelContext) private var contexte
     @Environment(\.dismiss) private var dismiss
     @Query private var objectifs: [Objectif]
+    @Query private var oeuvres: [Oeuvre]
     @Query(sort: \Collection.dateCreation, order: .reverse) private var collections: [Collection]
 
     @State private var teinte = Color(red: 0.30, green: 0.21, blue: 0.14)
@@ -38,55 +41,44 @@ private struct ContenuFicheOeuvre: View {
     @State private var nomPret = ""
     @State private var confirmerSuppression = false
     @State private var celebration = false
+    @State private var resumeDeplie = false
 
     private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
 
+    /// Les autres œuvres du même auteur, pour l'étagère du bas.
+    private var duMemeAuteur: [Oeuvre] {
+        let auteur = oeuvre.auteurPrincipal
+        guard !auteur.isEmpty else { return [] }
+        return oeuvres.filter {
+            $0.persistentModelID != oeuvre.persistentModelID
+                && $0.auteurs.contains { $0.localizedCaseInsensitiveContains(auteur) }
+        }
+    }
+
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                CouvertureView(
-                    urlString: oeuvre.couvertureCanoniqueURL,
+            VStack(spacing: 14) {
+                GrandeCouverture(
+                    urlString: oeuvre.couvertureAffichee,
                     titre: oeuvre.titre(langue),
                     auteur: oeuvre.auteurPrincipal,
-                    coins: 8
+                    largeur: 208,
+                    manga: oeuvre.type != .livre
                 )
-                .frame(width: 132)
-                .shadow(color: .black.opacity(0.35), radius: 18, x: 0, y: 10)
-                .padding(.top, 8)
+                .padding(.top, 6)
 
-                VStack(spacing: 4) {
-                    Text(oeuvre.titre(langue))
-                        .font(.titreOeuvre(26))
-                        .multilineTextAlignment(.center)
-                    if let auteur = oeuvre.auteurs.first, !auteur.isEmpty {
-                        NavigationLink {
-                            FicheAuteurView(auteur: auteur, langue: langue)
-                        } label: {
-                            HStack(spacing: 3) {
-                                Text(oeuvre.auteurs.joined(separator: " · "))
-                                Image(systemName: "chevron.right")
-                                    .font(.caption2.weight(.bold))
-                                    .opacity(0.7)
-                            }
-                            .font(.subheadline)
-                            .opacity(0.85)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
+                blocTitre
 
-                EtoilesNotation(note: $exemplaire.note)
-
-                chipsMetadonnees
-
-                boutonPrincipal
-
-                selecteurStatut
+                carteInfosActions
 
                 chipsMoods
 
                 if exemplaire.statut == .enCours {
                     carteProgression
+                }
+
+                if let resume = oeuvre.resume, !resume.isEmpty {
+                    sectionEditeur(resume)
                 }
 
                 if !oeuvre.sessions.isEmpty {
@@ -95,11 +87,11 @@ private struct ContenuFicheOeuvre: View {
 
                 carteCitations
 
-                if let resume = oeuvre.resume, !resume.isEmpty {
-                    carteResume(resume)
-                }
-
                 carteDetails
+
+                if !duMemeAuteur.isEmpty {
+                    sectionMemeAuteur
+                }
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 40)
@@ -108,7 +100,7 @@ private struct ContenuFicheOeuvre: View {
         .background(fond.ignoresSafeArea())
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
-        .toolbar { menuActions }
+        .toolbar { barreActions }
         .overlay { if celebration { vueCelebration } }
         .sensoryFeedback(.success, trigger: celebration)
         .fullScreenCover(item: $cibleSession) { SessionLectureView(cible: $0) }
@@ -133,8 +125,8 @@ private struct ContenuFicheOeuvre: View {
                 dismiss()
             }
         }
-        .task(id: oeuvre.couvertureCanoniqueURL) {
-            guard let image = await ImageCharge.partage.uiImage(depuis: oeuvre.couvertureCanoniqueURL),
+        .task(id: oeuvre.couvertureAffichee) {
+            guard let image = await ImageCharge.partage.uiImage(depuis: oeuvre.couvertureAffichee),
                   let couleur = CouleurCouverture.teinteDeFond(image)
             else { return }
             withAnimation(.easeOut(duration: 0.5)) { teinte = couleur }
@@ -150,107 +142,117 @@ private struct ContenuFicheOeuvre: View {
         .background(teinte)
     }
 
-    // MARK: - Chips de métadonnées
+    // MARK: - Titre, auteur, note — la tête de page d'Apple Books
 
-    private var chipsMetadonnees: some View {
-        HStack(spacing: 6) {
-            if let pages = oeuvre.pages { chip("\(pages) pages") }
-            if let genre = oeuvre.genres.first { chip(genre) }
-            if let annee = oeuvre.anneePublication { chip(String(annee)) }
-            if let format = exemplaire.format { chip(format.libelle) }
-        }
-        .font(.caption2.weight(.bold))
-    }
+    private var blocTitre: some View {
+        VStack(spacing: 6) {
+            Text(oeuvre.titre(langue))
+                .font(.system(size: 27, weight: .semibold, design: .serif))
+                .multilineTextAlignment(.center)
 
-    private func chip(_ texte: String) -> some View {
-        Text(texte)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 4)
-            .background(.white.opacity(0.16), in: Capsule())
-    }
-
-    // MARK: - Bouton principal (blanc, dépend du statut)
-
-    private var boutonPrincipal: some View {
-        Button {
-            switch exemplaire.statut {
-            case .aLire, .wishlist, .abandonne:
-                exemplaire.changerStatut(.enCours)
-                cibleSession = .oeuvre(oeuvre)
-            case .enCours, .lu:
-                cibleSession = .oeuvre(oeuvre)
-            }
-        } label: {
-            VStack(spacing: 1) {
-                Text(libelleBouton)
-                    .font(.subheadline.weight(.heavy))
-                Text(sousLibelleBouton)
-                    .font(.caption2.weight(.medium))
-                    .opacity(0.6)
-            }
-            .frame(maxWidth: 300)
-            .padding(.vertical, 10)
-        }
-        .buttonStyle(.plain)
-        .foregroundStyle(teinte)
-        .background(.white, in: Capsule())
-    }
-
-    private var libelleBouton: String {
-        switch exemplaire.statut {
-        case .aLire: return "Commencer la lecture"
-        case .wishlist: return "Commencer la lecture"
-        case .enCours: return "Reprendre · p. \(exemplaire.pageCourante)"
-        case .lu: return "Relire"
-        case .abandonne: return "Reprendre quand même"
-        }
-    }
-
-    private var sousLibelleBouton: String {
-        switch exemplaire.statut {
-        case .enCours:
-            return "\(Int(exemplaire.progression * 100)) % · lancer une session"
-        case .lu:
-            if let fin = exemplaire.dateFin {
-                return "terminé le \(fin.formatted(.dateTime.day().month().year()))"
-            }
-            return "terminé"
-        default:
-            return "lance le chronomètre de session"
-        }
-    }
-
-    // MARK: - Statut de lecture, à portée de pouce
-
-    private var selecteurStatut: some View {
-        Menu {
-            ForEach(StatutLecture.allCases) { statut in
-                Button {
-                    if statut == .lu { marquerLu() }
-                    else {
-                        exemplaire.changerStatut(statut)
-                        BadgesEngine.evaluer(dans: contexte)
-                    }
+            if let auteur = oeuvre.auteurs.first, !auteur.isEmpty {
+                NavigationLink {
+                    FicheAuteurView(auteur: auteur, langue: langue)
                 } label: {
-                    Label(statut.libelle, systemImage: statut.symbole)
+                    HStack(spacing: 4) {
+                        Text(oeuvre.auteurs.joined(separator: " · "))
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .opacity(0.7)
+                    }
+                    .font(.system(size: 17))
+                    .opacity(0.9)
+                }
+                .buttonStyle(.plain)
+            }
+
+            HStack(spacing: 8) {
+                EtoilesNotation(note: $exemplaire.note, taille: 14)
+                if let genre = oeuvre.genres.first {
+                    Text("· \(genre)")
+                        .font(.footnote)
+                        .opacity(0.75)
                 }
             }
-        } label: {
-            HStack(spacing: 7) {
-                Image(systemName: exemplaire.statut.symbole)
-                Text(exemplaire.statut.libelle)
-                    .fontWeight(.bold)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 10, weight: .bold))
-                    .opacity(0.7)
-            }
-            .font(.footnote)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 9)
-            .background(.white.opacity(0.18), in: Capsule())
-            .overlay(Capsule().strokeBorder(.white.opacity(0.25), lineWidth: 1))
         }
-        .accessibilityLabel("Statut de lecture : \(exemplaire.statut.libelle)")
+    }
+
+    // MARK: - La carte « Livre ⓘ » : informations + les deux actions
+
+    private var carteInfosActions: some View {
+        VStack(spacing: 12) {
+            HStack {
+                Label(oeuvre.type.libelle, systemImage: "book.closed.fill")
+                    .font(.footnote.weight(.semibold))
+                Spacer()
+                Text(sousInfos)
+                    .font(.footnote)
+                    .opacity(0.75)
+                    .monospacedDigit()
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    if exemplaire.statut == .aLire || exemplaire.statut == .wishlist {
+                        exemplaire.changerStatut(.enCours)
+                    }
+                    cibleSession = .oeuvre(oeuvre)
+                } label: {
+                    Text(libelleSession)
+                        .font(.subheadline.weight(.heavy))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(teinte)
+                .background(.white, in: Capsule())
+
+                Menu {
+                    ForEach(StatutLecture.allCases) { statut in
+                        Button {
+                            if statut == .lu { marquerLu() }
+                            else {
+                                exemplaire.changerStatut(statut)
+                                BadgesEngine.evaluer(dans: contexte)
+                            }
+                        } label: {
+                            Label(statut.libelle, systemImage: statut.symbole)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: exemplaire.statut.symbole)
+                        Text(exemplaire.statut.libelle)
+                            .fontWeight(.bold)
+                        Image(systemName: "chevron.up.chevron.down")
+                            .font(.system(size: 9, weight: .bold))
+                            .opacity(0.7)
+                    }
+                    .font(.footnote)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .background(.white.opacity(0.18), in: Capsule())
+                }
+            }
+        }
+        .padding(14)
+        .background(.white.opacity(0.13), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private var sousInfos: String {
+        var morceaux: [String] = []
+        if let annee = oeuvre.anneePublication { morceaux.append(String(annee)) }
+        if let pages = oeuvre.pages { morceaux.append("\(pages) pages") }
+        if let format = exemplaire.format { morceaux.append(format.libelle) }
+        return morceaux.joined(separator: " · ")
+    }
+
+    private var libelleSession: String {
+        switch exemplaire.statut {
+        case .enCours: return "Reprendre · p. \(exemplaire.pageCourante)"
+        case .lu: return "Relire"
+        default: return "Session de lecture"
+        }
     }
 
     // MARK: - Moods
@@ -276,18 +278,39 @@ private struct ContenuFicheOeuvre: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.top, 2)
     }
 
-    // MARK: - Cartes
+    // MARK: - Sections, avec les titres serif d'Apple Books
+
+    private func titreSerif(_ texte: String) -> some View {
+        Text(texte)
+            .font(.system(size: 21, weight: .semibold, design: .serif))
+    }
+
+    private func sectionEditeur(_ resume: String) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            titreSerif("De l'éditeur")
+            Text(resume)
+                .font(.callout)
+                .opacity(0.92)
+                .lineLimit(resumeDeplie ? nil : 7)
+            Button(resumeDeplie ? "Réduire" : "Plus") {
+                withAnimation(.snappy) { resumeDeplie.toggle() }
+            }
+            .font(.subheadline.weight(.bold))
+            .tint(.white)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 8)
+    }
 
     private var carteProgression: some View {
         carte {
-            EtiquetteCarte("Progression")
+            titreSerif("Progression")
             BarreProgression(valeur: exemplaire.progression, teinte: .white)
             HStack {
                 if let pages = oeuvre.pages {
-                    Text("p. \(exemplaire.pageCourante) sur \(pages)")
+                    Text("p. \(exemplaire.pageCourante) sur \(pages) · \(Int(exemplaire.progression * 100)) %")
                         .monospacedDigit()
                 }
                 Spacer()
@@ -304,7 +327,14 @@ private struct ContenuFicheOeuvre: View {
         let recentes = oeuvre.sessions.sorted { $0.debut > $1.debut }.prefix(3)
         let totalMinutes = oeuvre.sessions.reduce(0) { $0 + $1.dureeSecondes } / 60
         return carte {
-            EtiquetteCarte("Sessions · \(totalMinutes) min au total")
+            HStack(alignment: .lastTextBaseline) {
+                titreSerif("Sessions")
+                Spacer()
+                Text("\(totalMinutes) min au total")
+                    .font(.caption)
+                    .opacity(0.7)
+                    .monospacedDigit()
+            }
             ForEach(Array(recentes)) { session in
                 HStack {
                     Text(session.debut, format: .dateTime.weekday(.wide).day().month())
@@ -324,7 +354,7 @@ private struct ContenuFicheOeuvre: View {
         } label: {
             carte {
                 HStack {
-                    EtiquetteCarte("Citations")
+                    titreSerif("Citations")
                     Spacer()
                     Text("\(oeuvre.citations.count)")
                         .font(.subheadline.weight(.bold))
@@ -338,24 +368,14 @@ private struct ContenuFicheOeuvre: View {
         .buttonStyle(.plain)
     }
 
-    private func carteResume(_ resume: String) -> some View {
-        carte {
-            EtiquetteCarte("Résumé")
-            Text(resume)
-                .font(.caption)
-                .lineLimit(6)
-                .opacity(0.9)
-        }
-    }
-
     private var carteDetails: some View {
         carte {
-            EtiquetteCarte("Détails")
+            titreSerif("Détails")
             if let isbn = exemplaire.isbn {
                 rangee("ISBN", valeur: isbn, mono: true)
             }
             if let langueEdition = exemplaire.langueEdition {
-                rangee("Langue de l'édition", valeur: langueEdition.uppercased())
+                rangee("Langue de l'édition", valeur: Langues.nom(langueEdition))
             }
             if let debut = exemplaire.dateDebut {
                 rangee("Commencé le", valeur: debut.formatted(date: .abbreviated, time: .omitted))
@@ -364,8 +384,7 @@ private struct ContenuFicheOeuvre: View {
                 rangee("Terminé le", valeur: fin.formatted(date: .abbreviated, time: .omitted))
             }
             HStack {
-                Text("Prêté à")
-                    .opacity(0.7)
+                Text("Prêté à").opacity(0.7)
                 Spacer()
                 if let preteA = exemplaire.preteA {
                     Text(preteA).fontWeight(.semibold)
@@ -384,44 +403,55 @@ private struct ContenuFicheOeuvre: View {
         }
     }
 
-    private func rangee(_ libelle: String, valeur: String, mono: Bool = false) -> some View {
-        HStack {
-            Text(libelle).opacity(0.7)
-            Spacer()
-            Text(valeur)
-                .fontWeight(.semibold)
-                .font(mono ? .system(.caption, design: .monospaced) : .caption)
-        }
-        .font(.caption)
-    }
+    // MARK: - Plus de livres de cet auteur, comme chez eux
 
-    private func carte(@ViewBuilder _ contenu: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            contenu()
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14)
-        .background(.white.opacity(0.13), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-
-    // MARK: - Barre d'outils
-
-    private var menuActions: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                Menu("Statut") {
-                    ForEach(StatutLecture.allCases) { statut in
-                        Button {
-                            if statut == .lu { marquerLu() }
-                            else {
-                                exemplaire.changerStatut(statut)
-                                BadgesEngine.evaluer(dans: contexte)
-                            }
+    private var sectionMemeAuteur: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            titreSerif("Plus de livres de : \(oeuvre.auteurPrincipal)")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 14) {
+                    ForEach(duMemeAuteur) { autre in
+                        NavigationLink {
+                            FicheOeuvreView(oeuvre: autre)
                         } label: {
-                            Label(statut.libelle, systemImage: statut.symbole)
+                            VStack(alignment: .leading, spacing: 5) {
+                                GrandeCouverture(
+                                    urlString: autre.couvertureAffichee,
+                                    titre: autre.titre(langue),
+                                    largeur: 118,
+                                    manga: autre.type != .livre
+                                )
+                                Text(autre.titre(langue))
+                                    .font(.caption.weight(.semibold))
+                                    .lineLimit(1)
+                                    .frame(width: 118, alignment: .leading)
+                            }
                         }
+                        .buttonStyle(.plain)
                     }
                 }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 8)
+    }
+
+    // MARK: - Barre d'outils : ✓ rapide + menu ⋯
+
+    private var barreActions: some ToolbarContent {
+        ToolbarItemGroup(placement: .topBarTrailing) {
+            Button {
+                if exemplaire.statut == .lu {
+                    exemplaire.changerStatut(.aLire)
+                } else {
+                    marquerLu()
+                }
+            } label: {
+                Image(systemName: exemplaire.statut == .lu ? "checkmark.circle.fill" : "checkmark")
+            }
+            .accessibilityLabel("Marquer comme lu")
+
+            Menu {
                 Button {
                     exemplaire.aSuivre.toggle()
                 } label: {
@@ -483,6 +513,28 @@ private struct ContenuFicheOeuvre: View {
         .padding(30)
         .background(.black.opacity(0.55), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .transition(.scale(scale: 0.8).combined(with: .opacity))
+    }
+
+    // MARK: - Aides
+
+    private func rangee(_ libelle: String, valeur: String, mono: Bool = false) -> some View {
+        HStack {
+            Text(libelle).opacity(0.7)
+            Spacer()
+            Text(valeur)
+                .fontWeight(.semibold)
+                .font(mono ? .system(.caption, design: .monospaced) : .caption)
+        }
+        .font(.caption)
+    }
+
+    private func carte(@ViewBuilder _ contenu: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            contenu()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(.white.opacity(0.13), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 }
 

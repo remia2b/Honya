@@ -73,32 +73,42 @@ enum ImportService {
         oeuvre.exemplaire = exemplaire
 
         contexte.insert(oeuvre)
-        resoudreTitreLocal(
-            actuel: { oeuvre.titres[objectif.languePrincipale] },
+        resoudreEditionLocale(
             reference: oeuvre.titres["en"] ?? oeuvre.titreRomaji ?? oeuvre.titreOriginal,
-            langue: objectif.languePrincipale
-        ) { officiel in
-            oeuvre.titres[objectif.languePrincipale] = officiel
+            langue: objectif.languePrincipale,
+            titreActuel: { oeuvre.titres[objectif.languePrincipale] }
+        ) { titre, couverture in
+            if let titre { oeuvre.titres[objectif.languePrincipale] = titre }
+            if oeuvre.couvertureLocaleURL == nil { oeuvre.couvertureLocaleURL = couverture }
         }
         return oeuvre
     }
 
-    /// Va chercher le titre RÉELLEMENT publié dans la langue du lecteur.
+    /// Va chercher l'édition RÉELLEMENT publiée dans la langue du lecteur :
+    /// son titre officiel ET sa couverture (celle qu'il verrait en librairie).
     /// Aucune traduction automatique : si l'œuvre n'a jamais paru dans cette
     /// langue, on garde ce qu'on a et l'affichage se rabat sur l'anglais.
-    private static func resoudreTitreLocal(
-        actuel: @escaping () -> String?,
+    private static func resoudreEditionLocale(
         reference: String,
         langue: String,
-        appliquer: @escaping (String) -> Void
+        titreActuel: @escaping () -> String?,
+        appliquer: @escaping (_ titre: String?, _ couverture: String?) -> Void
     ) {
-        guard actuel() == nil, !reference.isEmpty else { return }
+        guard !reference.isEmpty else { return }
         Task { @MainActor in
-            guard let officiel = await AgregateurMetadonnees.partage
-                .titreOfficiel(reference, langue: langue) else { return }
-            // Un titre dans un script illisible n'apporte rien au lecteur.
-            guard !Titres.estNonLatin(officiel) || Titres.litScriptNonLatin(langue) else { return }
-            appliquer(officiel)
+            let resultats = await AgregateurMetadonnees.partage
+                .rechercherLivres(reference, langue: langue)
+            let bon = resultats.first { $0.langue == langue && $0.couvertureURL != nil }
+                ?? resultats.first { $0.couvertureURL != nil }
+                ?? resultats.first
+            guard let bon else { return }
+
+            var titre: String?
+            if titreActuel() == nil,
+               !Titres.estNonLatin(bon.titre) || Titres.litScriptNonLatin(langue) {
+                titre = bon.titre
+            }
+            appliquer(titre, bon.couvertureURL)
         }
     }
 
@@ -131,14 +141,16 @@ enum ImportService {
         }
         contexte.insert(serie)
 
-        // Enrichissement paresseux : le nom OFFICIEL dans la langue de l'utilisateur.
+        // Enrichissement paresseux : le nom officiel ET la couverture de
+        // l'édition locale (Kana, Glénat… pour un lecteur français).
         let langue = objectif.languePrincipale
-        resoudreTitreLocal(
-            actuel: { serie.noms[langue] },
+        resoudreEditionLocale(
             reference: serie.noms["en"] ?? serie.nomRomaji ?? serie.nom,
-            langue: langue
-        ) { officiel in
-            serie.noms[langue] = officiel
+            langue: langue,
+            titreActuel: { serie.noms[langue] }
+        ) { titre, couverture in
+            if let titre { serie.noms[langue] = titre }
+            if serie.couvertureLocaleURL == nil { serie.couvertureLocaleURL = couverture }
         }
         return serie
     }

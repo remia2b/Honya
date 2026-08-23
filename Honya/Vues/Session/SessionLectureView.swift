@@ -23,8 +23,8 @@ enum CibleSession: Identifiable, Hashable {
 
     var couvertureURL: String? {
         switch self {
-        case .oeuvre(let oeuvre): return oeuvre.couvertureCanoniqueURL
-        case .serie(let serie): return serie.couvertureURL
+        case .oeuvre(let oeuvre): return oeuvre.couvertureAffichee
+        case .serie(let serie): return serie.couvertureAffichee
         }
     }
 }

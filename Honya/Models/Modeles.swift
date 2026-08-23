@@ -84,6 +84,8 @@ final class Oeuvre {
     var pages: Int?
     /// Couverture canonique GLOBALE : la même pour tout le monde (politique produit).
     var couvertureCanoniqueURL: String?
+    /// Couverture de l'édition dans la langue du lecteur (celle qu'il voit en librairie).
+    var couvertureLocaleURL: String?
     /// Identifiant de la source (volumeId Google Books, id AniList…), pour dédupliquer.
     var idExterne: String?
     var dateAjout: Date = Date()
@@ -117,6 +119,9 @@ final class Oeuvre {
     }
 
     var auteurPrincipal: String { auteurs.first ?? "" }
+
+    /// Couverture affichée : l'édition locale d'abord, la canonique en repli.
+    var couvertureAffichee: String? { couvertureLocaleURL ?? couvertureCanoniqueURL }
 
     /// Vrai si la requête correspond à l'un des titres connus (toutes langues,
     /// titre original, translittération) ou à un auteur.
@@ -201,6 +206,8 @@ final class Serie {
     var resume: String?
     /// Couverture canonique globale de la série.
     var couvertureURL: String?
+    /// Couverture de l'édition locale (Kana, Glénat… pour un lecteur français).
+    var couvertureLocaleURL: String?
     var tomesTotal: Int?
     var statutParutionRaw: String = StatutParution.inconnue.rawValue
     var chapitresLus: Int = 0
@@ -245,6 +252,8 @@ final class Serie {
         return TexteUtil.contient(champs, requete)
     }
 
+    var couvertureAffichee: String? { couvertureLocaleURL ?? couvertureURL }
+
     var tomesTries: [Tome] { tomes.sorted { $0.numero < $1.numero } }
     var nbPossedes: Int { tomes.filter(\.possede).count }
     var nbLus: Int { tomes.filter(\.lu).count }
@@ -288,6 +297,10 @@ final class Tome {
     var lu: Bool = false
     var dateLu: Date?
     var isbn: String?
+    /// Chaque tome est un livre à part entière : son titre, sa couverture, ses pages.
+    var titre: String?
+    var couvertureURL: String?
+    var pages: Int?
 
     var serie: Serie?
 
