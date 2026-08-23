@@ -42,32 +42,7 @@ jobs:
           for f in $fichiers; do
             plutil -convert json -o "/tmp/cles/$(basename "$f" .stringsdata).json" "$f" || true
           done
-
-          python3 - <<'PY'
-          import glob, json, os
-
-          # tables.Localizable est une liste d'entrées {comment, key, location}.
-          cles = set()
-          for chemin in glob.glob("/tmp/cles/*.json"):
-              with open(chemin, encoding="utf-8") as f:
-                  donnees = json.load(f)
-              for entrees in (donnees.get("tables") or {}).values():
-                  if not isinstance(entrees, list):
-                      continue
-                  for entree in entrees:
-                      cle = (entree or {}).get("key")
-                      if cle:
-                          cles.add(cle)
-
-          os.makedirs("Design", exist_ok=True)
-          with open("Design/cles-extraites.json", "w", encoding="utf-8") as f:
-              json.dump(sorted(cles), f, ensure_ascii=False, indent=1)
-              f.write("
-")
-          print(len(cles), "clés extraites")
-          for c in sorted(k for k in cles if "%" in k):
-              print("  avec emplacement :", repr(c))
-          PY
+          python3 .github/rassembler_cles.py
 
       - name: Committer la liste
         run: |
