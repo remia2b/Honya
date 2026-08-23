@@ -296,7 +296,8 @@ private struct CelluleLivre: View {
                 CouvertureView(
                     urlString: oeuvre.couvertureAffichee,
                     titre: oeuvre.titre(langue),
-                    auteur: oeuvre.auteurPrincipal
+                    auteur: oeuvre.auteurPrincipal,
+                    manga: oeuvre.type != .livre
                 )
                 // Le badge vit SOUS la couverture, comme chez Apple Books :
                 // l'image reste propre.
@@ -376,7 +377,8 @@ private struct CelluleSerie: View {
                     CouvertureView(
                         urlString: serie.couvertureAffichee,
                         titre: serie.nomAffiche(langue),
-                        auteur: serie.auteur
+                        auteur: serie.auteur,
+                        manga: serie.type != .livre
                     )
                 }
                 // Badge et progression SOUS la couverture, comme chez Apple
@@ -411,7 +413,8 @@ private struct RangeeLivre: View {
                 CouvertureView(
                     urlString: oeuvre.couvertureAffichee,
                     titre: oeuvre.titre(langue),
-                    coins: 4
+                    coins: 4,
+                    manga: oeuvre.type != .livre
                 )
                 .frame(width: 42)
                 VStack(alignment: .leading, spacing: 3) {
@@ -459,7 +462,8 @@ private struct RangeeSerie: View {
                 CouvertureView(
                     urlString: serie.couvertureAffichee,
                     titre: serie.nomAffiche(langue),
-                    coins: 4
+                    coins: 4,
+                    manga: serie.type != .livre
                 )
                 .frame(width: 42)
                 VStack(alignment: .leading, spacing: 3) {

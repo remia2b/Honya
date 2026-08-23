@@ -25,7 +25,8 @@ struct ApercuResultatView: View {
                     urlString: resultat.couvertureURL,
                     titre: resultat.titreAffiche(langue),
                     auteur: resultat.auteurs.first,
-                    coins: 8
+                    coins: 8,
+                    manga: resultat.type != .livre
                 )
                 .frame(width: 148)
                 .shadow(color: .black.opacity(0.35), radius: 18, x: 0, y: 10)

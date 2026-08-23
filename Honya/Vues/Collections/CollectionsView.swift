@@ -224,7 +224,8 @@ struct GrilleOeuvres: View {
                             CouvertureView(
                                 urlString: oeuvre.couvertureAffichee,
                                 titre: oeuvre.titre(langue),
-                                auteur: oeuvre.auteurPrincipal
+                                auteur: oeuvre.auteurPrincipal,
+                                manga: oeuvre.type != .livre
                             )
                             .overlay(alignment: .bottomLeading) {
                                 if let statut = oeuvre.exemplaire?.statut {
@@ -241,7 +242,8 @@ struct GrilleOeuvres: View {
                             CouvertureView(
                                 urlString: serie.couvertureAffichee,
                                 titre: serie.nomAffiche(langue),
-                                auteur: serie.auteur
+                                auteur: serie.auteur,
+                                manga: serie.type != .livre
                             )
                             .overlay(alignment: .topTrailing) {
                                 Text("\(serie.nbPossedes)/\(serie.tomes.count)")

@@ -336,7 +336,8 @@ struct DecouverteView: View {
                         CouvertureView(
                             urlString: resultat.couvertureURL,
                             titre: resultat.titre,
-                            coins: 4
+                            coins: 4,
+                            manga: resultat.type != .livre
                         )
                         .frame(width: 50)
                         Text("\(rang + 1)")

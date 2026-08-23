@@ -107,7 +107,12 @@ struct ScannerSheet: View {
                 }
                 ForEach(trouves) { resultat in
                     HStack(spacing: 12) {
-                        CouvertureView(urlString: resultat.couvertureURL, titre: resultat.titre, coins: 4)
+                        CouvertureView(
+                            urlString: resultat.couvertureURL,
+                            titre: resultat.titre,
+                            coins: 4,
+                            manga: resultat.type != .livre
+                        )
                             .frame(width: 36)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(resultat.titre)

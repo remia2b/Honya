@@ -418,7 +418,8 @@ struct AccueilView: View {
                         CouvertureView(
                             urlString: serie.couvertureAffichee,
                             titre: serie.nomAffiche(langue),
-                            coins: 5
+                            coins: 5,
+                            manga: serie.type != .livre
                         )
                         .frame(width: 44)
                         .shadow(color: .black.opacity(0.3), radius: 6, y: 3)

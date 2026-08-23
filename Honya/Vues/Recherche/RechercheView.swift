@@ -205,7 +205,8 @@ struct RechercheView: View {
                                     CouvertureView(
                                         urlString: resultat.couvertureURL,
                                         titre: resultat.titre,
-                                        coins: 6
+                                        coins: 6,
+                                        manga: resultat.type != .livre
                                     )
                                     .frame(width: 92)
                                     .shadow(color: .black.opacity(0.35), radius: 9, y: 5)
@@ -310,7 +311,8 @@ struct RechercheView: View {
                     ligneLocale(
                         titre: oeuvre.titre(langue),
                         sousTitre: oeuvre.auteurPrincipal,
-                        couverture: oeuvre.couvertureAffichee
+                        couverture: oeuvre.couvertureAffichee,
+                        manga: oeuvre.type != .livre
                     )
                 }
                 .buttonStyle(.plain)
@@ -322,7 +324,8 @@ struct RechercheView: View {
                     ligneLocale(
                         titre: serie.nomAffiche(langue),
                         sousTitre: "\(serie.nbPossedes) possédés · \(serie.nbLus) lus",
-                        couverture: serie.couvertureAffichee
+                        couverture: serie.couvertureAffichee,
+                        manga: serie.type != .livre
                     )
                 }
                 .buttonStyle(.plain)
@@ -330,9 +333,14 @@ struct RechercheView: View {
         }
     }
 
-    private func ligneLocale(titre: String, sousTitre: String, couverture: String?) -> some View {
+    private func ligneLocale(
+        titre: String,
+        sousTitre: String,
+        couverture: String?,
+        manga: Bool
+    ) -> some View {
         HStack(spacing: 12) {
-            CouvertureView(urlString: couverture, titre: titre, coins: 4)
+            CouvertureView(urlString: couverture, titre: titre, coins: 4, manga: manga)
                 .frame(width: 38)
             VStack(alignment: .leading, spacing: 2) {
                 Text(titre).font(.subheadline.weight(.semibold)).lineLimit(1)
@@ -391,7 +399,8 @@ private struct RangeeResultat: View {
             CouvertureView(
                 urlString: resultat.couvertureURL,
                 titre: resultat.titreAffiche(langue),
-                coins: 4
+                coins: 4,
+                manga: resultat.type != .livre
             )
             .frame(width: 44)
 
