@@ -253,3 +253,80 @@ struct EtiquetteSection: View {
         }
     }
 }
+
+// MARK: - En-tête de section, façon Apple Books
+//
+// Un grand titre serif suivi d'un chevron, éventuellement un sous-titre :
+// c'est ce qui donne à leur accueil son allure de magazine, là où de petites
+// capitales grises font « application utilitaire ».
+
+struct TitreSection: View {
+    let titre: String
+    var sousTitre: String? = nil
+    var action: (() -> Void)? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Button {
+                action?()
+            } label: {
+                HStack(spacing: 5) {
+                    Text(titre)
+                        .font(.system(size: 25, weight: .semibold, design: .serif))
+                        .foregroundStyle(.primary)
+                    if action != nil {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(action == nil)
+
+            if let sousTitre {
+                Text(sousTitre)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - Grande couverture d'accueil
+//
+// Chez Apple Books, deux couvertures occupent la largeur de l'écran et portent
+// une ombre diffuse : c'est ce qui fait exister les livres à l'écran.
+
+struct GrandeCouverture: View {
+    var urlString: String?
+    var titre: String
+    var auteur: String?
+    var largeur: CGFloat = 158
+
+    var body: some View {
+        CouvertureView(urlString: urlString, titre: titre, auteur: auteur, coins: 8)
+            .frame(width: largeur)
+            .shadow(color: .black.opacity(0.45), radius: 14, x: 0, y: 8)
+    }
+}
+
+// MARK: - Bande de section
+//
+// Les sections alternent avec le fond au lieu d'être enfermées dans des cartes
+// arrondies : le contenu respire, comme dans leur accueil.
+
+struct BandeSection<Contenu: View>: View {
+    var teintee: Bool = false
+    @ViewBuilder var contenu: Contenu
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            contenu
+        }
+        .padding(.vertical, 22)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(teintee ? Color(uiColor: .secondarySystemBackground) : Color.clear)
+    }
+}

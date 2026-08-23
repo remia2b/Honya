@@ -37,6 +37,13 @@ struct ArcObjectifView: View {
 
     private var atteint: Bool { objectif > 0 && minutes >= objectif }
 
+    /// Format horaire, comme le « 0:00 » d'Apple Books.
+    private var tempsLisible: String {
+        minutes >= 60
+            ? String(format: "%d:%02d", minutes / 60, minutes % 60)
+            : String(format: "%d:%02d", minutes, 0)
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             ArcForme(fraction: 1)
@@ -45,28 +52,34 @@ struct ArcObjectifView: View {
                 .stroke(Couleurs.accent, style: StrokeStyle(lineWidth: 11, lineCap: .round))
                 .animation(.spring(duration: 0.8), value: fraction)
 
-            VStack(spacing: 3) {
+            VStack(spacing: 2) {
+                Text("Temps de lecture aujourd'hui")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.secondary)
+
                 if atteint {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 26, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: 46, height: 46)
-                        .background(Couleurs.accent, in: Circle())
-                        .transition(.scale.combined(with: .opacity))
-                    Text("\(minutes) minutes")
-                        .font(.subheadline.weight(.semibold))
-                        .monospacedDigit()
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 20, weight: .bold))
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(Couleurs.accent, in: Circle())
+                        Text(tempsLisible)
+                            .font(.system(size: 46, weight: .medium, design: .serif))
+                            .monospacedDigit()
+                    }
                 } else {
-                    Text("\(minutes)")
-                        .font(.chiffreSerif(36))
+                    Text(tempsLisible)
+                        .font(.system(size: 52, weight: .medium, design: .serif))
                         .monospacedDigit()
                         .contentTransition(.numericText())
-                    Text("sur \(objectif) min · aujourd'hui")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
                 }
+
+                Text("sur votre objectif de \(objectif) minutes")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
-            .padding(.bottom, 2)
+            .padding(.bottom, 4)
             .animation(.spring(duration: 0.5), value: atteint)
         }
         .aspectRatio(2.1, contentMode: .fit)

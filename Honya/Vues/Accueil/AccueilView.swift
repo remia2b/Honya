@@ -1,8 +1,9 @@
 import SwiftUI
 import SwiftData
 
-/// L'écran Reading Goals d'Apple Books, promu en page d'accueil.
-/// Une seule question : où en suis-je, et je reprends quoi ?
+/// L'accueil, dessiné comme celui d'Apple Books : de grandes couvertures qui
+/// portent l'écran, des titres de section en serif, des bandes de fond qui
+/// séparent les rubriques — et surtout aucune carte arrondie qui enferme tout.
 struct AccueilView: View {
     var allerRecherche: () -> Void
 
@@ -17,8 +18,9 @@ struct AccueilView: View {
 
     private var objectifMinutes: Int { objectifs.first?.minutesParJour ?? 20 }
     private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
+    private var minutesDuJour: Int { StatsEngine.minutesAujourdhui(sessions) }
 
-    /// L'exemplaire « en ce moment » : en cours, dernière session la plus récente.
+    /// Le livre en cours dont la dernière session est la plus récente.
     private var enCeMoment: Exemplaire? {
         exemplaires
             .filter { $0.statut == .enCours }
@@ -34,22 +36,17 @@ struct AccueilView: View {
             .first
     }
 
-    /// Derniers ajouts, livres et séries mêlés : de quoi remplir l'écran dès
-    /// le premier titre ajouté, au lieu d'un grand vide.
+    private var aSuivre: [Exemplaire] {
+        exemplaires.filter { $0.aSuivre && $0.statut != .lu }
+    }
+
     private var ajoutsRecents: [ElementBibli] {
         let livres = exemplaires.compactMap { ex -> (Date, ElementBibli)? in
             guard let oeuvre = ex.oeuvre else { return nil }
             return (oeuvre.dateAjout, .livre(ex))
         }
         let sfx = series.map { ($0.dateAjout, ElementBibli.serie($0)) }
-        return (livres + sfx)
-            .sorted { $0.0 > $1.0 }
-            .prefix(6)
-            .map(\.1)
-    }
-
-    private var aSuivre: [Exemplaire] {
-        exemplaires.filter { $0.aSuivre && $0.statut != .lu }
+        return (livres + sfx).sorted { $0.0 > $1.0 }.prefix(8).map(\.1)
     }
 
     private var sortiesAVenir: [Serie] {
@@ -63,175 +60,249 @@ struct AccueilView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    EnteteEcran(titre: "Aujourd'hui", sousTitre: dateDuJour) {
-                        Button {
-                            reglagesVisibles = true
-                        } label: {
-                            Image(systemName: "gearshape.fill")
-                                .font(.title3)
-                                .foregroundStyle(.secondary)
-                        }
-                        .accessibilityLabel("Réglages")
-                    }
+                VStack(alignment: .leading, spacing: 0) {
+                    entete
 
                     if bibliothequeVide {
-                        ContentUnavailableView {
-                            Label("Votre bibliothèque est vide", systemImage: "books.vertical")
-                        } description: {
-                            Text("Scannez un ISBN ou cherchez un titre pour poser votre premier livre sur l'étagère.")
-                        } actions: {
-                            Button("Ajouter un livre", action: allerRecherche)
-                                .buttonStyle(.borderedProminent)
-                                .tint(Couleurs.accent)
-                        }
-                        .padding(.top, 60)
+                        etatVide
                     } else {
                         if let courant = enCeMoment, let oeuvre = courant.oeuvre {
-                            carteEnCours(courant, oeuvre: oeuvre)
-                                .padding(.horizontal, 20)
+                            bandeEnCours(exemplaire: courant, oeuvre: oeuvre)
                         } else if let serie = serieEnCours {
-                            carteSerieEnCours(serie)
-                                .padding(.horizontal, 20)
+                            bandeSerieEnCours(serie)
                         }
-
-                        carteObjectif
-                            .padding(.horizontal, 20)
 
                         if !ajoutsRecents.isEmpty {
-                            sectionAjoutsRecents
+                            BandeSection {
+                                TitreSection(titre: "Récemment ajoutés")
+                                    .padding(.horizontal, 20)
+                                rangeeCouvertures(ajoutsRecents)
+                            }
                         }
 
+                        bandeObjectif
+
                         if !aSuivre.isEmpty {
-                            sectionASuivre
+                            BandeSection {
+                                TitreSection(
+                                    titre: "À suivre",
+                                    sousTitre: "Les livres que vous comptez ouvrir bientôt."
+                                )
+                                .padding(.horizontal, 20)
+                                rangeeCouvertures(aSuivre.map(ElementBibli.livre))
+                            }
                         }
 
                         if !sortiesAVenir.isEmpty {
-                            sectionSorties
+                            BandeSection(teintee: true) {
+                                TitreSection(
+                                    titre: "Sorties à venir",
+                                    sousTitre: "Les prochains tomes de vos séries."
+                                )
                                 .padding(.horizontal, 20)
+                                sectionSorties
+                            }
                         }
                     }
                 }
-                .padding(.bottom, 24)
+                .padding(.bottom, 30)
             }
-            .background(Color(uiColor: .systemGroupedBackground))
+            .background(Color(uiColor: .systemBackground))
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $reglagesVisibles) { ReglagesView() }
-            .fullScreenCover(item: $cibleSession) { cible in
-                SessionLectureView(cible: cible)
-            }
+            .fullScreenCover(item: $cibleSession) { SessionLectureView(cible: $0) }
         }
     }
 
-    // MARK: - Carte « En ce moment »
+    // MARK: - En-tête : titre, anneau de progression, réglages
 
-    private func carteEnCours(_ exemplaire: Exemplaire, oeuvre: Oeuvre) -> some View {
-        NavigationLink {
-            FicheOeuvreView(oeuvre: oeuvre)
-        } label: {
-            HStack(spacing: 14) {
-                CouvertureView(
-                    urlString: oeuvre.couvertureCanoniqueURL,
-                    titre: oeuvre.titre(langue),
-                    auteur: oeuvre.auteurPrincipal
-                )
-                .frame(width: 64)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("En ce moment")
-                        .font(.caption2.weight(.heavy))
-                        .textCase(.uppercase)
-                        .foregroundStyle(.secondary)
-                        .kerning(0.5)
-                    Text(oeuvre.titre(langue))
-                        .font(.titreOeuvre(18))
-                        .lineLimit(2)
-                    Text(oeuvre.auteurPrincipal)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    BarreProgression(valeur: exemplaire.progression)
-                        .padding(.top, 3)
-                    if let pages = oeuvre.pages {
-                        Text("p. \(exemplaire.pageCourante) sur \(pages) · \(Int(exemplaire.progression * 100)) %")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(14)
-            .background(
-                Color(uiColor: .secondarySystemGroupedBackground),
-                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Carte objectif (arc + pilule + semaine)
-
-    private var carteObjectif: some View {
-        VStack(spacing: 12) {
-            VStack(spacing: 3) {
-                Text("Objectif de lecture")
-                    .font(.titreOeuvre(19))
-                Text("Lisez chaque jour : la série grandit, les statistiques suivent.")
-                    .font(.caption)
+    private var entete: some View {
+        HStack(alignment: .center) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(dateDuJour)
+                    .font(.caption.weight(.semibold))
+                    .textCase(.uppercase)
                     .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
+                    .kerning(0.5)
+                Text("Aujourd'hui")
+                    .font(.system(size: 33, weight: .semibold, design: .serif))
             }
-            .padding(.bottom, 2)
-
-            ArcObjectifView(
-                minutes: StatsEngine.minutesAujourdhui(sessions),
-                objectif: objectifMinutes
-            )
-            .frame(maxWidth: 240)
-
-            Button { reglagesVisibles = true } label: {
-                HStack(spacing: 2) {
-                    Text("Ajuster l'objectif")
-                    Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold))
+            Spacer()
+            HStack(spacing: 12) {
+                anneauProgression
+                Button { reglagesVisibles = true } label: {
+                    Image(systemName: "gearshape.fill")
+                        .font(.title3)
+                        .foregroundStyle(.secondary)
                 }
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Couleurs.accent)
+                .accessibilityLabel("Réglages")
             }
-
-            if let courant = enCeMoment, let oeuvre = courant.oeuvre {
-                PiluleCTA(
-                    titre: "Reprendre la lecture",
-                    sousTitre: oeuvre.titre(langue)
-                ) {
-                    cibleSession = .oeuvre(oeuvre)
-                }
-                .frame(maxWidth: 280)
-            } else if let serie = serieEnCours {
-                PiluleCTA(
-                    titre: "Continuer la lecture",
-                    sousTitre: serie.nomAffiche(langue)
-                ) {
-                    cibleSession = .serie(serie)
-                }
-                .frame(maxWidth: 280)
-            } else {
-                PiluleCTA(titre: "Commencer une lecture") {
-                    allerRecherche()
-                }
-                .frame(maxWidth: 280)
-            }
-
-            SemaineSerieView(joursActifs: StatsEngine.joursActifs(sessions))
-
-            legendeSerie
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .padding(.horizontal, 14)
-        .background(
-            Color(uiColor: .secondarySystemGroupedBackground),
-            in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-        )
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
+        .padding(.bottom, 6)
+    }
+
+    /// Le petit anneau du jour, comme celui posé près de l'avatar chez Apple Books.
+    private var anneauProgression: some View {
+        let fraction = objectifMinutes > 0
+            ? min(1, Double(minutesDuJour) / Double(objectifMinutes)) : 0
+        return ZStack {
+            Circle()
+                .stroke(Color(uiColor: .secondarySystemFill), lineWidth: 3.5)
+            Circle()
+                .trim(from: 0, to: fraction)
+                .stroke(Couleurs.accent, style: StrokeStyle(lineWidth: 3.5, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            Text("\(minutesDuJour)")
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .monospacedDigit()
+        }
+        .frame(width: 34, height: 34)
+        .accessibilityLabel("\(minutesDuJour) minutes lues aujourd'hui")
+    }
+
+    // MARK: - En ce moment : la grande couverture qui ouvre l'écran
+
+    private func bandeEnCours(exemplaire: Exemplaire, oeuvre: Oeuvre) -> some View {
+        BandeSection(teintee: true) {
+            NavigationLink {
+                FicheOeuvreView(oeuvre: oeuvre)
+            } label: {
+                HStack(alignment: .top, spacing: 18) {
+                    GrandeCouverture(
+                        urlString: oeuvre.couvertureCanoniqueURL,
+                        titre: oeuvre.titre(langue),
+                        auteur: oeuvre.auteurPrincipal,
+                        largeur: 118
+                    )
+                    infosEnCours(
+                        titre: oeuvre.titre(langue),
+                        detail: oeuvre.auteurPrincipal,
+                        progression: exemplaire.progression,
+                        legende: oeuvre.pages.map {
+                            "p. \(exemplaire.pageCourante) sur \($0)"
+                        } ?? "En cours"
+                    )
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 20)
+            }
+            .buttonStyle(.plain)
+
+            PiluleCTA(titre: "Continuer la lecture", sousTitre: oeuvre.titre(langue)) {
+                cibleSession = .oeuvre(oeuvre)
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
+    private func bandeSerieEnCours(_ serie: Serie) -> some View {
+        BandeSection(teintee: true) {
+            NavigationLink {
+                FicheSerieView(serie: serie)
+            } label: {
+                HStack(alignment: .top, spacing: 18) {
+                    GrandeCouverture(
+                        urlString: serie.couvertureURL,
+                        titre: serie.nomAffiche(langue),
+                        auteur: serie.auteur,
+                        largeur: 118
+                    )
+                    infosEnCours(
+                        titre: serie.nomAffiche(langue),
+                        detail: serie.prochainALire.map { "À lire : tome \($0.numero)" }
+                            ?? serie.prochainAAcheter.map { "À acheter : tome \($0)" }
+                            ?? serie.auteur ?? "",
+                        progression: serie.tomes.isEmpty
+                            ? 0 : Double(serie.nbLus) / Double(serie.tomes.count),
+                        legende: "\(serie.nbLus) lus sur \(serie.tomes.count) tomes",
+                        teinte: Couleurs.lu
+                    )
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 20)
+            }
+            .buttonStyle(.plain)
+
+            PiluleCTA(titre: "Continuer la lecture", sousTitre: serie.nomAffiche(langue)) {
+                cibleSession = .serie(serie)
+            }
+            .padding(.horizontal, 20)
+        }
+    }
+
+    private func infosEnCours(
+        titre: String,
+        detail: String,
+        progression: Double,
+        legende: String,
+        teinte: Color = Couleurs.accent
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("En ce moment")
+                .font(.caption2.weight(.heavy))
+                .textCase(.uppercase)
+                .foregroundStyle(.secondary)
+                .kerning(0.6)
+            Text(titre)
+                .font(.system(size: 21, weight: .semibold, design: .serif))
+                .lineLimit(3)
+                .foregroundStyle(.primary)
+            if !detail.isEmpty {
+                Text(detail)
+                    .font(.subheadline)
+                    .foregroundStyle(teinte == Couleurs.lu ? Couleurs.accent : .secondary)
+            }
+            Spacer(minLength: 4)
+            BarreProgression(valeur: progression, teinte: teinte)
+            Text(legende)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+        }
+        .frame(height: 177, alignment: .top)
+    }
+
+    // MARK: - Objectif de lecture, en grand
+
+    private var bandeObjectif: some View {
+        BandeSection {
+            VStack(spacing: 14) {
+                VStack(spacing: 5) {
+                    Text("Objectif de lecture")
+                        .font(.system(size: 25, weight: .semibold, design: .serif))
+                    Text("Lisez chaque jour : la série grandit et les statistiques suivent.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+
+                ArcObjectifView(minutes: minutesDuJour, objectif: objectifMinutes)
+                    .frame(maxWidth: 320)
+
+                Button { reglagesVisibles = true } label: {
+                    HStack(spacing: 3) {
+                        Text("Ajuster l'objectif")
+                        Image(systemName: "chevron.right").font(.system(size: 10, weight: .bold))
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Couleurs.accent)
+                }
+
+                if enCeMoment == nil && serieEnCours == nil {
+                    PiluleCTA(titre: "Commencer une lecture") { allerRecherche() }
+                        .frame(maxWidth: 300)
+                }
+
+                SemaineSerieView(joursActifs: StatsEngine.joursActifs(sessions))
+                    .padding(.top, 2)
+
+                legendeSerie
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 20)
+        }
     }
 
     private var legendeSerie: some View {
@@ -244,192 +315,123 @@ struct AccueilView: View {
                     .fontWeight(.bold)
                     .monospacedDigit()
             }
-            .font(.caption.weight(.medium))
+            .font(.subheadline)
             .foregroundStyle(.secondary)
 
             if serie >= 2 && serie >= record {
                 Text("Nouveau record")
-                    .font(.caption.weight(.bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(Couleurs.accent)
             }
         }
     }
 
-    // MARK: - Carte « série en cours »
+    // MARK: - Rangées de grandes couvertures
 
-    private func carteSerieEnCours(_ serie: Serie) -> some View {
-        NavigationLink {
-            FicheSerieView(serie: serie)
-        } label: {
-            HStack(spacing: 14) {
-                CouvertureView(
-                    urlString: serie.couvertureURL,
-                    titre: serie.nomAffiche(langue),
-                    auteur: serie.auteur
-                )
-                .frame(width: 64)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("En ce moment")
-                        .font(.caption2.weight(.heavy))
-                        .textCase(.uppercase)
-                        .foregroundStyle(.secondary)
-                        .kerning(0.5)
-                    Text(serie.nomAffiche(langue))
-                        .font(.titreOeuvre(18))
-                        .lineLimit(2)
-                    if let prochain = serie.prochainALire {
-                        Text("À lire : tome \(prochain.numero)")
-                            .font(.caption)
-                            .foregroundStyle(Couleurs.accent)
-                            .monospacedDigit()
-                    } else if let acheter = serie.prochainAAcheter {
-                        Text("À acheter : tome \(acheter)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    }
-                    BarreProgression(
-                        valeur: serie.tomes.isEmpty ? 0 : Double(serie.nbLus) / Double(serie.tomes.count),
-                        teinte: Couleurs.lu
-                    )
-                    .padding(.top, 3)
-                    Text("\(serie.nbLus) lus sur \(serie.tomes.count) tomes")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(14)
-            .background(
-                Color(uiColor: .secondarySystemGroupedBackground),
-                in: RoundedRectangle(cornerRadius: 18, style: .continuous)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    // MARK: - Ajouts récents
-
-    private var sectionAjoutsRecents: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            EtiquetteSection(texte: "Récemment ajoutés")
-                .padding(.horizontal, 20)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(ajoutsRecents) { element in
-                        switch element {
-                        case .livre(let exemplaire):
-                            if let oeuvre = exemplaire.oeuvre {
-                                NavigationLink {
-                                    FicheOeuvreView(oeuvre: oeuvre)
-                                } label: {
-                                    CouvertureView(
-                                        urlString: oeuvre.couvertureCanoniqueURL,
-                                        titre: oeuvre.titre(langue),
-                                        auteur: oeuvre.auteurPrincipal
-                                    )
-                                    .frame(width: 78)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        case .serie(let serie):
-                            NavigationLink {
-                                FicheSerieView(serie: serie)
-                            } label: {
-                                CouvertureView(
-                                    urlString: serie.couvertureURL,
-                                    titre: serie.nomAffiche(langue),
-                                    auteur: serie.auteur
-                                )
-                                .frame(width: 78)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-                .padding(.horizontal, 20)
-            }
-        }
-    }
-
-    // MARK: - À suivre
-
-    private var sectionASuivre: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            EtiquetteSection(texte: "À suivre")
-                .padding(.horizontal, 20)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
-                    ForEach(aSuivre) { exemplaire in
+    private func rangeeCouvertures(_ elements: [ElementBibli]) -> some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: 16) {
+                ForEach(elements) { element in
+                    switch element {
+                    case .livre(let exemplaire):
                         if let oeuvre = exemplaire.oeuvre {
                             NavigationLink {
                                 FicheOeuvreView(oeuvre: oeuvre)
                             } label: {
-                                CouvertureView(
+                                GrandeCouverture(
                                     urlString: oeuvre.couvertureCanoniqueURL,
                                     titre: oeuvre.titre(langue),
                                     auteur: oeuvre.auteurPrincipal
                                 )
-                                .frame(width: 78)
                             }
                             .buttonStyle(.plain)
                         }
+                    case .serie(let serie):
+                        NavigationLink {
+                            FicheSerieView(serie: serie)
+                        } label: {
+                            GrandeCouverture(
+                                urlString: serie.couvertureURL,
+                                titre: serie.nomAffiche(langue),
+                                auteur: serie.auteur
+                            )
+                            .overlay(alignment: .topTrailing) {
+                                Text("\(serie.nbPossedes)/\(serie.tomes.count)")
+                                    .font(.system(size: 10, weight: .heavy))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(.black.opacity(0.7), in: Capsule())
+                                    .padding(7)
+                            }
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal, 20)
             }
+            .padding(.horizontal, 20)
         }
     }
 
     // MARK: - Sorties à venir
 
     private var sectionSorties: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            EtiquetteSection(texte: "Sorties à venir")
-            VStack(spacing: 8) {
-                ForEach(sortiesAVenir.prefix(3)) { serie in
-                    NavigationLink {
-                        FicheSerieView(serie: serie)
-                    } label: {
-                        HStack(spacing: 12) {
-                            CouvertureView(
-                                urlString: serie.couvertureURL,
-                                titre: serie.nomAffiche(langue),
-                                coins: 4
-                            )
-                            .frame(width: 34)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(serie.nomAffiche(langue))
-                                    .font(.subheadline.weight(.semibold))
-                                    .lineLimit(1)
-                                HStack(spacing: 4) {
-                                    if let numero = serie.prochaineSortieNumero {
-                                        Text("Tome \(numero) —")
-                                    }
-                                    if let date = serie.prochaineSortieDate {
-                                        Text(date, format: .dateTime.day().month(.wide))
-                                    }
-                                }
-                                .font(.caption)
-                                .foregroundStyle(Couleurs.accent)
-                            }
-                            Spacer()
-                            Image(systemName: serie.rappelActive ? "bell.fill" : "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(serie.rappelActive ? Couleurs.accent : .secondary)
-                        }
-                        .padding(12)
-                        .background(
-                            Color(uiColor: .secondarySystemGroupedBackground),
-                            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+        VStack(spacing: 10) {
+            ForEach(sortiesAVenir.prefix(3)) { serie in
+                NavigationLink {
+                    FicheSerieView(serie: serie)
+                } label: {
+                    HStack(spacing: 14) {
+                        CouvertureView(
+                            urlString: serie.couvertureURL,
+                            titre: serie.nomAffiche(langue),
+                            coins: 5
                         )
+                        .frame(width: 44)
+                        .shadow(color: .black.opacity(0.3), radius: 6, y: 3)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(serie.nomAffiche(langue))
+                                .font(.subheadline.weight(.semibold))
+                                .lineLimit(1)
+                                .foregroundStyle(.primary)
+                            HStack(spacing: 4) {
+                                if let numero = serie.prochaineSortieNumero {
+                                    Text("Tome \(numero) —")
+                                }
+                                if let date = serie.prochaineSortieDate {
+                                    Text(date, format: .dateTime.day().month(.wide))
+                                }
+                            }
+                            .font(.caption)
+                            .foregroundStyle(Couleurs.accent)
+                        }
+                        Spacer()
+                        Image(systemName: serie.rappelActive ? "bell.fill" : "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(serie.rappelActive ? Couleurs.accent : .secondary)
                     }
-                    .buttonStyle(.plain)
+                    .padding(.horizontal, 20)
                 }
+                .buttonStyle(.plain)
             }
         }
+    }
+
+    // MARK: - Bibliothèque vide
+
+    private var etatVide: some View {
+        ContentUnavailableView {
+            Label("Votre bibliothèque est vide", systemImage: "books.vertical")
+        } description: {
+            Text("Scannez un ISBN ou cherchez un titre pour poser votre premier livre sur l'étagère.")
+        } actions: {
+            Button("Ajouter un livre", action: allerRecherche)
+                .buttonStyle(.borderedProminent)
+                .tint(Couleurs.accent)
+        }
+        .padding(.top, 70)
     }
 
     // MARK: - Aides
