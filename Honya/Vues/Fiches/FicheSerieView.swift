@@ -14,6 +14,7 @@ struct FicheSerieView: View {
     @State private var cibleSession: CibleSession?
     @State private var sortieVisible = false
     @State private var confirmerSuppression = false
+    @State private var etagereVisible = false
 
     private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
 
@@ -49,11 +50,13 @@ struct FicheSerieView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    MenuEtageres(cible: .serie(serie), creationVisible: $etagereVisible)
                     Button {
                         Task { await actualiser() }
                     } label: {
                         Label("Actualiser les informations", systemImage: "arrow.clockwise")
                     }
+                    Divider()
                     Button(role: .destructive) { confirmerSuppression = true } label: {
                         Label("Retirer la série", systemImage: "trash")
                     }
@@ -72,6 +75,7 @@ struct FicheSerieView: View {
                 dismiss()
             }
         }
+        .alerteNouvelleEtagere(.serie(serie), visible: $etagereVisible)
         .fullScreenCover(item: $cibleSession) { SessionLectureView(cible: $0) }
         .sheet(isPresented: $sortieVisible) {
             SortieSheet(serie: serie, langue: langue)

@@ -32,7 +32,6 @@ private struct ContenuFicheOeuvre: View {
     @Environment(\.dismiss) private var dismiss
     @Query private var objectifs: [Objectif]
     @Query private var oeuvres: [Oeuvre]
-    @Query(sort: \Collection.dateCreation, order: .reverse) private var collections: [Collection]
 
     @State private var teinte = Color(red: 0.30, green: 0.21, blue: 0.14)
     @State private var cibleSession: CibleSession?
@@ -41,6 +40,7 @@ private struct ContenuFicheOeuvre: View {
     @State private var nomPret = ""
     @State private var confirmerSuppression = false
     @State private var celebration = false
+    @State private var etagereVisible = false
     @State private var resumeDeplie = false
 
     private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
@@ -102,6 +102,7 @@ private struct ContenuFicheOeuvre: View {
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar { barreActions }
         .sensoryFeedback(.success, trigger: celebration)
+        .alerteNouvelleEtagere(.oeuvre(oeuvre), visible: $etagereVisible)
         .fullScreenCover(item: $cibleSession) { SessionLectureView(cible: $0) }
         .sheet(isPresented: $majPageVisible) {
             MiseAJourPageSheet(exemplaire: exemplaire, oeuvre: oeuvre, surTermine: marquerLu)
@@ -467,19 +468,7 @@ private struct ContenuFicheOeuvre: View {
                 Button { pretVisible = true } label: {
                     Label("Prêter…", systemImage: "person.badge.plus")
                 }
-                if !collections.isEmpty {
-                    Menu("Ajouter à une collection") {
-                        ForEach(collections) { collection in
-                            Button {
-                                if !collection.oeuvres.contains(where: { $0.persistentModelID == oeuvre.persistentModelID }) {
-                                    collection.oeuvres.append(oeuvre)
-                                }
-                            } label: {
-                                Label(collection.nom, systemImage: collection.symbole)
-                            }
-                        }
-                    }
-                }
+                MenuEtageres(cible: .oeuvre(oeuvre), creationVisible: $etagereVisible)
                 Divider()
                 Button(role: .destructive) { confirmerSuppression = true } label: {
                     Label("Retirer de la bibliothèque", systemImage: "trash")

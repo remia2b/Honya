@@ -19,13 +19,17 @@ struct CollectionsView: View {
         List {
             Section {
                 ForEach(StatutLecture.allCases) { statut in
+                    // Une série a elle aussi un statut, déduit de ses tomes :
+                    // sans elle, ces étagères restaient à zéro pour qui ne
+                    // collectionne que des mangas.
                     let livres = exemplaires.filter { $0.statut == statut }
+                    let seriesStatut = series.filter { $0.statut == statut }
                     NavigationLink {
                         GrilleOeuvres(
                             oeuvres: livres.compactMap(\.oeuvre),
-                            series: [],
+                            series: seriesStatut,
                             langue: langue,
-                            messageVide: "Aucun livre avec ce statut."
+                            messageVide: "Rien avec ce statut pour l'instant."
                         )
                         .navigationTitle(statut.libelle)
                         .navigationBarTitleDisplayMode(.inline)
@@ -34,7 +38,7 @@ struct CollectionsView: View {
                             HStack {
                                 Text(statut.libelle)
                                 Spacer()
-                                Text("\(livres.count)")
+                                Text("\(livres.count + seriesStatut.count)")
                                     .foregroundStyle(.secondary)
                                     .monospacedDigit()
                             }
@@ -73,7 +77,7 @@ struct CollectionsView: View {
 
             Section {
                 if collections.isEmpty {
-                    Text("Créez une étagère pour regrouper ce qui va ensemble : une saga, une pile de vacances, les livres à offrir…")
+                    Text("Créez une étagère ici avec « + », puis rangez-y un livre ou une série depuis sa fiche (menu « … ») ou par un appui long dans la bibliothèque.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

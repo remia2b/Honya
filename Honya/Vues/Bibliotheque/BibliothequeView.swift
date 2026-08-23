@@ -285,8 +285,8 @@ private struct CelluleLivre: View {
     let langue: String
 
     @Environment(\.modelContext) private var contexte
-    @Query(sort: \Collection.dateCreation, order: .reverse) private var collections: [Collection]
     @State private var confirmerSuppression = false
+    @State private var etagereVisible = false
 
     var body: some View {
         NavigationLink {
@@ -308,6 +308,7 @@ private struct CelluleLivre: View {
         }
         .buttonStyle(.plain)
         .contextMenu { menuContextuel }
+        .alerteNouvelleEtagere(.oeuvre(oeuvre), visible: $etagereVisible)
         .confirmationDialog(
             "Retirer « \(oeuvre.titre(langue)) » de la bibliothèque ?",
             isPresented: $confirmerSuppression,
@@ -339,19 +340,7 @@ private struct CelluleLivre: View {
                 systemImage: exemplaire.aSuivre ? "text.badge.minus" : "text.badge.plus"
             )
         }
-        if !collections.isEmpty {
-            Menu("Ajouter à une collection") {
-                ForEach(collections) { collection in
-                    Button {
-                        if !collection.oeuvres.contains(where: { $0.persistentModelID == oeuvre.persistentModelID }) {
-                            collection.oeuvres.append(oeuvre)
-                        }
-                    } label: {
-                        Label(collection.nom, systemImage: collection.symbole)
-                    }
-                }
-            }
-        }
+        MenuEtageres(cible: .oeuvre(oeuvre), creationVisible: $etagereVisible)
         Divider()
         Button(role: .destructive) {
             confirmerSuppression = true
@@ -506,10 +495,12 @@ private struct MenuSerie: ViewModifier {
 
     @Environment(\.modelContext) private var contexte
     @State private var confirmerSuppression = false
+    @State private var etagereVisible = false
 
     func body(content: Content) -> some View {
         content
             .contextMenu {
+                MenuEtageres(cible: .serie(serie), creationVisible: $etagereVisible)
                 if let prochain = serie.prochainALire {
                     Button {
                         prochain.lu = true
@@ -544,6 +535,7 @@ private struct MenuSerie: ViewModifier {
                     Label("Retirer de ma bibliothèque", systemImage: "trash")
                 }
             }
+            .alerteNouvelleEtagere(.serie(serie), visible: $etagereVisible)
             .confirmationDialog(
                 "Retirer « \(serie.nomAffiche(langue)) » et tous ses tomes ?",
                 isPresented: $confirmerSuppression,
