@@ -7,6 +7,7 @@ struct HonyaApp: App {
 
     @AppStorage("onboardingTermine") private var onboardingTermine = false
     @AppStorage("apparence") private var apparence: ApparenceHonya = .systeme
+    @State private var compte = Compte.partage
 
     init() {
         let schema = Schema([
@@ -30,13 +31,21 @@ struct HonyaApp: App {
     var body: some Scene {
         WindowGroup {
             Group {
-                if onboardingTermine {
-                    RacineView()
-                } else {
-                    OnboardingView()
+                switch compte.etat {
+                case .indetermine:
+                    BienvenueView()
+                        .transition(.opacity)
+                case .invite, .connecte:
+                    if onboardingTermine {
+                        RacineView()
+                    } else {
+                        OnboardingView()
+                    }
                 }
             }
+            .animation(.easeInOut(duration: 0.35), value: compte.etat)
             .preferredColorScheme(apparence.schema)
+            .task { await compte.verifierSession() }
         }
         .modelContainer(conteneur)
     }

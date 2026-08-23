@@ -8,10 +8,57 @@ struct ReglagesView: View {
 
     @AppStorage("apparence") private var apparence: ApparenceHonya = .systeme
     @State private var confirmerEffacement = false
+    @State private var confirmerSuppressionCompte = false
+    @State private var compte = Compte.partage
+
+    // MARK: - Compte
+
+    @ViewBuilder
+    private var sectionCompte: some View {
+        Section {
+            if compte.etat == .connecte {
+                LabeledContent {
+                    Text(compte.nomAffiche)
+                        .foregroundStyle(.secondary)
+                } label: {
+                    Label("Compte Apple", systemImage: "person.crop.circle.fill")
+                }
+                Button {
+                    compte.seDeconnecter()
+                    dismiss()
+                } label: {
+                    Label("Se déconnecter", systemImage: "rectangle.portrait.and.arrow.right")
+                }
+                Button(role: .destructive) {
+                    confirmerSuppressionCompte = true
+                } label: {
+                    Label("Supprimer mon compte", systemImage: "person.crop.circle.badge.xmark")
+                }
+            } else {
+                Label("Aucun compte", systemImage: "person.crop.circle")
+                Button {
+                    // On revient à la bienvenue SANS rien effacer : la
+                    // bibliothèque déjà constituée reste intacte.
+                    compte.revoirLaBienvenue()
+                    dismiss()
+                } label: {
+                    Label("Créer un compte ou se connecter", systemImage: "apple.logo")
+                }
+            }
+        } header: {
+            Text("Compte")
+        } footer: {
+            Text(compte.etat == .connecte
+                 ? "Supprimer votre compte efface aussi toute votre bibliothèque sur cet appareil. Pour retirer Honya de votre identifiant Apple, allez dans Réglages > votre nom > Connexion avec Apple."
+                 : "Vous utilisez Honya sans compte : tout reste sur cet appareil.")
+        }
+    }
 
     var body: some View {
         NavigationStack {
             Form {
+                sectionCompte
+
                 if let objectif = objectifs.first {
                     sectionObjectif(objectif)
                     sectionLangues(objectif)
@@ -49,6 +96,18 @@ struct ReglagesView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+            }
+            .confirmationDialog(
+                "Supprimer votre compte et toutes vos données ?",
+                isPresented: $confirmerSuppressionCompte,
+                titleVisibility: .visible
+            ) {
+                Button("Supprimer définitivement", role: .destructive) {
+                    compte.supprimerCompte(dans: contexte)
+                    dismiss()
+                }
+            } message: {
+                Text("Votre bibliothèque, vos sessions, vos badges et vos étagères seront effacés. C'est sans retour.")
             }
             .navigationTitle("Réglages")
             .navigationBarTitleDisplayMode(.inline)
