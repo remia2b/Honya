@@ -18,3 +18,6 @@ build/
 
 # Références visuelles perso (jamais dans le dépôt)
 Design/reference.png
+
+# Cache Python des scripts de Design/
+__pycache__/
