@@ -21,7 +21,7 @@ struct ReglagesView: View {
                     Text(compte.nomAffiche)
                         .foregroundStyle(.secondary)
                 } label: {
-                    Label("Compte Apple", systemImage: "person.crop.circle.fill")
+                    Label(compte.libelleMethode, systemImage: "person.crop.circle.fill")
                 }
                 Button {
                     compte.seDeconnecter()
@@ -103,8 +103,10 @@ struct ReglagesView: View {
                 titleVisibility: .visible
             ) {
                 Button("Supprimer définitivement", role: .destructive) {
-                    compte.supprimerCompte(dans: contexte)
-                    dismiss()
+                    Task {
+                        await compte.supprimerCompte(dans: contexte)
+                        dismiss()
+                    }
                 }
             } message: {
                 Text("Votre bibliothèque, vos sessions, vos badges et vos étagères seront effacés. C'est sans retour.")

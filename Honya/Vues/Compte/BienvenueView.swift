@@ -2,14 +2,23 @@ import AuthenticationServices
 import SwiftUI
 
 /// La toute première page : une étagère qui s'ouvre, le nom en serif, et deux
-/// chemins — créer son compte ou se connecter. Même grammaire visuelle que le
-/// reste de l'app : grandes couvertures, ombres douces, typographie serif.
+/// chemins pour entrer — l'identifiant Apple, ou une adresse e-mail. Même
+/// grammaire visuelle que le reste de l'app.
 struct BienvenueView: View {
     @Environment(\.colorScheme) private var apparence
     @State private var compte = Compte.partage
     @State private var mode: Mode = .inscription
-    @State private var erreur: String?
+    @State private var parEmail = false
     @State private var apparu = false
+
+    @State private var email = ""
+    @State private var motDePasse = ""
+    @State private var enCours = false
+    @State private var erreur: String?
+    @State private var information: String?
+    @FocusState private var champActif: Champ?
+
+    private enum Champ { case email, motDePasse }
 
     enum Mode: String, CaseIterable, Identifiable {
         case inscription = "Créer un compte"
@@ -22,37 +31,52 @@ struct BienvenueView: View {
         ZStack {
             fond.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                Spacer(minLength: 12)
+            ScrollView {
+                VStack(spacing: 0) {
+                    if !parEmail {
+                        etagere.padding(.bottom, 30)
+                    }
 
-                etagere
-                    .padding(.bottom, 34)
+                    VStack(spacing: 9) {
+                        Text("Honya")
+                            .font(.system(size: parEmail ? 34 : 46, weight: .semibold, design: .serif))
+                        Text(parEmail ? sousTitreEmail : "Votre bibliothèque, tome après tome.")
+                            .font(parEmail ? .subheadline : .title3)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.top, parEmail ? 24 : 0)
 
-                VStack(spacing: 10) {
-                    Text("Honya")
-                        .font(.system(size: 46, weight: .semibold, design: .serif))
-                    Text("Votre bibliothèque, tome après tome.")
-                        .font(.title3)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
+                    if parEmail {
+                        formulaire
+                            .padding(.horizontal, 28)
+                            .padding(.top, 26)
+                    } else {
+                        arguments
+                            .padding(.horizontal, 34)
+                            .padding(.top, 30)
+                    }
+
+                    actions
+                        .padding(.horizontal, 28)
+                        .padding(.top, 26)
+                        .padding(.bottom, 24)
                 }
-                .padding(.horizontal, 32)
-
-                Spacer(minLength: 24)
-
-                arguments
-                    .padding(.horizontal, 34)
-
-                Spacer(minLength: 24)
-
-                actions
-                    .padding(.horizontal, 28)
-                    .padding(.bottom, 18)
+                .frame(maxWidth: .infinity)
+                .padding(.top, parEmail ? 8 : 20)
             }
+            .scrollBounceBehavior(.basedOnSize)
+            .scrollDismissesKeyboard(.interactively)
         }
-        .onAppear {
-            withAnimation(.spring(duration: 0.9)) { apparu = true }
-        }
+        .animation(.snappy(duration: 0.3), value: parEmail)
+        .onAppear { withAnimation(.spring(duration: 0.9)) { apparu = true } }
+    }
+
+    private var sousTitreEmail: String {
+        mode == .inscription
+            ? "Créez votre compte avec une adresse e-mail."
+            : "Content de vous revoir."
     }
 
     // MARK: - Le fond, chaud comme une lampe de chevet
@@ -62,7 +86,7 @@ struct BienvenueView: View {
             Color(uiColor: .systemBackground)
             RadialGradient(
                 colors: [Couleurs.accent.opacity(apparence == .dark ? 0.26 : 0.18), .clear],
-                center: .init(x: 0.5, y: 0.18),
+                center: .init(x: 0.5, y: 0.16),
                 startRadius: 20,
                 endRadius: 520
             )
@@ -73,13 +97,13 @@ struct BienvenueView: View {
 
     private var etagere: some View {
         HStack(alignment: .bottom, spacing: -26) {
-            couverture(index: 0, largeur: 96, angle: -11, hauteur: 10)
-            couverture(index: 1, largeur: 116, angle: -4, hauteur: -6)
-            couverture(index: 2, largeur: 132, angle: 3, hauteur: -16)
-            couverture(index: 3, largeur: 116, angle: 9, hauteur: -4)
-            couverture(index: 4, largeur: 96, angle: 15, hauteur: 12)
+            couverture(index: 0, largeur: 92, angle: -11, hauteur: 10)
+            couverture(index: 1, largeur: 112, angle: -4, hauteur: -6)
+            couverture(index: 2, largeur: 128, angle: 3, hauteur: -16)
+            couverture(index: 3, largeur: 112, angle: 9, hauteur: -4)
+            couverture(index: 4, largeur: 92, angle: 15, hauteur: 12)
         }
-        .padding(.top, 26)
+        .padding(.top, 22)
     }
 
     private static let teintes: [(Color, Color)] = [
@@ -124,10 +148,7 @@ struct BienvenueView: View {
             .rotationEffect(.degrees(apparu ? angle : 0))
             .offset(y: apparu ? hauteur : 40)
             .opacity(apparu ? 1 : 0)
-            .animation(
-                .spring(duration: 0.85).delay(Double(index) * 0.07),
-                value: apparu
-            )
+            .animation(.spring(duration: 0.85).delay(Double(index) * 0.07), value: apparu)
     }
 
     // MARK: - Ce que le compte apporte
@@ -147,7 +168,7 @@ struct BienvenueView: View {
             argument(
                 "lock.fill",
                 "Vos lectures vous appartiennent",
-                "Rien n'est partagé. Votre nom et votre adresse restent sur l'appareil."
+                "Rien n'est partagé, et votre compte s'efface d'un bouton."
             )
         }
     }
@@ -171,7 +192,84 @@ struct BienvenueView: View {
         }
     }
 
-    // MARK: - Créer un compte ou se connecter
+    // MARK: - Le formulaire e-mail
+
+    private var formulaire: some View {
+        VStack(spacing: 12) {
+            champ(
+                "Adresse e-mail",
+                systemImage: "envelope",
+                texte: $email,
+                champ: .email
+            )
+            champ(
+                mode == .inscription ? "Mot de passe (6 caractères min.)" : "Mot de passe",
+                systemImage: "lock",
+                texte: $motDePasse,
+                champ: .motDePasse,
+                secret: true
+            )
+
+            if mode == .connexion {
+                Button("Mot de passe oublié ?") {
+                    Task { await envoyerReinitialisation() }
+                }
+                .font(.caption.weight(.semibold))
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+
+            Button {
+                Task { await valider() }
+            } label: {
+                HStack(spacing: 8) {
+                    if enCours { ProgressView().tint(.white) }
+                    Text(mode == .inscription ? "Créer mon compte" : "Se connecter")
+                        .font(.headline)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 15)
+                .foregroundStyle(.white)
+                .background(Couleurs.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .disabled(enCours || email.isEmpty || motDePasse.count < 6)
+            .opacity(enCours || email.isEmpty || motDePasse.count < 6 ? 0.55 : 1)
+        }
+    }
+
+    private func champ(
+        _ invite: String,
+        systemImage: String,
+        texte: Binding<String>,
+        champ cible: Champ,
+        secret: Bool = false
+    ) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: systemImage)
+                .foregroundStyle(.secondary)
+                .frame(width: 20)
+            Group {
+                if secret {
+                    SecureField(invite, text: texte)
+                } else {
+                    TextField(invite, text: texte)
+                        .keyboardType(.emailAddress)
+                        .textContentType(.emailAddress)
+                        .autocapitalization(.none)
+                }
+            }
+            .autocorrectionDisabled()
+            .focused($champActif, equals: cible)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 14)
+        .background(
+            Color(uiColor: .secondarySystemBackground),
+            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+        )
+    }
+
+    // MARK: - Les chemins d'entrée
 
     private var actions: some View {
         VStack(spacing: 14) {
@@ -181,36 +279,50 @@ struct BienvenueView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .onChange(of: mode) { _, _ in
+                erreur = nil
+                information = nil
+            }
 
-            SignInWithAppleButton(
-                mode == .inscription ? .signUp : .signIn,
-                onRequest: { requete in
-                    requete.requestedScopes = [.fullName, .email]
-                },
-                onCompletion: { resultat in
-                    switch resultat {
-                    case .success(let autorisation):
-                        if let identite = autorisation.credential as? ASAuthorizationAppleIDCredential {
-                            compte.connecter(identite)
-                        }
-                    case .failure(let souci):
-                        // Une annulation n'est pas une erreur : on ne dit rien.
-                        let code = (souci as? ASAuthorizationError)?.code
-                        if code != .canceled && code != .unknown {
-                            erreur = "La connexion n'a pas abouti. Réessayez dans un instant."
-                        }
+            if !parEmail {
+                SignInWithAppleButton(
+                    mode == .inscription ? .signUp : .signIn,
+                    onRequest: { requete in
+                        compte.preparerDemandeApple(requete)
+                    },
+                    onCompletion: { resultat in
+                        traiterApple(resultat)
                     }
-                }
-            )
-            .signInWithAppleButtonStyle(apparence == .dark ? .white : .black)
-            .frame(height: 52)
-            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                )
+                .signInWithAppleButtonStyle(apparence == .dark ? .white : .black)
+                .frame(height: 52)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            }
 
+            Button {
+                erreur = nil
+                information = nil
+                parEmail.toggle()
+            } label: {
+                Label(
+                    parEmail ? "Utiliser mon identifiant Apple" : "Utiliser une adresse e-mail",
+                    systemImage: parEmail ? "apple.logo" : "envelope"
+                )
+                .font(.subheadline.weight(.semibold))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(
+                    Color(uiColor: .secondarySystemBackground),
+                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                )
+            }
+            .buttonStyle(.plain)
+
+            if let information {
+                message(information, couleur: Couleurs.lu)
+            }
             if let erreur {
-                Text(erreur)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
+                message(erreur, couleur: .red)
             }
 
             Button("Continuer sans compte") {
@@ -218,12 +330,75 @@ struct BienvenueView: View {
             }
             .font(.subheadline.weight(.semibold))
             .tint(.secondary)
+            .padding(.top, 2)
 
-            Text("Un compte Honya, c'est votre identifiant Apple : aucun mot de passe à créer, et vous pouvez le supprimer à tout moment depuis les réglages.")
+            Text("Vos lectures restent sur votre appareil. Vous pouvez supprimer votre compte à tout moment depuis les réglages.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 8)
+        }
+    }
+
+    private func message(_ texte: String, couleur: Color) -> some View {
+        Text(texte)
+            .font(.caption)
+            .foregroundStyle(couleur)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    // MARK: - Actions
+
+    private func traiterApple(_ resultat: Result<ASAuthorization, Error>) {
+        switch resultat {
+        case .success(let autorisation):
+            guard let identite = autorisation.credential as? ASAuthorizationAppleIDCredential
+            else { return }
+            Task { await compte.connecterAvecApple(identite) }
+        case .failure(let souci):
+            // Une annulation n'est pas une erreur : on ne dit rien.
+            let code = (souci as? ASAuthorizationError)?.code
+            if code != .canceled && code != .unknown {
+                erreur = "La connexion n'a pas abouti. Réessayez dans un instant."
+            }
+        }
+    }
+
+    private func valider() async {
+        champActif = nil
+        erreur = nil
+        information = nil
+        enCours = true
+        defer { enCours = false }
+
+        let adresse = email.trimmingCharacters(in: .whitespaces)
+        do {
+            if mode == .inscription {
+                if let attente = try await compte.inscrire(email: adresse, motDePasse: motDePasse) {
+                    information = attente
+                    mode = .connexion
+                }
+            } else {
+                try await compte.connecter(email: adresse, motDePasse: motDePasse)
+            }
+        } catch {
+            erreur = error.localizedDescription
+        }
+    }
+
+    private func envoyerReinitialisation() async {
+        let adresse = email.trimmingCharacters(in: .whitespaces)
+        guard !adresse.isEmpty else {
+            erreur = "Saisissez d'abord votre adresse e-mail."
+            return
+        }
+        erreur = nil
+        do {
+            try await compte.envoyerReinitialisation(email: adresse)
+            information = "Un courrier vient de partir vers \(adresse)."
+        } catch {
+            erreur = error.localizedDescription
         }
     }
 }

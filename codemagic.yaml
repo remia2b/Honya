@@ -38,22 +38,27 @@ workflows:
     scripts:
       - name: Injecter les secrets (jamais dans le depot)
         script: |
-          # GOOGLE_BOOKS_API_KEY : variable chiffree Codemagic (groupe « signing »).
-          # Ecrite dans Secrets.swift sur la machine de build uniquement.
-          if [ -n "${GOOGLE_BOOKS_API_KEY:-}" ]; then
-            cat > Honya/Config/Secrets.swift <<SWIFT
+          # Variables chiffrees Codemagic (groupe « signing »), ecrites dans
+          # Secrets.swift sur la machine de build uniquement :
+          #   GOOGLE_BOOKS_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY
+          cat > Honya/Config/Secrets.swift <<SWIFT
           import Foundation
 
           // Genere par la CI - ne pas committer.
           enum Secrets {
-              static let cleGoogleBooks = "${GOOGLE_BOOKS_API_KEY}"
+              static let cleGoogleBooks = "${GOOGLE_BOOKS_API_KEY:-}"
+              static let supabaseURL = "${SUPABASE_URL:-}"
+              static let supabaseCleAnon = "${SUPABASE_ANON_KEY:-}"
           }
           SWIFT
-            echo "Cle Google Books injectee (${#GOOGLE_BOOKS_API_KEY} caracteres)."
-          else
-            echo "AVERTISSEMENT : GOOGLE_BOOKS_API_KEY absente - l'app tournera sans cle"
-            echo "(quota Google reduit). L'ajouter dans Codemagic > Honya >"
-            echo "Environment variables, groupe 'signing', case Secure cochee."
+          echo "Google Books : ${#GOOGLE_BOOKS_API_KEY} caracteres."
+          echo "Supabase URL : ${#SUPABASE_URL} caracteres, cle anon : ${#SUPABASE_ANON_KEY} caracteres."
+          if [ -z "${GOOGLE_BOOKS_API_KEY:-}" ]; then
+            echo "AVERTISSEMENT : GOOGLE_BOOKS_API_KEY absente - quota Google reduit."
+          fi
+          if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
+            echo "AVERTISSEMENT : Supabase non configure - les comptes par e-mail"
+            echo "seront indisponibles (la connexion avec Apple continue de marcher)."
           fi
       - name: Signature (certificat + profil App Store)
         script: |

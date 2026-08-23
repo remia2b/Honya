@@ -1,11 +1,11 @@
 import AuthenticationServices
+import CryptoKit
 import SwiftData
 import SwiftUI
 
-/// Le compte Honya, c'est l'identifiant Apple du lecteur : rien à retenir,
-/// aucun mot de passe à confier, et le nom comme l'adresse ne quittent jamais
-/// l'appareil. On garde aussi la porte ouverte : on peut se servir de Honya
-/// sans compte du tout.
+/// Le compte Honya. Deux chemins, un seul compte : l'identifiant Apple (rien
+/// à retenir) ou une adresse e-mail et un mot de passe. Et toujours la
+/// possibilité de se servir de Honya sans compte du tout.
 @Observable
 @MainActor
 final class Compte {
@@ -19,10 +19,18 @@ final class Compte {
         case connecte
     }
 
+    enum Methode: String {
+        case apple, email
+    }
+
     private(set) var etat: Etat = .indetermine
     private(set) var identifiant: String?
     private(set) var nom: String?
     private(set) var email: String?
+    private(set) var methode: Methode = .apple
+
+    /// Nonce de la demande Apple en cours, pour l'échange avec Supabase.
+    private var nonceEnCours: String?
 
     private let defaults = UserDefaults.standard
     private enum Cle {
@@ -30,12 +38,16 @@ final class Compte {
         static let identifiant = "compteIdentifiant"
         static let nom = "compteNom"
         static let email = "compteEmail"
+        static let methode = "compteMethode"
+        static let jetonAcces = "jetonAcces"
+        static let jetonRenouvellement = "jetonRenouvellement"
     }
 
     private init() {
         identifiant = defaults.string(forKey: Cle.identifiant)
         nom = defaults.string(forKey: Cle.nom)
         email = defaults.string(forKey: Cle.email)
+        methode = Methode(rawValue: defaults.string(forKey: Cle.methode) ?? "") ?? .apple
         switch defaults.string(forKey: Cle.etat) {
         case "connecte" where identifiant != nil: etat = .connecte
         case "invite": etat = .invite
@@ -43,17 +55,30 @@ final class Compte {
         }
     }
 
-    /// Nom affiché dans les réglages — le prénom suffit, sinon l'adresse.
     var nomAffiche: String {
         if let nom, !nom.isEmpty { return nom }
         if let email, !email.isEmpty { return email }
-        return "Compte Apple"
+        return methode == .apple ? "Compte Apple" : "Compte Honya"
     }
 
-    // MARK: - Connexion
+    var libelleMethode: String {
+        methode == .apple ? "Connexion avec Apple" : "Adresse e-mail"
+    }
 
-    func connecter(_ credential: ASAuthorizationAppleIDCredential) {
+    // MARK: - Apple
+
+    /// Prépare la demande Apple : le nonce lie la réponse à cette demande
+    /// précise, et permet à Supabase de vérifier le jeton d'identité.
+    func preparerDemandeApple(_ requete: ASAuthorizationAppleIDRequest) {
+        let brut = Self.nonceAleatoire()
+        nonceEnCours = brut
+        requete.requestedScopes = [.fullName, .email]
+        requete.nonce = Self.empreinte(brut)
+    }
+
+    func connecterAvecApple(_ credential: ASAuthorizationAppleIDCredential) async {
         identifiant = credential.user
+        methode = .apple
         // Apple ne transmet le nom et l'adresse qu'à la toute première
         // autorisation : on les garde précieusement, sinon ils sont perdus.
         if let complet = credential.fullName {
@@ -65,9 +90,64 @@ final class Compte {
         }
         if let adresse = credential.email, !adresse.isEmpty { email = adresse }
 
+        // Si le serveur est configuré, la session Apple devient une session
+        // Honya : les deux chemins mènent au même compte.
+        if SupabaseAuth.configure,
+           let jeton = credential.identityToken,
+           let texte = String(data: jeton, encoding: .utf8) {
+            if let session = try? await SupabaseAuth.connecterAvecApple(
+                jetonIdentite: texte,
+                nonce: nonceEnCours
+            ) {
+                enregistrer(session)
+            }
+        }
+        nonceEnCours = nil
+        finaliserConnexion()
+    }
+
+    // MARK: - Adresse e-mail
+
+    /// Renvoie un message à afficher quand la confirmation par courrier est
+    /// exigée : dans ce cas il n'y a pas encore de session.
+    func inscrire(email adresse: String, motDePasse: String) async throws -> String? {
+        let session = try await SupabaseAuth.inscrire(email: adresse, motDePasse: motDePasse)
+        guard let session else {
+            return "Compte créé. Ouvrez le courrier de confirmation, puis connectez-vous."
+        }
+        adopter(session, adresse: adresse)
+        return nil
+    }
+
+    func connecter(email adresse: String, motDePasse: String) async throws {
+        let session = try await SupabaseAuth.connecter(email: adresse, motDePasse: motDePasse)
+        adopter(session, adresse: adresse)
+    }
+
+    func envoyerReinitialisation(email adresse: String) async throws {
+        try await SupabaseAuth.reinitialiserMotDePasse(email: adresse)
+    }
+
+    private func adopter(_ session: SupabaseAuth.Session, adresse: String) {
+        identifiant = session.user?.id ?? adresse
+        email = session.user?.email ?? adresse
+        methode = .email
+        enregistrer(session)
+        finaliserConnexion()
+    }
+
+    // MARK: - Session
+
+    private func enregistrer(_ session: SupabaseAuth.Session) {
+        Trousseau.ecrire(session.access_token, cle: Cle.jetonAcces)
+        Trousseau.ecrire(session.refresh_token, cle: Cle.jetonRenouvellement)
+    }
+
+    private func finaliserConnexion() {
         defaults.set(identifiant, forKey: Cle.identifiant)
         defaults.set(nom, forKey: Cle.nom)
         defaults.set(email, forKey: Cle.email)
+        defaults.set(methode.rawValue, forKey: Cle.methode)
         defaults.set("connecte", forKey: Cle.etat)
         etat = .connecte
     }
@@ -78,6 +158,9 @@ final class Compte {
     }
 
     func seDeconnecter() {
+        if let jeton = Trousseau.lire(Cle.jetonAcces) {
+            Task { await SupabaseAuth.deconnecter(jeton: jeton) }
+        }
         oublier()
         defaults.set("invite", forKey: Cle.etat)
         etat = .invite
@@ -90,22 +173,43 @@ final class Compte {
         etat = .indetermine
     }
 
-    /// Vérifie au lancement que l'identifiant Apple est toujours valable :
-    /// si le lecteur a révoqué Honya depuis les Réglages d'iOS, on le sait.
+    /// Au lancement : une révocation depuis les Réglages d'iOS doit se voir,
+    /// et la session serveur se renouvelle en silence.
     func verifierSession() async {
-        guard etat == .connecte, let identifiant else { return }
-        let fournisseur = ASAuthorizationAppleIDProvider()
-        let statut = try? await fournisseur.credentialState(forUserID: identifiant)
-        if statut == .revoked || statut == .notFound {
-            seDeconnecter()
+        guard etat == .connecte else { return }
+
+        if methode == .apple, let identifiant {
+            let statut = try? await ASAuthorizationAppleIDProvider()
+                .credentialState(forUserID: identifiant)
+            if statut == .revoked || statut == .notFound {
+                seDeconnecter()
+                return
+            }
+        }
+        if SupabaseAuth.configure, let renouvellement = Trousseau.lire(Cle.jetonRenouvellement) {
+            if let session = try? await SupabaseAuth.rafraichir(jeton: renouvellement) {
+                enregistrer(session)
+            }
         }
     }
 
     // MARK: - Suppression du compte
 
-    /// Efface le compte ET tout ce que Honya sait du lecteur : la
-    /// bibliothèque, les sessions, les badges, les étagères, les réglages.
-    func supprimerCompte(dans contexte: ModelContext) {
+    /// Efface le compte côté serveur quand il y en a un, puis tout ce que
+    /// Honya sait du lecteur sur l'appareil.
+    func supprimerCompte(dans contexte: ModelContext) async {
+        if SupabaseAuth.configure, let jeton = Trousseau.lire(Cle.jetonAcces) {
+            try? await SupabaseAuth.supprimerCompte(jeton: jeton)
+        }
+        effacerDonnees(dans: contexte)
+        oublier()
+        for cle in ["compteEtat", "onboardingTermine", "editionsLocalesV10", "catalogueCompletV11"] {
+            defaults.removeObject(forKey: cle)
+        }
+        etat = .indetermine
+    }
+
+    private func effacerDonnees(dans contexte: ModelContext) {
         try? contexte.delete(model: Oeuvre.self)
         try? contexte.delete(model: Exemplaire.self)
         try? contexte.delete(model: Serie.self)
@@ -116,12 +220,6 @@ final class Compte {
         try? contexte.delete(model: Collection.self)
         try? contexte.delete(model: Objectif.self)
         try? contexte.save()
-
-        oublier()
-        for cle in ["compteEtat", "onboardingTermine", "editionsLocalesV10", "catalogueCompletV11"] {
-            defaults.removeObject(forKey: cle)
-        }
-        etat = .indetermine
     }
 
     private func oublier() {
@@ -131,5 +229,23 @@ final class Compte {
         defaults.removeObject(forKey: Cle.identifiant)
         defaults.removeObject(forKey: Cle.nom)
         defaults.removeObject(forKey: Cle.email)
+        defaults.removeObject(forKey: Cle.methode)
+        Trousseau.effacer(Cle.jetonAcces)
+        Trousseau.effacer(Cle.jetonRenouvellement)
+    }
+
+    // MARK: - Nonce
+
+    private static func nonceAleatoire(longueur: Int = 32) -> String {
+        let alphabet = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._")
+        var octets = [UInt8](repeating: 0, count: longueur)
+        _ = SecRandomCopyBytes(kSecRandomDefault, longueur, &octets)
+        return String(octets.map { alphabet[Int($0) % alphabet.count] })
+    }
+
+    private static func empreinte(_ texte: String) -> String {
+        SHA256.hash(data: Data(texte.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
     }
 }
