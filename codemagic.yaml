@@ -36,6 +36,25 @@ workflows:
       vars:
         BUNDLE_ID: com.remiabbou.honya
     scripts:
+      - name: Injecter les secrets (jamais dans le depot)
+        script: |
+          # GOOGLE_BOOKS_API_KEY : variable chiffree Codemagic (groupe « signing »).
+          # Ecrite dans Secrets.swift sur la machine de build uniquement.
+          if [ -n "${GOOGLE_BOOKS_API_KEY:-}" ]; then
+            cat > Honya/Config/Secrets.swift <<SWIFT
+          import Foundation
+
+          // Genere par la CI - ne pas committer.
+          enum Secrets {
+              static let cleGoogleBooks = "${GOOGLE_BOOKS_API_KEY}"
+          }
+          SWIFT
+            echo "Cle Google Books injectee (${#GOOGLE_BOOKS_API_KEY} caracteres)."
+          else
+            echo "AVERTISSEMENT : GOOGLE_BOOKS_API_KEY absente - l'app tournera sans cle"
+            echo "(quota Google reduit). L'ajouter dans Codemagic > Honya >"
+            echo "Environment variables, groupe 'signing', case Secure cochee."
+          fi
       - name: Signature (certificat + profil App Store)
         script: |
           keychain initialize

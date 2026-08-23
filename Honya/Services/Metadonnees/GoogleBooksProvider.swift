@@ -3,13 +3,11 @@ import Foundation
 /// Source principale pour les livres : bonne couverture générale, bon français,
 /// paramètre `langRestrict` pour chercher dans la langue de l'utilisateur.
 struct GoogleBooksProvider: MetadataProvider {
-    /// Clé API Google Books, saisie dans les réglages. Sans elle, Google rationne
-    /// sévèrement les requêtes anonymes : les recherches retombent alors sur
-    /// Open Library, bien plus pauvre en éditions françaises.
+    /// Clé API Google Books, injectée par la CI au moment du build (jamais dans
+    /// le dépôt ni dans l'interface). Sans elle, Google rationne les requêtes
+    /// anonymes et les recherches retombent sur Open Library.
     var cleAPI: String? {
-        let cle = UserDefaults.standard.string(forKey: "cleGoogleBooks")?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return (cle?.isEmpty ?? true) ? nil : cle
+        Secrets.cleGoogleBooks.isEmpty ? nil : Secrets.cleGoogleBooks
     }
 
     func rechercher(_ requete: String, langue: String?) async throws -> [ResultatRecherche] {
@@ -28,7 +26,13 @@ struct GoogleBooksProvider: MetadataProvider {
         composants.queryItems = parametres
         guard let url = composants.url else { return [] }
 
-        let (donnees, _) = try await URLSession.shared.data(from: url)
+        // La clé est restreinte à l'app iOS côté Google : cet en-tête prouve
+        // que l'appel vient bien de Honya (une clé volée ne sert à rien ailleurs).
+        var requete = URLRequest(url: url)
+        if let bundle = Bundle.main.bundleIdentifier {
+            requete.setValue(bundle, forHTTPHeaderField: "X-Ios-Bundle-Identifier")
+        }
+        let (donnees, _) = try await URLSession.shared.data(for: requete)
         let reponse = try JSONDecoder().decode(ReponseVolumes.self, from: donnees)
         return (reponse.items ?? []).compactMap { $0.enResultat() }
     }
