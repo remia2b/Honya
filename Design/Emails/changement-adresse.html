@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<title>New address</title>
+</head>
+<body style="margin:0; padding:0; background:#F6F1E8;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background:#F6F1E8; padding:32px 16px;">
+  <tr>
+    <td align="center">
+      <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+             style="width:100%; max-width:600px;">
+
+        <tr>
+          <td align="center" style="padding:0 0 14px 0;">
+            <!-- Hébergée sur le site : Gmail bloque les images intégrées au
+                 message. Le masque arrondi est cuit dans le PNG, parce
+                 qu'Outlook ignore border-radius. -->
+            <!-- alt vide : le nom est écrit juste en dessous, et un client
+                 qui bloque les images afficherait sinon « Honya » deux fois. -->
+            <img src="https://www.honya.app/icone-courriel.png" alt=""
+                 width="72" height="72"
+                 style="display:block; width:72px; height:72px; border:0;">
+          </td>
+        </tr>
+
+        <tr>
+          <td align="center" style="padding:0 0 28px 0;">
+            <span style="font-family:'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif; font-size:26px; letter-spacing:0.5px;
+                         color:#1A1614;">Honya</span>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="background:#FFFFFF; border-radius:16px; padding:44px 44px 38px 44px;">
+
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding:0 0 18px 0;">
+                  <div style="width:38px; height:3px; background:#EE7A1E;
+                              border-radius:2px;"></div>
+                </td>
+              </tr>
+              <tr>
+                <td style="font-family:'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif; font-size:30px; line-height:38px;
+                           color:#1A1614; padding:0 0 16px 0;">New address</td>
+              </tr>
+              <tr>
+                <td style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:16px; line-height:26px;
+                           color:#4A4440; padding:0 0 30px 0;">Confirm this address to start using it to sign in to Honya. Your library doesn't move — only the way you reach it.</td>
+              </tr>
+              <tr>
+                <td style="padding:0 0 30px 0;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td style="background:#EE7A1E; border-radius:10px;">
+                        <a href="{{ .ConfirmationURL }}"
+                           style="display:inline-block; padding:15px 30px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+                                  font-size:16px; font-weight:600; color:#FFFFFF;
+                                  text-decoration:none;">Confirm this address</a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:13px; line-height:21px;
+                           color:#8A8078; border-top:1px solid #EDE7DD; padding:22px 0 0 0;">
+                  If the button doesn't work, copy this link into your browser:<br>
+                  <a href="{{ .ConfirmationURL }}"
+                     style="color:#EE7A1E; text-decoration:none; word-break:break-all;"
+                     >{{ .ConfirmationURL }}</a>
+                </td>
+              </tr>
+              <tr>
+                <td style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:13px; line-height:21px;
+                           color:#8A8078; padding:16px 0 0 0;">If you didn't ask to change your address, ignore this message and your old one stays in place.</td>
+              </tr>
+            </table>
+
+          </td>
+        </tr>
+
+        <tr>
+          <td align="center" style="font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size:12px; line-height:20px;
+                                    color:#8A8078; padding:26px 0 0 0;">
+            This message comes from an address that doesn't take replies.<br>
+            Need a hand? Write to
+            <a href="mailto:contact@honya.app" style="color:#8A8078;"
+               >contact@honya.app</a><br><br>
+            <a href="https://www.honya.app" style="color:#8A8078; text-decoration:none;"
+               >honya.app</a>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
