@@ -1,0 +1,48 @@
+name: Extraire les clés de traduction
+
+# Xcode sait extraire lui-même toutes les chaînes traduisibles du code, avec
+# les bons spécificateurs de format (%lld pour un entier, %@ pour un texte…).
+# Deviner ces formats à la main est une source d'erreurs silencieuses : on
+# laisse donc le compilateur le faire, et on récupère le catalogue mis à jour.
+#
+# Lancement manuel : gh workflow run traductions.yml
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  extraire:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compiler (l'extraction se fait pendant la compilation)
+        run: |
+          xcodebuild build \
+            -project Honya.xcodeproj \
+            -scheme Honya \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath /tmp/dd \
+            CODE_SIGNING_ALLOWED=NO \
+            SWIFT_EMIT_LOC_STRINGS=YES \
+            | tail -30
+
+      - name: Récupérer le catalogue mis à jour
+        run: |
+          if git diff --quiet -- Honya/Localizable.xcstrings; then
+            echo "Aucune nouvelle clé : le catalogue est déjà à jour."
+            exit 0
+          fi
+          python3 - <<'PY'
+          import json
+          d = json.load(open("Honya/Localizable.xcstrings", encoding="utf-8"))
+          print(len(d.get("strings", {})), "clés dans le catalogue")
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Honya/Localizable.xcstrings
+          git commit -m "Clés de traduction extraites par Xcode [skip ci]"
+          git push
