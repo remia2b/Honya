@@ -50,6 +50,11 @@ struct FicheSerieView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    Button {
+                        Task { await actualiser() }
+                    } label: {
+                        Label("Actualiser les informations", systemImage: "arrow.clockwise")
+                    }
                     Button(role: .destructive) { confirmerSuppression = true } label: {
                         Label("Retirer la série", systemImage: "trash")
                     }
@@ -73,6 +78,39 @@ struct FicheSerieView: View {
             SortieSheet(serie: serie, langue: langue)
         }
         .onAppear(perform: synchroniserTomes)
+    }
+
+    /// Re-résout la série depuis AniList (auteur, tomes, résumé) et relance
+    /// la recherche des éditions locales — répare les données mal héritées.
+    private func actualiser() async {
+        let reference = serie.nomRomaji ?? serie.noms["en"] ?? serie.nom
+        let resultats = await AgregateurMetadonnees.partage.rechercherMangas(reference)
+        if let bon = resultats.first(where: { $0.idAniList == serie.idAniList })
+            ?? resultats.first(where: { $0.estSerie }) {
+            serie.nom = Tomaison.decomposer(bon.titre).base
+            serie.nomRomaji = bon.romaji
+            serie.auteur = bon.auteurs.first
+            serie.genres = bon.genres
+            serie.resume = bon.resume
+            serie.couvertureURL = bon.couvertureURL
+            if let total = bon.tomesTotal { serie.tomesTotal = total }
+            serie.statutParution = bon.statutParution
+            if serie.idAniList == nil { serie.idAniList = bon.idAniList }
+        }
+        // Édition locale : nom, couverture et résumé dans la langue du lecteur.
+        serie.noms[langue] = nil
+        serie.couvertureLocaleURL = nil
+        serie.resumeLocal = nil
+        let base = Tomaison.decomposer(serie.nom).base
+        let editions = await AgregateurMetadonnees.partage.rechercherLivres(base, langue: langue)
+        if let locale = editions.first(where: { $0.langue == langue && $0.couvertureURL != nil })
+            ?? editions.first(where: { $0.couvertureURL != nil }) {
+            serie.noms[langue] = Tomaison.decomposer(locale.titre).base
+            serie.couvertureLocaleURL = locale.couvertureURL
+            if let resume = locale.resume, !resume.isEmpty { serie.resumeLocal = resume }
+        }
+        synchroniserTomes()
+        ResolveurTomes.reinitialiser(serie)
     }
 
     /// Crée les cases manquantes si AniList annonce plus de tomes que la grille.

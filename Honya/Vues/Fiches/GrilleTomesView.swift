@@ -128,9 +128,11 @@ private struct CaseTome: View {
 
     var body: some View {
         VStack(spacing: 6) {
+            // Tant que la vraie couverture du tome n'est pas trouvée, un
+            // placeholder généré : jamais la couverture du tome 1 dupliquée.
             CouvertureView(
-                urlString: tome.couvertureURL ?? serie.couvertureAffichee,
-                titre: "\(serie.nomAffiche(langue)) \(tome.numero)",
+                urlString: tome.couvertureURL,
+                titre: "\(Tomaison.decomposer(serie.nomAffiche(langue)).base)\nTome \(tome.numero)",
                 coins: 5,
                 manga: serie.type != .livre
             )

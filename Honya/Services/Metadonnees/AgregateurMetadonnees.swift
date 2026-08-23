@@ -1,5 +1,20 @@
 import Foundation
 
+/// Cache de session des recherches : la grille des tomes et le résolveur
+/// posent les mêmes questions en boucle — inutile de repayer le quota Google.
+actor CacheRecherche {
+    static let partage = CacheRecherche()
+    private var entrees: [String: [ResultatRecherche]] = [:]
+
+    func lire(_ cle: String) -> [ResultatRecherche]? { entrees[cle] }
+
+    func ecrire(_ cle: String, _ valeur: [ResultatRecherche]) {
+        // On ne mémorise pas les échecs : un quota épuisé mérite un nouvel essai.
+        guard !valeur.isEmpty else { return }
+        entrees[cle] = valeur
+    }
+}
+
 /// La cascade de sources : aucune API ne référence « tous les livres du monde »,
 /// l'empilement Google Books → Open Library (+ AniList pour les séries) si.
 struct AgregateurMetadonnees: Sendable {
@@ -12,13 +27,34 @@ struct AgregateurMetadonnees: Sendable {
     // MARK: Recherche texte
 
     func rechercherLivres(_ requete: String, langue: String?) async -> [ResultatRecherche] {
+        let cle = "livres|" + requete.lowercased() + "|" + (langue ?? "-")
+        if let connu = await CacheRecherche.partage.lire(cle) { return connu }
+
         // Google Books d'abord (meilleure pertinence), Open Library en repli — sans clé
         // API, Google impose un quota bas et renvoie souvent une réponse vide.
         var resultats = (try? await google.rechercher(requete, langue: langue)) ?? []
         if resultats.isEmpty {
             resultats = (try? await openLibrary.rechercher(requete, langue: langue)) ?? []
         }
-        return trierParPertinence(resultats, requete: requete, langue: langue)
+        let tries = dedoublonner(trierParPertinence(resultats, requete: requete, langue: langue))
+        await CacheRecherche.partage.ecrire(cle, tries)
+        return tries
+    }
+
+    /// Deux éditions du même tome ne doivent apparaître qu'une fois : on garde
+    /// la mieux classée (couverture, langue du lecteur…).
+    private func dedoublonner(_ resultats: [ResultatRecherche]) -> [ResultatRecherche] {
+        var vus = Set<String>()
+        return resultats.filter { resultat in
+            let (base, numero) = Tomaison.decomposer(resultat.titre)
+            let cle: String
+            if let numero {
+                cle = TexteUtil.normaliser(base) + "|" + String(numero)
+            } else {
+                cle = resultat.id
+            }
+            return vus.insert(cle).inserted
+        }
     }
 
     /// Remonte les titres qui correspondent vraiment à la recherche, et repousse
@@ -57,8 +93,12 @@ struct AgregateurMetadonnees: Sendable {
     }
 
     func rechercherMangas(_ requete: String, langue: String? = nil) async -> [ResultatRecherche] {
+        let cle = "mangas|" + requete.lowercased() + "|" + (langue ?? "-")
+        if let connu = await CacheRecherche.partage.lire(cle) { return connu }
         let resultats = (try? await aniList.rechercher(requete, langue: nil)) ?? []
-        return trierParPertinence(resultats, requete: requete, langue: langue)
+        let tries = trierParPertinence(resultats, requete: requete, langue: langue)
+        await CacheRecherche.partage.ecrire(cle, tries)
+        return tries
     }
 
     // MARK: ISBN (le scanner passe par ici)

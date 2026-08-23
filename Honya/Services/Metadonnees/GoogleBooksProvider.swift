@@ -3,9 +3,14 @@ import Foundation
 /// Source principale pour les livres : bonne couverture générale, bon français,
 /// paramètre `langRestrict` pour chercher dans la langue de l'utilisateur.
 struct GoogleBooksProvider: MetadataProvider {
-    /// Optionnel : clé API Google Books (fonctionne sans, avec un quota plus bas).
-    /// À créer sur console.cloud.google.com puis restreindre au bundle com.remiabbou.honya.
-    var cleAPI: String? = nil
+    /// Clé API Google Books, saisie dans les réglages. Sans elle, Google rationne
+    /// sévèrement les requêtes anonymes : les recherches retombent alors sur
+    /// Open Library, bien plus pauvre en éditions françaises.
+    var cleAPI: String? {
+        let cle = UserDefaults.standard.string(forKey: "cleGoogleBooks")?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return (cle?.isEmpty ?? true) ? nil : cle
+    }
 
     func rechercher(_ requete: String, langue: String?) async throws -> [ResultatRecherche] {
         var composants = URLComponents(string: "https://www.googleapis.com/books/v1/volumes")!

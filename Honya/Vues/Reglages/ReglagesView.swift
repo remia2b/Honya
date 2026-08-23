@@ -7,6 +7,7 @@ struct ReglagesView: View {
     @Query private var objectifs: [Objectif]
 
     @AppStorage("apparence") private var apparence: ApparenceHonya = .systeme
+    @AppStorage("cleGoogleBooks") private var cleGoogleBooks = ""
     @State private var confirmerEffacement = false
 
     var body: some View {
@@ -30,6 +31,17 @@ struct ReglagesView: View {
                     Text("Affichage")
                 } footer: {
                     Text("« Système » suit le réglage de votre iPhone.")
+                }
+
+                Section {
+                    TextField("Clé API Google Books", text: $cleGoogleBooks)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .font(.system(.footnote, design: .monospaced))
+                } header: {
+                    Text("Métadonnées")
+                } footer: {
+                    Text("Fortement recommandé : sans clé, Google limite les recherches anonymes et les couvertures françaises arrivent mal. Gratuit — console.cloud.google.com → créer un projet → activer « Books API » → Identifiants → Clé API, puis collez-la ici.")
                 }
 
                 Section("Données") {

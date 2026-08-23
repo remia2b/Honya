@@ -37,7 +37,7 @@ struct AniListProvider: MetadataProvider {
           genres
           description(asHtml: false)
           startDate { year }
-          staff(perPage: 2) { nodes { name { full } } }
+          staff(perPage: 6) { edges { role node { name { full } } } }
         }
       }
     }
@@ -71,7 +71,11 @@ struct AniListProvider: MetadataProvider {
         struct Couverture: Decodable { let extraLarge: String?; let large: String? }
         struct DateDebut: Decodable { let year: Int? }
         struct Staff: Decodable {
-            let nodes: [Noeud]?
+            let edges: [Arete]?
+            struct Arete: Decodable {
+                let role: String?
+                let node: Noeud?
+            }
             struct Noeud: Decodable {
                 let name: Nom?
                 struct Nom: Decodable { let full: String? }
@@ -93,7 +97,18 @@ struct AniListProvider: MetadataProvider {
             if let anglais { resultat.titresParLangue["en"] = anglais }
             else if let romaji { resultat.titresParLangue["en"] = romaji }
             if let natif { resultat.titresParLangue["ja"] = natif }
-            resultat.auteurs = (staff?.nodes ?? []).compactMap { $0.name?.full }
+            // Les crédits AniList mêlent mangaka et traducteurs : on ne garde
+            // que la plume et le trait (Story / Art), jamais la traduction.
+            let aretes = staff?.edges ?? []
+            let auteurs = aretes
+                .filter { arete in
+                    let role = (arete.role ?? "").lowercased()
+                    return role.contains("story") || role.contains("art") || role.contains("original")
+                }
+                .compactMap { $0.node?.name?.full }
+            resultat.auteurs = auteurs.isEmpty
+                ? aretes.compactMap { $0.node?.name?.full }
+                : Array(NSOrderedSet(array: auteurs)) as? [String] ?? auteurs
             resultat.type = .manga
             resultat.estSerie = true
             resultat.resume = description.map(TexteUtil.sansHTML)

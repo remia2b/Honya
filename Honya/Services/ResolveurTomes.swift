@@ -13,11 +13,27 @@ enum ResolveurTomes {
     /// Tomes déjà tentés dans cette session (évite de marteler l'API si
     /// aucune édition n'existe pour ce tome).
     private static var tentes: Set<PersistentIdentifier> = []
+    /// La grille affiche tous les tomes d'un coup : sans espacement, Google
+    /// rationne les requêtes anonymes et tout retombe sur Open Library.
+    private static var prochainDepart = Date.distantPast
+
+    /// Permet de retenter les couvertures (après actualisation de la série).
+    static func reinitialiser(_ serie: Serie) {
+        for tome in serie.tomes { tentes.remove(tome.persistentModelID) }
+    }
 
     static func completer(_ tome: Tome, de serie: Serie, langue: String) async {
         guard tome.couvertureURL == nil,
               !tentes.contains(tome.persistentModelID) else { return }
         tentes.insert(tome.persistentModelID)
+
+        // File d'attente : une requête toutes les ~0,6 s, pas neuf d'un coup.
+        let depart = max(prochainDepart, Date())
+        prochainDepart = depart.addingTimeInterval(0.6)
+        let attente = depart.timeIntervalSinceNow
+        if attente > 0 {
+            try? await Task.sleep(for: .seconds(attente))
+        }
 
         // Le nom de série NETTOYÉ : chercher « Kagurabachi 3 », jamais
         // « Kagurabachi, Vol. 1 3 » — c'est ce qui collait la couverture du
@@ -38,7 +54,12 @@ enum ResolveurTomes {
             if candidat != nil { break }
         }
 
-        guard let candidat else { return }
+        guard let candidat else {
+            // Aucun résultat du tout ? Probable quota épuisé : on redonnera
+            // sa chance à ce tome au prochain affichage.
+            tentes.remove(tome.persistentModelID)
+            return
+        }
         tome.couvertureURL = candidat.couvertureURL
         if tome.titre == nil { tome.titre = candidat.titre }
         if tome.pages == nil { tome.pages = candidat.pages }
