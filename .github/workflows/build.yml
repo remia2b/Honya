@@ -35,6 +35,9 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             | tee build.log
 
+      - name: Toutes les langues sont-elles complètes ?
+        run: python3 .github/verifier_traductions.py
+
       - name: Erreurs de compilation
         if: failure()
         run: |

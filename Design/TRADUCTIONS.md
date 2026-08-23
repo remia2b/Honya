@@ -45,6 +45,19 @@ elle repart traduite partout.
 Une traduction refusée n'est pas écrite, et le travail sort en erreur pour
 que ça se voie. Mieux vaut un texte français visible qu'une chaîne cassée.
 
+## Le verrou
+
+La traduction automatique tourne à chaque poussée, mais rien n'empêcherait
+de poser une étiquette de version avant qu'elle ait fini. C'est pourquoi la
+**vérification de compilation** lance aussi `verifier_traductions.py` : tant
+qu'un texte manque dans une langue, ou qu'une traduction a perdu un
+emplacement de format, elle reste rouge. Une version ne peut pas partir
+avec un écran à moitié traduit.
+
+Le contrôle signale aussi les traductions restées identiques au français —
+sans bloquer, car « Manga » ou « Honya » le sont légitimement, mais en
+bloquant si toute une langue l'est, signe qu'elle n'a jamais été traduite.
+
 ## Ce qu'il faut sur le dépôt
 
 Une clé Gemini dans les secrets GitHub, sous le nom `GEMINI_API_KEY` :
