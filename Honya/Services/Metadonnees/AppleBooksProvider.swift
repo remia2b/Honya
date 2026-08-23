@@ -96,9 +96,9 @@ struct AppleBooksProvider: Sendable {
             return resultat
         }
 
-        /// Les vignettes mzstatic acceptent la taille dans l'URL : 100 → 600 px.
+        /// Les vignettes mzstatic acceptent la taille demandée dans l'URL.
         private static func hauteResolution(_ url: String) -> String {
-            url.replacingOccurrences(of: "100x100", with: "600x600")
+            ArtworkApple.nette(url)
         }
     }
 }

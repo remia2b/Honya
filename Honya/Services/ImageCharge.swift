@@ -3,6 +3,27 @@ import SwiftUI
 import CryptoKit
 import CoreImage
 
+// MARK: - Vignettes Apple en pleine résolution
+
+/// Les serveurs d'images d'Apple (mzstatic) renvoient la taille demandée dans
+/// le dernier segment de l'URL. Une couverture portrait demandée en 600x600
+/// ne fait en réalité que 400 px de large — flou garanti sur un écran 3x.
+/// On réécrit donc toute vignette vers 1200x1200 avant de la charger.
+enum ArtworkApple {
+    static func nette(_ chaine: String) -> String {
+        guard chaine.contains("mzstatic.com"),
+              var composants = URLComponents(string: chaine) else { return chaine }
+        var morceaux = composants.path.split(separator: "/").map(String.init)
+        guard let dernier = morceaux.last,
+              dernier.range(of: #"^\d{2,4}x\d{2,4}"#, options: .regularExpression) != nil
+        else { return chaine }
+        let ext = (dernier as NSString).pathExtension
+        morceaux[morceaux.count - 1] = ext.isEmpty ? "1200x1200bb" : "1200x1200bb.\(ext)"
+        composants.path = "/" + morceaux.joined(separator: "/")
+        return composants.url?.absoluteString ?? chaine
+    }
+}
+
 // MARK: - Chargeur d'images de couvertures (mémoire + disque, hors ligne ensuite)
 
 actor ImageCharge {
@@ -23,6 +44,9 @@ actor ImageCharge {
         if chaine.hasPrefix("http://") {
             chaine = "https://" + chaine.dropFirst("http://".count)
         }
+        // Même les couvertures enregistrées en petit ressortent nettes :
+        // la réécriture se fait au chargement, pas dans les données.
+        chaine = ArtworkApple.nette(chaine)
         guard let url = URL(string: chaine) else { return nil }
 
         let cle = Self.empreinte(chaine)
