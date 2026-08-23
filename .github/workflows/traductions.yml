@@ -46,12 +46,13 @@ jobs:
 
       - name: Committer la liste
         run: |
-          if git diff --quiet -- Design/cles-extraites.json; then
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # `git diff` ignore les fichiers non suivis : on indexe d'abord.
+          git add Design/cles-extraites.json
+          if git diff --cached --quiet; then
             echo "Liste inchangée."
             exit 0
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Design/cles-extraites.json
           git commit -m "Clés de traduction extraites par Xcode [skip ci]"
           git push
