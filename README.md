@@ -151,13 +151,33 @@ est proposée, et le chemin e-mail explique qu'il n'est pas encore disponible.
    returns void
    language sql
    security definer
-   set search_path = ''
+   set search_path = pg_catalog, pg_temp
    as $$ delete from auth.users where id = auth.uid(); $$;
 
-   revoke all on function public.supprimer_mon_compte() from anon;
+   revoke all on function public.supprimer_mon_compte() from public, anon;
    grant execute on function public.supprimer_mon_compte() to authenticated;
    ```
 
 6. **Confirmation par e-mail** — Authentication → Providers → Email. Si elle
    reste activée, l'inscription affiche « ouvrez le courrier de confirmation »
    ; désactivée, l'inscription connecte directement.
+
+### État de la configuration (projet Honya)
+
+| Étape | État |
+|---|---|
+| Capacité *Sign In with Apple* sur l'App ID | fait |
+| Projet Supabase dédié (West EU, Paris) | fait |
+| Fonction `supprimer_mon_compte()` + permissions | fait |
+| Provider Apple activé, *Client ID* `com.remiabbou.honya` | fait |
+| Provider Email activé (mot de passe ≥ 6 caractères) | fait |
+| `SUPABASE_URL` / `SUPABASE_ANON_KEY` dans Codemagic | **reste à faire** |
+
+Tant que les deux variables ne sont pas renseignées, l'app se comporte
+normalement : la connexion avec Apple fonctionne et le chemin e-mail annonce
+qu'il n'est pas encore disponible. Aucune modification de code n'est
+nécessaire ensuite — il suffit de reconstruire.
+
+> Le service d'envoi d'e-mails inclus dans l'offre gratuite est bridé
+> (quelques courriers par heure) et destiné aux essais. Pour une vraie mise en
+> ligne, brancher un SMTP dans *Authentication → Emails → SMTP Settings*.
