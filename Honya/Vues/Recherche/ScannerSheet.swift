@@ -147,7 +147,9 @@ struct ScannerSheet: View {
                     }
                 }
             } header: {
-                Text(trouves.isEmpty ? "En attente" : "\(trouves.count) trouvé\(trouves.count > 1 ? "s" : "")")
+                // Coller un « s » à la main ne marche qu'en français : chaque
+                // langue a ses propres règles de pluriel.
+                Text(trouves.isEmpty ? "En attente" : "\(trouves.count) livres reconnus")
             }
         }
         .listStyle(.insetGrouped)
