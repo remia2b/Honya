@@ -18,12 +18,14 @@ struct HonyaPlusView: View {
     @State private var toutVoir = false
     @State private var roueVisible = false
     @State private var apparu = false
+    /// De quoi garnir le rayon quand la bibliothèque est encore vide.
+    @State private var tendances: [String] = []
 
     private var contextuel: Bool { verrou != nil && !toutVoir }
 
     var body: some View {
         ZStack {
-            Color(uiColor: .systemBackground).ignoresSafeArea()
+            fond.ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 0) {
@@ -38,18 +40,44 @@ struct HonyaPlusView: View {
                     }
 
                     offres
-                    bouton
                 }
-                .padding(.bottom, 26)
+                .padding(.bottom, 20)
             }
             .scrollBounceBehavior(.basedOnSize)
+            .safeAreaInset(edge: .bottom) { bouton }
 
             fermer
         }
         .animation(.snappy(duration: 0.3), value: toutVoir)
         .onAppear { withAnimation(.easeOut(duration: 0.55)) { apparu = true } }
+        .task {
+            guard oeuvres.isEmpty else { return }
+            let top = await Decouverte.classement(gratuits: false, langue: Langues.codeAppareil)
+            tendances = top.compactMap(\.couvertureURL)
+        }
         .fullScreenCover(isPresented: $roueVisible) {
             RoueSheet { dismiss() }
+        }
+    }
+
+    /// Une lueur chaude qui descend vers le fond du système : le noir plein
+    /// donnait à l'écran de vente un air de boîte de dialogue.
+    private var fond: some View {
+        ZStack {
+            Color(uiColor: .systemBackground)
+            LinearGradient(
+                colors: [
+                    Couleurs.accent.opacity(0.22),
+                    Couleurs.accent.opacity(0.05),
+                    .clear,
+                ],
+                startPoint: .top, endPoint: .center
+            )
+            RadialGradient(
+                colors: [Couleurs.accent.opacity(0.16), .clear],
+                center: .init(x: 0.5, y: 0.34),
+                startRadius: 10, endRadius: 340
+            )
         }
     }
 
@@ -144,7 +172,8 @@ struct HonyaPlusView: View {
     /// Les couvertures du lecteur si sa bibliothèque en a, sinon rien : mieux
     /// vaut pas de rayon qu'un rayon de cases vides.
     private var rayon: some View {
-        let urls = oeuvres.compactMap(\.couvertureAffichee).shuffled().prefix(7)
+        let siennes = oeuvres.compactMap(\.couvertureAffichee).shuffled()
+        let urls = Array((siennes.isEmpty ? tendances : siennes).prefix(7))
         return HStack(spacing: 8) {
             ForEach(Array(urls.enumerated()), id: \.offset) { rang, url in
                 CouvertureView(urlString: url, titre: "", coins: 5, cote: 400)
@@ -281,7 +310,9 @@ struct HonyaPlusView: View {
                 .padding(.top, 11)
         }
         .padding(.horizontal, 24)
-        .padding(.top, 18)
+        .padding(.top, 14)
+        .padding(.bottom, 14)
+        .background(.thinMaterial)
     }
 
     private var fermer: some View {

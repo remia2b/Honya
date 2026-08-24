@@ -57,6 +57,13 @@ struct RoueSheet: View {
         Double(index) * part + part / 2
     }
 
+    /// L'inclinaison de l'étiquette. Dans la moitié basse de la roue, on la
+    /// retourne : sans ça elle se lirait à l'envers.
+    private static func orientation(_ index: Int) -> Double {
+        let angle = milieu(index)
+        return (angle > 90 && angle < 270) ? angle - 90 : angle + 90
+    }
+
     /// Où poser l'étiquette d'un secteur. Sortie de la vue : l'inférence de
     /// types de SwiftUI cale sur une trigonométrie écrite en ligne.
     private static func position(_ index: Int) -> CGSize {
@@ -74,19 +81,24 @@ struct RoueSheet: View {
         ZStack {
             fond.ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                Spacer(minLength: 0)
-
-                if etape == .gagne {
-                    gain
-                } else {
-                    entete
-                    roue.padding(.top, 26)
-                    Spacer(minLength: 0)
-                    action
+            // Le contenu défile si l'écran est petit ; les boutons, eux,
+            // vivent dans une zone ancrée et ne peuvent jamais être coupés.
+            ScrollView {
+                VStack(spacing: 0) {
+                    if etape == .gagne {
+                        gain
+                    } else {
+                        entete
+                        roue.padding(.top, 22).padding(.bottom, 26)
+                    }
                 }
+                .frame(maxWidth: .infinity)
             }
-            .padding(.bottom, 30)
+            .scrollBounceBehavior(.basedOnSize)
+            .safeAreaInset(edge: .bottom) {
+                (etape == .gagne ? AnyView(actionGain) : AnyView(action))
+                    .padding(.bottom, 12)
+            }
 
             if etape == .gagne {
                 PluieConfettis()
@@ -169,7 +181,7 @@ struct RoueSheet: View {
                             secteur.gagnant ? AnyShapeStyle(Color.white)
                                             : AnyShapeStyle(Color.white.opacity(0.42))
                         )
-                        .rotationEffect(.degrees(Self.milieu(index) + 90))
+                        .rotationEffect(.degrees(Self.orientation(index)))
                         .offset(Self.position(index))
                 }
             }
@@ -231,25 +243,36 @@ struct RoueSheet: View {
     private var gain: some View {
         VStack(spacing: 0) {
             Text(verbatim: "−40 %")
-                .font(.system(size: 74, weight: .semibold, design: .serif))
+                .font(.system(size: 68, weight: .semibold, design: .serif))
                 .foregroundStyle(Color(red: 1, green: 0.90, blue: 0.78))
 
             Text("La première année à 17,99 €")
-                .font(.system(size: 28, weight: .semibold, design: .serif))
+                .font(.system(size: 26, weight: .semibold, design: .serif))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
-                .padding(.top, 8)
+                .padding(.top, 6)
                 .padding(.horizontal, 34)
 
-            Text("Au lieu de 29,99 €. Se renouvelle ensuite au tarif normal, résiliable à tout moment.")
-                .font(.system(size: 14.5))
-                .foregroundStyle(.white.opacity(0.72))
-                .multilineTextAlignment(.center)
-                .padding(.top, 12)
-                .padding(.horizontal, 38)
+            billet.padding(.top, 26).padding(.horizontal, 30)
 
-            Spacer(minLength: 26)
+            VStack(alignment: .leading, spacing: 13) {
+                gagne("books.vertical.fill", "Séries automatiques sans limite")
+                gagne("bell.badge.fill", "Alertes à chaque nouveau tome")
+                gagne("barcode.viewfinder", "Scan illimité, étagères entières")
+                gagne("chart.bar.fill", "Tout votre historique de lecture")
+            }
+            .padding(.top, 26)
+            .padding(.horizontal, 34)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
+        }
+        .padding(.top, 26)
+        .padding(.bottom, 10)
+        .transition(.opacity)
+    }
+
+    private var actionGain: some View {
+        VStack(spacing: 0) {
             Button {
                 Droits.partage.activerEssai()
                 fermer()
@@ -262,20 +285,68 @@ struct RoueSheet: View {
                     .background(.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
             .buttonStyle(.plain)
-            .padding(.horizontal, 30)
 
             Button("Plus tard") { fermer() }
                 .font(.system(size: 15))
                 .tint(.white.opacity(0.6))
-                .padding(.top, 14)
+                .padding(.top, 12)
 
             Text("Cette offre n'est proposée qu'une fois.")
                 .font(.system(size: 11.5))
                 .foregroundStyle(.white.opacity(0.5))
-                .padding(.top, 10)
+                .padding(.top, 8)
         }
-        .padding(.top, 40)
-        .transition(.opacity)
+        .padding(.horizontal, 30)
+    }
+
+    /// Un billet de tombola : le prix barré, le nouveau à côté. C'est lui qui
+    /// remplit le vide que laissait le grand chiffre tout seul.
+    private var billet: some View {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: "Honya+")
+                    .font(.system(size: 19, weight: .semibold, design: .serif))
+                Text("un an")
+                    .font(.system(size: 13))
+                    .opacity(0.7)
+            }
+            Spacer(minLength: 12)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(verbatim: "29,99 €")
+                    .font(.system(size: 15))
+                    .strikethrough()
+                    .opacity(0.55)
+                Text(verbatim: "17,99 €")
+                    .font(.system(size: 24, weight: .semibold, design: .serif))
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.white.opacity(0.13))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(
+                    .white.opacity(0.45),
+                    style: StrokeStyle(lineWidth: 1.5, dash: [7, 5])
+                )
+        )
+    }
+
+    private func gagne(_ symbole: String, _ texte: LocalizedStringKey) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: symbole)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Color(red: 1, green: 0.90, blue: 0.78))
+                .frame(width: 22)
+            Text(texte)
+                .font(.system(size: 15))
+                .foregroundStyle(.white.opacity(0.92))
+            Spacer(minLength: 0)
+        }
     }
 
     // MARK: - La mécanique
