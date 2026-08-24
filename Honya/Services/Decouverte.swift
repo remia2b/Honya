@@ -90,7 +90,7 @@ enum Decouverte {
                 }
                 // Le flux du pays = l'édition locale, comme le storefront.
                 resultat.langue = langue
-                resultat.couvertureURL = artworkUrl100.map(ArtworkApple.nette)
+                resultat.couvertureURL = artworkUrl100.map { ArtworkApple.nette($0) }
 
                 let noms = (genres ?? []).compactMap(\.name)
                     .filter { $0 != "Livres" && $0 != "Books" }
