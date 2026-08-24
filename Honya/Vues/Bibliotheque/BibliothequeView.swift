@@ -325,8 +325,16 @@ private struct CelluleLivre: View {
                 )
                 // Le badge vit SOUS la couverture, comme chez Apple Books :
                 // l'image reste propre.
-                HStack {
+                HStack(spacing: 5) {
                     BadgeStatutView(statut: exemplaire.statut)
+                    if exemplaire.preteA != nil {
+                        // Un livre absent de l'étagère se signale d'un regard.
+                        Label("Prêté", systemImage: "person.fill")
+                            .font(.caption2.weight(.semibold))
+                            .labelStyle(.titleAndIcon)
+                            .foregroundStyle(Couleurs.wishlist)
+                            .lineLimit(1)
+                    }
                     Spacer(minLength: 0)
                 }
             }

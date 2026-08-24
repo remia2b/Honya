@@ -1,0 +1,287 @@
+<title>Honya+</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --fond:#F4EFE6; --carte:#FCFAF5; --creux:#EAE3D6; --trait:#D8CFC0;
+    --encre:#221D17; --texte:#575047; --discret:#8D857A;
+    --accent:#D96A12; --accent-doux:#F8E8D8;
+    --vert:#2E7D46; --vert-doux:#E3F0E6;
+    --serif:'Iowan Old Style','Palatino Linotype',Palatino,'Times New Roman',serif;
+    --sans:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fond:#171310; --carte:#211C17; --creux:#2A241D; --trait:#3A332A;
+      --encre:#F2EDE3; --texte:#B8AFA2; --discret:#8B8276;
+      --accent:#F09344; --accent-doux:#37281A;
+      --vert:#6FBF87; --vert-doux:#1F2E23;
+    }
+  }
+  :root[data-theme="dark"] {
+    --fond:#171310; --carte:#211C17; --creux:#2A241D; --trait:#3A332A;
+    --encre:#F2EDE3; --texte:#B8AFA2; --discret:#8B8276;
+    --accent:#F09344; --accent-doux:#37281A;
+    --vert:#6FBF87; --vert-doux:#1F2E23;
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fond); color:var(--texte); font-family:var(--sans);
+         -webkit-font-smoothing:antialiased; line-height:1.6; }
+  .page { max-width:880px; margin:0 auto; padding:64px 24px 100px; }
+
+  .surtitre { font-family:var(--mono); font-size:12px; letter-spacing:.15em;
+              text-transform:uppercase; color:var(--discret); margin:0 0 16px; }
+  h1 { font-family:var(--serif); font-size:clamp(36px,6vw,54px); line-height:1.08;
+       font-weight:600; color:var(--encre); margin:0 0 20px; text-wrap:balance; }
+  h2 { font-family:var(--serif); font-size:29px; font-weight:600; color:var(--encre);
+       margin:72px 0 6px; text-wrap:balance; }
+  h2 + p.mantra { margin-top:0; }
+  .intro { font-size:18px; max-width:62ch; }
+  p { max-width:68ch; }
+  b { color:var(--encre); font-weight:600; }
+
+  .regle {
+    margin:44px 0 0; padding:26px 30px; border-radius:16px;
+    background:var(--accent-doux); border:1px solid var(--trait);
+  }
+  .regle p { margin:0; font-family:var(--serif); font-size:21px; line-height:1.45;
+             color:var(--encre); max-width:none; }
+  .regle small { display:block; margin-top:10px; font-family:var(--sans);
+                 font-size:14.5px; color:var(--texte); }
+
+  /* ---------- grille gratuit / plus ---------- */
+
+  .comparatif { margin-top:28px; border:1px solid var(--trait); border-radius:16px;
+                overflow:hidden; background:var(--carte); }
+  .comparatif .entete { display:grid; grid-template-columns:1fr 120px 120px;
+                        background:var(--creux); font-weight:600; color:var(--encre);
+                        font-size:14px; }
+  .comparatif .entete > div { padding:14px 18px; }
+  .comparatif .entete .plus { color:var(--accent); }
+  .ligne { display:grid; grid-template-columns:1fr 120px 120px;
+           border-top:1px solid var(--trait); font-size:15px; }
+  .ligne > div { padding:13px 18px; }
+  .ligne .quoi b { display:block; }
+  .ligne .quoi span { font-size:13.5px; color:var(--discret); }
+  .oui, .non, .partiel { text-align:left; font-size:14px; align-self:center; }
+  .oui { color:var(--vert); font-weight:600; }
+  .non { color:var(--discret); }
+  .partiel { color:var(--texte); }
+  .section-ligne { background:var(--creux); font-family:var(--mono); font-size:11.5px;
+                   letter-spacing:.12em; text-transform:uppercase; color:var(--discret); }
+  .section-ligne > div { padding:9px 18px; }
+
+  /* ---------- prix ---------- */
+
+  .prix { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+          gap:16px; margin-top:28px; }
+  .offre { background:var(--carte); border:1px solid var(--trait); border-radius:16px;
+           padding:24px 22px; position:relative; }
+  .offre.star { border-color:var(--accent); border-width:2px; }
+  .offre .badge { position:absolute; top:-11px; left:20px; background:var(--accent);
+                  color:#FFF; font-size:11.5px; font-weight:600; letter-spacing:.04em;
+                  padding:3px 10px; border-radius:99px; }
+  .offre h3 { margin:0 0 2px; font-family:var(--serif); font-size:20px; color:var(--encre); }
+  .offre .montant { font-family:var(--serif); font-size:34px; color:var(--encre);
+                    margin:10px 0 2px; }
+  .offre .montant small { font-size:15px; color:var(--discret); font-family:var(--sans); }
+  .offre .detail { font-size:13.5px; color:var(--discret); margin:0; }
+  .offre .argument { font-size:14px; margin:12px 0 0; padding-top:12px;
+                     border-top:1px solid var(--trait); }
+
+  /* ---------- moments ---------- */
+
+  .moments { counter-reset:moment; margin-top:8px; }
+  .moment { display:flex; gap:18px; padding:20px 0; border-bottom:1px solid var(--trait); }
+  .moment:last-child { border-bottom:none; }
+  .moment::before { counter-increment:moment; content:counter(moment);
+                    font-family:var(--serif); font-size:26px; color:var(--accent);
+                    min-width:34px; line-height:1.2; }
+  .moment div p { margin:2px 0 0; font-size:15px; }
+  .moment div b { font-size:16px; }
+
+  .jamais { background:var(--carte); border:1px solid var(--trait); border-radius:16px;
+            padding:8px 26px; margin-top:26px; }
+  .jamais ul { margin:14px 0; padding-left:20px; }
+  .jamais li { margin:10px 0; font-size:15.5px; }
+
+  .phase { display:flex; gap:16px; align-items:baseline; padding:12px 0;
+           border-bottom:1px solid var(--trait); font-size:15.5px; }
+  .phase:last-child { border-bottom:none; }
+  .phase .quand { font-family:var(--mono); font-size:12px; color:var(--accent);
+                  min-width:104px; letter-spacing:.04em; }
+
+  .note-basse { margin-top:56px; padding-top:24px; border-top:1px solid var(--trait);
+                font-size:14px; color:var(--discret); }
+
+  @media (max-width:560px) {
+    .comparatif .entete, .ligne { grid-template-columns:1fr 82px 82px; }
+    .ligne > div, .comparatif .entete > div { padding:12px 12px; }
+  }
+</style>
+
+<div class="page">
+
+  <p class="surtitre">Honya · stratégie de monétisation</p>
+  <h1>Honya+, ou l'art de donner d'abord</h1>
+  <p class="intro">Les lecteurs sont le public qui déteste le plus les abonnements
+    abusifs — et celui qui paie le plus volontiers quand il aime. La stratégie
+    entière tient en une phrase : <b>le gratuit construit une bibliothèque dont on
+    ne veut plus partir, le payant récompense ceux qui y vivent.</b></p>
+
+  <div class="regle">
+    <p>La bibliothèque n'est jamais limitée. Ni en livres, ni en tomes, ni en scans.</p>
+    <small>C'est le contre-pied des concurrents (Bookly bloque à 10 livres) et
+    c'est notre meilleur appât : chaque livre ajouté gratuitement augmente le prix
+    du départ. Un lecteur avec 200 tomes rangés ne réinstalle pas ailleurs — il
+    s'abonne ici.</small>
+  </div>
+
+  <h2>La grille</h2>
+  <p>Le principe de découpe : <b>l'entrée est gratuite, la profondeur est payante.</b>
+    On range et on lit gratuitement pour toujours ; on paie pour l'automatisation,
+    la mémoire longue et l'identité.</p>
+
+  <div class="comparatif">
+    <div class="entete"><div>Fonction</div><div>Gratuit</div><div class="plus">Honya+</div></div>
+
+    <div class="ligne section-ligne"><div>Le cœur — gratuit pour toujours</div><div></div><div></div></div>
+    <div class="ligne"><div class="quoi"><b>Bibliothèque illimitée</b><span>livres, mangas, tomes, sans plafond</span></div><div class="oui">Illimité</div><div class="oui">Illimité</div></div>
+    <div class="ligne"><div class="quoi"><b>Séries automatiques</b><span>un tome ajouté, tout le rayon apparaît</span></div><div class="oui">Oui</div><div class="oui">Oui</div></div>
+    <div class="ligne"><div class="quoi"><b>Scan de codes-barres</b><span>un par un, sans limite</span></div><div class="oui">Oui</div><div class="oui">Oui</div></div>
+    <div class="ligne"><div class="quoi"><b>Sessions de lecture &amp; objectif du jour</b><span>minutes, pages, série de jours</span></div><div class="oui">Oui</div><div class="oui">Oui</div></div>
+    <div class="ligne"><div class="quoi"><b>Découverte &amp; recherche</b><span>tendances, rayons, éditions du pays</span></div><div class="oui">Oui</div><div class="oui">Oui</div></div>
+    <div class="ligne"><div class="quoi"><b>Statistiques essentielles</b><span>14 derniers jours, compteurs de l'année</span></div><div class="oui">Oui</div><div class="oui">Oui</div></div>
+
+    <div class="ligne section-ligne"><div>L'automatisation — Honya+</div><div></div><div></div></div>
+    <div class="ligne"><div class="quoi"><b>Alertes de sortie</b><span>notification à chaque nouveau tome de vos séries</span></div><div class="partiel">3 séries</div><div class="oui">Toutes</div></div>
+    <div class="ligne"><div class="quoi"><b>Scan d'étagère entière</b><span>toute une rangée de codes-barres à la volée</span></div><div class="non">—</div><div class="oui">Oui</div></div>
+    <div class="ligne"><div class="quoi"><b>Sauvegarde &amp; multi-appareils</b><span>la bibliothèque suit le compte, iPhone et iPad</span></div><div class="non">—</div><div class="oui">Oui</div></div>
+    <div class="ligne"><div class="quoi"><b>Import / export</b><span>CSV, Goodreads — vos données restent à vous</span></div><div class="partiel">Import seul</div><div class="oui">Les deux</div></div>
+
+    <div class="ligne section-ligne"><div>La mémoire longue — Honya+</div><div></div><div></div></div>
+    <div class="ligne"><div class="quoi"><b>Statistiques complètes</b><span>tout l'historique, records, heatmap de l'année</span></div><div class="partiel">14 jours</div><div class="oui">Tout</div></div>
+    <div class="ligne"><div class="quoi"><b>Rétrospective de décembre</b><span>l'année de lecture en cartes</span></div><div class="partiel">La 1re carte</div><div class="oui">Complète</div></div>
+    <div class="ligne"><div class="quoi"><b>Étagères personnalisées</b><span>vos rangements à vous</span></div><div class="partiel">3</div><div class="oui">Illimitées</div></div>
+    <div class="ligne"><div class="quoi"><b>Citations &amp; prêts</b><span>les phrases gardées, les livres prêtés</span></div><div class="partiel">10 / 3</div><div class="oui">Illimités</div></div>
+
+    <div class="ligne section-ligne"><div>L'identité — Honya+</div><div></div><div></div></div>
+    <div class="ligne"><div class="quoi"><b>Icônes d'app alternatives</b><span>le livre orange en six humeurs</span></div><div class="non">—</div><div class="oui">Oui</div></div>
+    <div class="ligne"><div class="quoi"><b>Widgets d'écran d'accueil</b><span>lecture en cours, objectif, prochaine sortie</span></div><div class="partiel">1 petit</div><div class="oui">Tous</div></div>
+    <div class="ligne"><div class="quoi"><b>Défis &amp; badges avancés</b><span>les 20 badges, défis saisonniers</span></div><div class="partiel">Badges de base</div><div class="oui">Tous</div></div>
+  </div>
+
+  <h2>Le prix</h2>
+  <p>Trois portes, et l'annuel au centre. Le mensuel existe pour rendre l'annuel
+    évident ; l'accès à vie existe parce que les lecteurs sont le public
+    anti-abonnement par excellence — le proposer <b>désarme l'objection avant
+    qu'elle ne se forme</b>, et il finance les débuts.</p>
+
+  <div class="prix">
+    <div class="offre">
+      <h3>Mensuel</h3>
+      <div class="montant">2,99 €<small> / mois</small></div>
+      <p class="detail">Sans engagement</p>
+      <p class="argument">La porte d'essai prolongé. Son vrai rôle : faire
+        paraître l'annuel deux fois plus malin.</p>
+    </div>
+    <div class="offre star">
+      <span class="badge">Mise en avant</span>
+      <h3>Annuel</h3>
+      <div class="montant">17,99 €<small> / an</small></div>
+      <p class="detail">1,50 € par mois · 7 jours d'essai gratuit</p>
+      <p class="argument">L'offre par défaut, précochée sur l'écran. L'essai
+        gratuit ne vit que sur elle — qui veut essayer passe par là.</p>
+    </div>
+    <div class="offre">
+      <h3>À vie</h3>
+      <div class="montant">39,99 €<small> une fois</small></div>
+      <p class="detail">Achat unique, pour toujours</p>
+      <p class="argument">Pour les allergiques à l'abonnement — nombreux chez
+        les lecteurs. À 22 mois d'annuel, il protège la valeur de l'abonnement.</p>
+    </div>
+  </div>
+
+  <h2>Les moments de conversion</h2>
+  <p class="mantra">Jamais de paywall à l'ouverture. On ne vend pas à quelqu'un
+    qui n'a encore rien rangé — on vend au moment exact où le manque se fait
+    sentir. Six moments, du plus fort au plus doux :</p>
+
+  <div class="moments">
+    <div class="moment"><div><b>La 4e alerte de sortie.</b>
+      <p>Le lecteur suit 3 séries, il en ajoute une 4e : « Honya peut vous
+      prévenir pour toutes vos séries. » C'est le déclencheur le plus honnête —
+      il demande précisément ce que Plus fait.</p></div></div>
+    <div class="moment"><div><b>Le 15e jour de statistiques.</b>
+      <p>La heatmap continue de se remplir, mais grisée au-delà de 14 jours,
+      visible sous un léger flou. On ne cache pas ce qu'on vend : on le montre
+      verrouillé. « Vos 3 dernières semaines vous attendent. »</p></div></div>
+    <div class="moment"><div><b>La rétrospective de décembre.</b>
+      <p>La première carte est gratuite et partageable — c'est notre publicité.
+      Les suivantes (genre de l'année, série des records, top auteurs) sont
+      floutées derrière : le teaser existe déjà dans Stats.</p></div></div>
+    <div class="moment"><div><b>La 4e étagère.</b>
+      <p>Trois étagères remplies = un utilisateur organisé = le profil qui paie.
+      Le compteur « 3 étagères sur 3 » est visible dès la première.</p></div></div>
+    <div class="moment"><div><b>Le scan d'étagère.</b>
+      <p>Le bouton « Scannez toute une étagère » existe pour tous — il ouvre
+      l'écran Plus. Qui a 60 tomes à rentrer paie 18 € sans réfléchir.</p></div></div>
+    <div class="moment"><div><b>Le changement d'iPhone.</b>
+      <p>« Votre bibliothèque vous suivra » — la sauvegarde en ligne se vend
+      toute seule le jour où l'on y pense. Un rappel doux dans Réglages.</p></div></div>
+  </div>
+
+  <h2>Ce qu'on ne fait jamais</h2>
+  <div class="jamais">
+    <ul>
+      <li><b>Jamais de publicité.</b> Ni gratuite ni « supprimée par Plus ».
+        L'app est le produit, pas le lecteur.</li>
+      <li><b>Jamais reprendre un acquis.</b> Ce qui est gratuit aujourd'hui le
+        reste pour ceux qui l'utilisent. On verrouille des nouveautés, pas des
+        habitudes.</li>
+      <li><b>Jamais de paywall à l'ouverture</b> ni de compte obligatoire. Le mur
+        de couvertures accueille, il ne vend pas.</li>
+      <li><b>Jamais de fausse urgence.</b> Pas de compte à rebours, pas de
+        « -80 % dernière chance ». Le ton Honya, jusque dans la vente.</li>
+      <li><b>Jamais gêner la lecture.</b> Aucune limite sur les sessions, le
+        minuteur, les objectifs : on ne taxe pas le geste qu'on célèbre.</li>
+    </ul>
+  </div>
+
+  <h2>Le gratuit qui vend</h2>
+  <p>Deux mécaniques font le marketing à notre place, et elles doivent rester
+    gratuites précisément pour ça :</p>
+  <p><b>Les cartes partageables.</b> Fin de série → confettis → « Partager » :
+    une belle carte sérif avec la couverture, portant un discret
+    <span style="font-family:var(--mono); font-size:13px;">honya.app</span>. Chaque
+    partage Instagram est une publicité qu'on ne paie pas. La première carte de
+    rétrospective, gratuite, joue le même rôle en décembre — c'est le mois où
+    toutes les apps de lecture se téléchargent.</p>
+  <p><b>Le site déjà en place.</b> honya.app est multilingue et indexé : chaque
+    page de blog à venir (« les sorties manga de septembre », « suivre sa PAL »)
+    amène des lecteurs dans un entonnoir qui finit sur l'App Store. Le contenu
+    est le budget publicitaire des gens qui n'en ont pas.</p>
+
+  <h2>La mise en œuvre</h2>
+  <div class="phase"><span class="quand">v0.27</span><div><b>StoreKit 2</b> : groupe
+    d'abonnement, les trois produits, essai 7 jours sur l'annuel, restauration
+    d'achat, et l'écran Honya+ — sobre, sérif, dans le ton de l'app.</div></div>
+  <div class="phase"><span class="quand">v0.28</span><div><b>Les verrous doux</b> :
+    compteurs visibles (étagères, alertes), flous élégants (stats, rétrospective),
+    jamais un bouton mort — chaque verrou ouvre l'écran Plus.</div></div>
+  <div class="phase"><span class="quand">v0.29</span><div><b>Les cartes
+    partageables</b> gratuites et filigranées — le canal d'acquisition.</div></div>
+  <div class="phase"><span class="quand">v1.0</span><div><b>Lancement App Store</b>
+    avec l'offre déjà en place : personne ne perd rien, puisque personne n'avait
+    rien avant.</div></div>
+
+  <p class="note-basse">Repères marché : Bookly limite à 10 livres gratuits puis
+    ~40 €/an · StoryGraph Plus ~50 $/an · Goodreads est gratuit mais vit de
+    publicité. Honya se place en dessous des deux payants, avec un gratuit plus
+    généreux que tous — c'est la place libre.</p>
+
+</div>

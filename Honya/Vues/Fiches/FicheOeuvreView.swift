@@ -37,7 +37,7 @@ private struct ContenuFicheOeuvre: View {
     @State private var cibleSession: CibleSession?
     @State private var majPageVisible = false
     @State private var pretVisible = false
-    @State private var nomPret = ""
+    @State private var plusVisible = false
     @State private var confirmerSuppression = false
     @State private var celebration = false
     @State private var etagereVisible = false
@@ -107,13 +107,11 @@ private struct ContenuFicheOeuvre: View {
         .sheet(isPresented: $majPageVisible) {
             MiseAJourPageSheet(exemplaire: exemplaire, oeuvre: oeuvre, surTermine: marquerLu)
         }
-        .alert("Prêter ce livre", isPresented: $pretVisible) {
-            TextField("À qui ?", text: $nomPret)
-            Button("Prêter") {
-                exemplaire.preteA = nomPret.isEmpty ? nil : nomPret
-                nomPret = ""
-            }
-            Button("Annuler", role: .cancel) {}
+        .sheet(isPresented: $pretVisible) {
+            PreterSheet(exemplaire: exemplaire, titre: oeuvre.titre(langue))
+        }
+        .sheet(isPresented: $plusVisible) {
+            HonyaPlusView()
         }
         .confirmationDialog(
             "Retirer « \(oeuvre.titre(langue)) » de la bibliothèque ?",
@@ -145,6 +143,15 @@ private struct ContenuFicheOeuvre: View {
             endPoint: .bottom
         )
         .background(teinte)
+    }
+
+    /// Prêter est un geste Honya+ ; rendre un livre ne l'est jamais.
+    private func demanderPret() {
+        if Droits.partage.plus {
+            pretVisible = true
+        } else {
+            plusVisible = true
+        }
     }
 
     // MARK: - Titre, auteur, note — la tête de page d'Apple Books
@@ -394,13 +401,23 @@ private struct ContenuFicheOeuvre: View {
                 Text("Prêté à").opacity(0.7)
                 Spacer()
                 if let preteA = exemplaire.preteA {
-                    Text(preteA).fontWeight(.semibold)
-                    Button("Rendu") { exemplaire.preteA = nil }
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text(preteA).fontWeight(.semibold)
+                        if let depuis = exemplaire.preteLe {
+                            Text("Depuis le \(depuis.formatted(date: .abbreviated, time: .omitted))")
+                                .font(.caption2)
+                                .opacity(0.65)
+                        }
+                    }
+                    Button("Rendu") {
+                        exemplaire.preteA = nil
+                        exemplaire.preteLe = nil
+                    }
                         .font(.caption2.weight(.bold))
                         .buttonStyle(.bordered)
                         .tint(.white)
                 } else {
-                    Button("Prêter…") { pretVisible = true }
+                    Button("Prêter…") { demanderPret() }
                         .font(.caption.weight(.bold))
                         .buttonStyle(.bordered)
                         .tint(.white)
@@ -467,7 +484,7 @@ private struct ContenuFicheOeuvre: View {
                         systemImage: "text.badge.plus"
                     )
                 }
-                Button { pretVisible = true } label: {
+                Button { demanderPret() } label: {
                     Label("Prêter…", systemImage: "person.badge.plus")
                 }
                 MenuEtageres(cible: .oeuvre(oeuvre), creationVisible: $etagereVisible)

@@ -148,6 +148,8 @@ final class Exemplaire {
     var formatRaw: String?
     var prixPaye: Double?
     var preteA: String?
+    /// Depuis quand le livre est chez quelqu'un d'autre.
+    var preteLe: Date?
     /// ISBN de l'édition réellement possédée.
     var isbn: String?
     var langueEdition: String?
