@@ -77,7 +77,9 @@ struct BienvenueView: View {
         ZStack {
             Color(uiColor: .systemBackground).ignoresSafeArea()
 
-            if !parEmail {
+            if !parEmail && !vignettes.isEmpty {
+                // Un mur de cases vides est pire que pas de mur : tant qu'on
+                // n'a rien à montrer, l'écran reste net.
                 mur.ignoresSafeArea()
                 voile.ignoresSafeArea()
             }
@@ -156,7 +158,6 @@ struct BienvenueView: View {
                 // LARGEUR pour tenir le ratio. Les couvertures maigrissaient, et
                 // la boucle du défilement se décalait d'autant.
                 .frame(width: largeur, height: largeur * 1.5)
-                .shadow(color: .black.opacity(0.22), radius: 10, y: 5)
             }
         }
         .offset(y: depart + (defile == versLeHaut ? -course : 0))
@@ -170,14 +171,7 @@ struct BienvenueView: View {
     }
 
     private func vignettesDeLaColonne(_ index: Int, combien: Int) -> [Vignette] {
-        guard !vignettes.isEmpty else {
-            // Avant l'arrivée des données : des cases sans titre, que
-            // CouvertureView remplit de ses dégradés. La mise en page ne bouge
-            // pas quand les vraies couvertures se posent.
-            return (0..<combien).map {
-                Vignette(id: "vide-\(index)-\($0)", url: nil, titre: "", manga: false)
-            }
-        }
+        guard !vignettes.isEmpty else { return [] }
         return (0..<combien).map { rang in
             vignettes[(index * combien + rang) % vignettes.count]
         }
@@ -423,17 +417,16 @@ struct BienvenueView: View {
     // MARK: - Les couvertures du mur
 
     private func chargerLeMur() async {
-        // Large : la hauteur de l'écran décide du nombre réellement affiché,
-        // le surplus alimente simplement la variété.
         let besoin = 24
 
-        // Ce que le lecteur possède déjà passe avant tout : au deuxième
-        // lancement, il retrouve ses propres livres.
+        // Ce que le lecteur possède déjà s'affiche TOUT DE SUITE : attendre le
+        // réseau avant de rien montrer laisserait l'écran nu alors qu'on a
+        // déjà de quoi le remplir.
         let siennes = couverturesDeLaBibliotheque()
-        if siennes.count >= besoin {
+        if !siennes.isEmpty {
             vignettes = Array(siennes.prefix(besoin))
-            return
         }
+        if siennes.count >= besoin { return }
 
         let top = await Decouverte.classement(gratuits: false, langue: langue)
         let venues = top.map {
