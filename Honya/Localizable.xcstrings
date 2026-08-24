@@ -42416,6 +42416,46 @@
           }
         }
       }
+    },
+    "−10 %": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "−10%"
+          }
+        }
+      }
+    },
+    "−15 %": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "−15%"
+          }
+        }
+      }
+    },
+    "−25 %": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "−25%"
+          }
+        }
+      }
+    },
+    "−40 %": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "−40%"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
