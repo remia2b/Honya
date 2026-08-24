@@ -46,7 +46,7 @@ struct BienvenueView: View {
 
     /// Une case du mur. Le titre ne sert que si l'image manque — `CouvertureView`
     /// dessine alors une couverture, plutôt qu'un rectangle vide.
-    private struct Vignette: Identifiable, Hashable {
+    private struct Vignette: Identifiable, Hashable, Codable {
         let id: String
         let url: String?
         let titre: String
@@ -416,6 +416,11 @@ struct BienvenueView: View {
     private func chargerLeMur() async {
         let besoin = 24
 
+        // Le mur de la dernière fois s'affiche TOUT DE SUITE : un écran nu
+        // qui attend le réseau se voit à chaque ouverture. Le tirage du jour
+        // ne sert alors qu'à préparer la prochaine.
+        let dejaAffiche = poserDepuisCache()
+
         for essai in 0..<4 {
             if Task.isCancelled { return }
             if essai > 0 {
@@ -443,9 +448,31 @@ struct BienvenueView: View {
                                 manga: resultat.type != .livre)
             }
             if !jeu.isEmpty {
-                poser(Array(jeu.prefix(besoin)))
+                let tirage = Array(jeu.prefix(besoin))
+                if !dejaAffiche {
+                    poser(tirage)
+                }
+                garder(tirage)
                 return
             }
+        }
+    }
+
+    /// Le dernier tirage, gardé sur l'appareil pour l'ouverture suivante.
+    private static let cleCache = "murAccueil"
+
+    private func poserDepuisCache() -> Bool {
+        guard let donnees = UserDefaults.standard.data(forKey: Self.cleCache),
+              let jeu = try? JSONDecoder().decode([Vignette].self, from: donnees),
+              !jeu.isEmpty
+        else { return false }
+        poser(jeu)
+        return true
+    }
+
+    private func garder(_ jeu: [Vignette]) {
+        if let donnees = try? JSONEncoder().encode(jeu) {
+            UserDefaults.standard.set(donnees, forKey: Self.cleCache)
         }
     }
 

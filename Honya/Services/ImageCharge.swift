@@ -50,8 +50,9 @@ actor ImageCharge {
         }
         // Même les couvertures enregistrées en petit ressortent nettes :
         // la réécriture se fait au chargement, pas dans les données.
+        let brute = chaine
         chaine = ArtworkApple.nette(chaine, cote: cote)
-        guard let url = URL(string: chaine) else { return nil }
+        guard URL(string: chaine) != nil else { return nil }
 
         let cle = Self.empreinte(chaine)
         if let enMemoire = memoire.object(forKey: cle as NSString) {
@@ -62,15 +63,20 @@ actor ImageCharge {
             memoire.setObject(image, forKey: cle as NSString)
             return image
         }
-        do {
-            let (donnees, _) = try await URLSession.shared.data(from: url)
-            guard let image = UIImage(data: donnees) else { return nil }
+        // Certaines vignettes n'existent pas au calibre demandé : le serveur
+        // répond alors autre chose qu'une image. On retombe sur l'adresse
+        // d'origine plutôt que d'abandonner la couverture.
+        let candidates = chaine == brute ? [chaine] : [chaine, brute]
+        for candidate in candidates {
+            guard let url = URL(string: candidate),
+                  let (donnees, _) = try? await URLSession.shared.data(from: url),
+                  let image = UIImage(data: donnees)
+            else { continue }
             try? donnees.write(to: fichier)
             memoire.setObject(image, forKey: cle as NSString)
             return image
-        } catch {
-            return nil
         }
+        return nil
     }
 
     private static func empreinte(_ chaine: String) -> String {
