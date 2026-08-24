@@ -74,7 +74,13 @@ struct CompteurLimite: View {
         if !Droits.partage.plus {
             Text("\(utilises) sur \(plafond)")
                 .font(.caption2.weight(.medium))
-                .foregroundStyle(utilises >= plafond ? Couleurs.accent : .tertiary)
+                .foregroundStyle(
+                    // Le ternaire force les deux branches au même type : .tertiary
+                    // est un ShapeStyle, pas une Color.
+                    utilises >= plafond
+                        ? AnyShapeStyle(Couleurs.accent)
+                        : AnyShapeStyle(.tertiary)
+                )
         }
     }
 }
