@@ -49,9 +49,22 @@ struct RoueSheet: View {
 
     private static let part = 360.0 / Double(secteurs.count)
 
+    /// L'angle du milieu d'un secteur, en degrés, zéro pointant vers le haut.
+    private static func milieu(_ index: Int) -> Double {
+        Double(index) * part + part / 2
+    }
+
+    /// Où poser l'étiquette d'un secteur. Sortie de la vue : l'inférence de
+    /// types de SwiftUI cale sur une trigonométrie écrite en ligne.
+    private static func position(_ index: Int) -> CGSize {
+        let radians = (milieu(index) - 90) * .pi / 180
+        let rayon = 92.0
+        return CGSize(width: rayon * cos(radians), height: rayon * sin(radians))
+    }
+
     /// L'angle qui amène le milieu du secteur sous la flèche, après `tours`.
     private static func arret(sur index: Int, tours: Int) -> Double {
-        Double(tours) * 360 - (Double(index) * part + part / 2)
+        Double(tours) * 360 - milieu(index)
     }
 
     var body: some View {
@@ -146,12 +159,12 @@ struct RoueSheet: View {
                         )
                     Text(secteur.libelle)
                         .font(.system(size: 15, weight: .heavy))
-                        .foregroundStyle(secteur.gagnant ? .white : Color.white.opacity(0.42))
-                        .rotationEffect(.degrees(Double(index) * Self.part + Self.part / 2 + 90))
-                        .offset(
-                            x: 92 * cos((Double(index) * Self.part + Self.part / 2 - 90) * .pi / 180),
-                            y: 92 * sin((Double(index) * Self.part + Self.part / 2 - 90) * .pi / 180)
+                        .foregroundStyle(
+                            secteur.gagnant ? AnyShapeStyle(.white)
+                                            : AnyShapeStyle(Color.white.opacity(0.42))
                         )
+                        .rotationEffect(.degrees(Self.milieu(index) + 90))
+                        .offset(Self.position(index))
                 }
             }
             .frame(width: 268, height: 268)
