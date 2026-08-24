@@ -13,6 +13,8 @@ struct ScannerSheet: View {
     @State private var enRecherche = 0
     @State private var isbnManuel = ""
     @State private var ajoutes: Set<String> = []
+    @State private var plusVisible = false
+    @State private var compteur = CompteurScans.partage
 
     private var scannerDisponible: Bool {
         DataScannerViewController.isSupported && DataScannerViewController.isAvailable
@@ -27,13 +29,19 @@ struct ScannerSheet: View {
                     }
                     .frame(height: 300)
                     .overlay(alignment: .bottom) {
-                        Text("Visez le code-barres au dos du livre")
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(.black.opacity(0.6), in: Capsule())
-                            .foregroundStyle(.white)
-                            .padding(.bottom, 12)
+                        VStack(spacing: 6) {
+                            Text("Visez le code-barres au dos du livre")
+                            if !Droits.partage.plus {
+                                Text("\(compteur.reste) scans restants")
+                                    .foregroundStyle(compteur.reste == 0 ? Couleurs.accent : .white.opacity(0.75))
+                            }
+                        }
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.black.opacity(0.6), in: Capsule())
+                        .foregroundStyle(.white)
+                        .padding(.bottom, 12)
                     }
                 } else {
                     saisieManuelle
@@ -41,6 +49,7 @@ struct ScannerSheet: View {
 
                 listeTrouves
             }
+            .ecranHonyaPlus($plusVisible)
             .navigationTitle("Scanner")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -169,6 +178,13 @@ struct ScannerSheet: View {
     private func traiter(_ code: String) {
         let propre = ISBNUtil.normaliser(code)
         guard ISBNUtil.estValide(propre), !scannes.contains(propre) else { return }
+        // Le quota s'arrête au scan, jamais à la recherche manuelle : personne
+        // n'est empêché d'ajouter un livre, seule la facilité se paie.
+        guard compteur.autorise else {
+            plusVisible = true
+            return
+        }
+        compteur.enregistrer()
         scannes.insert(propre)
         enRecherche += 1
         Task { @MainActor in

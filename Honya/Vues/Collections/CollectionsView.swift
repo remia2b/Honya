@@ -11,6 +11,7 @@ struct CollectionsView: View {
     @Query private var objectifs: [Objectif]
 
     @State private var creationVisible = false
+    @State private var plusVisible = false
     @State private var nouveauNom = ""
 
     private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
@@ -139,10 +140,11 @@ struct CollectionsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { creationVisible = true } label: { Image(systemName: "plus") }
+                Button { demanderEtagere() } label: { Image(systemName: "plus") }
                     .accessibilityLabel("Nouvelle collection")
             }
         }
+        .ecranHonyaPlus($plusVisible)
         .alert("Nouvelle étagère", isPresented: $creationVisible) {
             TextField("Son nom", text: $nouveauNom)
             Button("Créer") {
@@ -152,6 +154,15 @@ struct CollectionsView: View {
                 nouveauNom = ""
             }
             Button("Annuler", role: .cancel) { nouveauNom = "" }
+        }
+    }
+
+    /// Les étagères déjà créées restent intactes : on limite la création.
+    private func demanderEtagere() {
+        if Droits.partage.plus || collections.count < Limites.etageres {
+            creationVisible = true
+        } else {
+            plusVisible = true
         }
     }
 }

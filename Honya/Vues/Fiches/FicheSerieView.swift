@@ -5,6 +5,9 @@ import SwiftData
 /// Grille de tomes cochables (pattern « épisodes TV »), double progression
 /// possédés/lus, suivi de chapitres, prochaine sortie avec rappel.
 struct FicheSerieView: View {
+    /// Toutes les séries : le plafond d'alertes porte sur l'ensemble.
+    @Query private var series: [Serie]
+    @State private var plusVisible = false
     @Bindable var serie: Serie
 
     @Environment(\.modelContext) private var contexte
@@ -77,6 +80,7 @@ struct FicheSerieView: View {
         }
         .alerteNouvelleEtagere(.serie(serie), visible: $etagereVisible)
         .fullScreenCover(item: $cibleSession) { SessionLectureView(cible: $0) }
+        .ecranHonyaPlus($plusVisible)
         .sheet(isPresented: $sortieVisible) {
             SortieSheet(serie: serie, langue: langue)
         }
@@ -278,9 +282,15 @@ struct FicheSerieView: View {
 
     private func basculerRappel() {
         if serie.rappelActive {
+            // Couper une alerte est toujours libre : on ne piège personne.
             serie.rappelActive = false
             NotificationsService.annulerRappel(pour: serie)
         } else {
+            let suivies = series.filter(\.rappelActive).count
+            guard Droits.partage.plus || suivies < Limites.alertesSortie else {
+                plusVisible = true
+                return
+            }
             Task { @MainActor in
                 guard await NotificationsService.demanderAutorisation() else { return }
                 serie.rappelActive = true

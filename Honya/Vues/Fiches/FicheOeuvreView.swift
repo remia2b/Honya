@@ -590,6 +590,13 @@ private struct MiseAJourPageSheet: View {
 // MARK: - Citations
 
 struct ListeCitationsView: View {
+    /// Toutes les citations du lecteur, pas seulement celles de ce livre :
+    /// le plafond porte sur la collection entière.
+    @Query private var toutes: [Citation]
+    @State private var plusVisible = false
+
+    private var totalCitations: Int { toutes.count }
+
     var oeuvre: Oeuvre
 
     @Environment(\.modelContext) private var contexte
@@ -629,9 +636,21 @@ struct ListeCitationsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button { ajoutVisible = true } label: { Image(systemName: "plus") }
+                HStack(spacing: 8) {
+                    CompteurLimite(utilises: totalCitations, plafond: Limites.citations)
+                    Button {
+                        // Les citations déjà gardées restent lisibles pour
+                        // toujours : on limite l'ajout, jamais la relecture.
+                        if Droits.partage.plus || totalCitations < Limites.citations {
+                            ajoutVisible = true
+                        } else {
+                            plusVisible = true
+                        }
+                    } label: { Image(systemName: "plus") }
+                }
             }
         }
+        .ecranHonyaPlus($plusVisible)
         .sheet(isPresented: $ajoutVisible) {
             NavigationStack {
                 Form {
