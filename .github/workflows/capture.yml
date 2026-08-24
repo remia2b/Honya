@@ -14,9 +14,6 @@ on:
       ecrans:
         description: "Écrans à photographier, séparés par des espaces"
         default: "accueil verrou honyaPlus roue"
-      theme:
-        description: "clair ou sombre"
-        default: "sombre"
 
 jobs:
   capturer:
@@ -42,7 +39,6 @@ jobs:
           echo "UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
-          xcrun simctl ui "$UDID" appearance "${{ inputs.theme == 'clair' && 'light' || 'dark' }}"
 
           APP=$(find /tmp/dd/Build/Products -name "Honya.app" -maxdepth 2 | head -1)
           echo "APP=$APP" >> "$GITHUB_ENV"
@@ -51,17 +47,23 @@ jobs:
       - name: Photographier chaque écran
         run: |
           mkdir -p /tmp/captures
-          for ecran in ${{ inputs.ecrans }}; do
-            echo "── $ecran"
-            xcrun simctl terminate "$UDID" com.remiabbou.honya 2>/dev/null || true
-            if [ "$ecran" = "accueil" ]; then
-              xcrun simctl launch "$UDID" com.remiabbou.honya
-            else
-              xcrun simctl launch "$UDID" com.remiabbou.honya --ecran "$ecran"
-            fi
-            # Les couvertures arrivent du réseau : on leur laisse le temps.
-            sleep 16
-            xcrun simctl io "$UDID" screenshot "/tmp/captures/$ecran.png"
+          for theme in light dark; do
+            xcrun simctl ui "$UDID" appearance "$theme"
+            for ecran in ${{ inputs.ecrans }}; do
+              echo "── $theme / $ecran"
+              xcrun simctl terminate "$UDID" com.remiabbou.honya 2>/dev/null || true
+              if [ "$ecran" = "accueil" ]; then
+                xcrun simctl launch "$UDID" com.remiabbou.honya
+              else
+                xcrun simctl launch "$UDID" com.remiabbou.honya --ecran "$ecran"
+              fi
+              # Seuls les écrans à couvertures attendent le réseau.
+              case "$ecran" in
+                accueil|honyaPlus) sleep 15 ;;
+                *) sleep 6 ;;
+              esac
+              xcrun simctl io "$UDID" screenshot "/tmp/captures/$theme-$ecran.png"
+            done
           done
           ls -la /tmp/captures
 
