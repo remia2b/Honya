@@ -150,8 +150,13 @@ struct BienvenueView: View {
                     manga: vignette.manga,
                     cote: 400          // affichée sur ~120 points : inutile d'aller plus haut
                 )
-                .frame(width: largeur)
-                .shadow(color: .black.opacity(0.18), radius: 9, y: 5)
+                // Hauteur imposée, pas seulement la largeur : CouvertureView
+                // porte un aspectRatio(.fit), et sans hauteur fixe la pile lui
+                // proposerait moins de place, ce qui la ferait rétrécir EN
+                // LARGEUR pour tenir le ratio. Les couvertures maigrissaient, et
+                // la boucle du défilement se décalait d'autant.
+                .frame(width: largeur, height: largeur * 1.5)
+                .shadow(color: .black.opacity(0.22), radius: 10, y: 5)
             }
         }
         .offset(y: depart + (defile == versLeHaut ? -course : 0))
