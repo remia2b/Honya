@@ -145,7 +145,7 @@ struct CollectionsView: View {
             }
         }
         .ecranHonyaPlus($plusVisible, verrou: .etagere(
-            couvertures: exemplaires.prefix(3).compactMap(\.oeuvre?.couvertureAffichee)
+            couvertures: exemplaires.prefix(3).compactMap { $0.oeuvre?.couvertureAffichee }
         ))
         .alert("Nouvelle étagère", isPresented: $creationVisible) {
             TextField("Son nom", text: $nouveauNom)

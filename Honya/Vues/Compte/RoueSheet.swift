@@ -24,6 +24,7 @@ struct RoueSheet: View {
 
     /// Une seule fois par personne : la deuxième chance n'en est une que si
     /// elle ne revient pas tous les jours.
+    @MainActor
     static var disponible: Bool {
         !UserDefaults.standard.bool(forKey: "roueUtilisee") && !Droits.partage.plus
     }
@@ -160,7 +161,7 @@ struct RoueSheet: View {
                     Text(secteur.libelle)
                         .font(.system(size: 15, weight: .heavy))
                         .foregroundStyle(
-                            secteur.gagnant ? AnyShapeStyle(.white)
+                            secteur.gagnant ? AnyShapeStyle(Color.white)
                                             : AnyShapeStyle(Color.white.opacity(0.42))
                         )
                         .rotationEffect(.degrees(Self.milieu(index) + 90))
@@ -282,8 +283,12 @@ struct RoueSheet: View {
         let tours = premierTour ? 4 : 6
 
         etape = .tourne
+        // On repart du tour entier suivant : sans ça, le second lancer
+        // calculerait un angle plus petit que le premier et la roue
+        // reviendrait en arrière.
+        let base = (angle / 360).rounded(.up) * 360
         withAnimation(.timingCurve(0.17, 0.72, 0.15, 1, duration: premierTour ? 3.2 : 4.0)) {
-            angle = Self.arret(sur: cible, tours: tours) + angle.rounded(.down) * 0
+            angle = base + Double(tours) * 360 - Self.milieu(cible)
         }
 
         Task { @MainActor in
