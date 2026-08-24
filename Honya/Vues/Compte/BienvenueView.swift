@@ -235,8 +235,11 @@ struct BienvenueView: View {
                     .font(.system(size: 17, weight: .semibold))
                     .frame(maxWidth: .infinity)
                     .frame(height: 50)
+                    // Un matériau, pas une teinte : sur un mur de couvertures,
+                    // un fond à 6 % disparaissait et le bouton semblait n'être
+                    // que du texte posé là.
                     .background(
-                        Color.primary.opacity(0.06),
+                        .regularMaterial,
                         in: RoundedRectangle(cornerRadius: 15, style: .continuous)
                     )
             }
