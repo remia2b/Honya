@@ -173,19 +173,17 @@ struct BienvenueView: View {
         }
     }
 
-    /// Le voile : les couvertures habillent TOUT l'écran, jamais coupées par
-    /// un mur de noir — seulement assombries, de plus en plus vers le bas,
-    /// assez pour que le titre et les boutons se détachent. C'est l'écran de
-    /// bienvenue d'une salle pleine de livres, pas un dégradé qui les efface.
+    /// Le voile : RIEN sur les livres — ils se montrent tels quels — puis un
+    /// dégradé franc qui devient complètement opaque sous le titre et les
+    /// boutons. Deux zones nettes, pas de pénombre posée sur les couvertures.
     private var voile: some View {
         let fond = Color(uiColor: .systemBackground)
         return LinearGradient(
             stops: [
-                .init(color: fond.opacity(0.46), location: 0),
-                .init(color: fond.opacity(0.40), location: 0.28),
-                .init(color: fond.opacity(0.68), location: 0.55),
-                .init(color: fond.opacity(0.88), location: 0.74),
-                .init(color: fond.opacity(0.96), location: 1),
+                .init(color: fond.opacity(0), location: 0),
+                .init(color: fond.opacity(0), location: 0.40),
+                .init(color: fond.opacity(0.86), location: 0.54),
+                .init(color: fond, location: 0.62),
             ],
             startPoint: .top, endPoint: .bottom
         )
