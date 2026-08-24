@@ -40,6 +40,10 @@ jobs:
 
       - name: Compiler (l'extraction se fait pendant la compilation)
         run: |
+          # Sans pipefail, l'échec de xcodebuild est avalé par le tuyau vers
+          # tail : l'extraction repartirait alors sur des .stringsdata
+          # incomplets et écraserait la liste des clés par presque rien.
+          set -o pipefail
           xcodebuild build \
             -project Honya.xcodeproj \
             -scheme Honya \
