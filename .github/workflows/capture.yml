@@ -1,13 +1,22 @@
-name: Capturer l'écran d'ouverture
+name: Capturer des écrans
 
-# Voir l'application SANS lancer de construction payante : le simulateur
-# iOS des machines GitHub suffit pour ouvrir l'écran d'accueil et le
-# photographier. Les captures remontent en artefact du travail.
+# Voir l'application SANS lancer de construction payante : le simulateur iOS
+# des machines GitHub suffit pour ouvrir un écran et le photographier.
+#
+# L'application accepte « --ecran <nom> » en compilation de débogage, ce qui
+# évite d'avoir à naviguer : on ouvre directement l'écran voulu.
 #
 # Lancement : gh workflow run capture.yml
 
 on:
   workflow_dispatch:
+    inputs:
+      ecrans:
+        description: "Écrans à photographier, séparés par des espaces"
+        default: "accueil verrou honyaPlus roue"
+      theme:
+        description: "clair ou sombre"
+        default: "sombre"
 
 jobs:
   capturer:
@@ -27,31 +36,33 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             | tail -5
 
-      - name: Démarrer un iPhone et photographier
+      - name: Démarrer un iPhone
         run: |
           UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE '[A-F0-9-]{36}')
-          echo "Simulateur : $UDID"
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl ui "$UDID" appearance "${{ inputs.theme == 'clair' && 'light' || 'dark' }}"
 
           APP=$(find /tmp/dd/Build/Products -name "Honya.app" -maxdepth 2 | head -1)
-          echo "Application : $APP"
+          echo "APP=$APP" >> "$GITHUB_ENV"
           xcrun simctl install "$UDID" "$APP"
 
-          # Les deux thèmes dans la même séance : le simulateur change
-          # d'apparence à chaud, l'interface suit sans relancer.
-          xcrun simctl ui "$UDID" appearance light
-          xcrun simctl launch "$UDID" com.remiabbou.honya
-
+      - name: Photographier chaque écran
+        run: |
           mkdir -p /tmp/captures
-          sleep 6
-          xcrun simctl io "$UDID" screenshot /tmp/captures/1-clair-arrivee.png
-          sleep 14
-          xcrun simctl io "$UDID" screenshot /tmp/captures/2-clair-charge.png
-
-          xcrun simctl ui "$UDID" appearance dark
-          sleep 3
-          xcrun simctl io "$UDID" screenshot /tmp/captures/3-sombre.png
+          for ecran in ${{ inputs.ecrans }}; do
+            echo "── $ecran"
+            xcrun simctl terminate "$UDID" com.remiabbou.honya 2>/dev/null || true
+            if [ "$ecran" = "accueil" ]; then
+              xcrun simctl launch "$UDID" com.remiabbou.honya
+            else
+              xcrun simctl launch "$UDID" com.remiabbou.honya --ecran "$ecran"
+            fi
+            # Les couvertures arrivent du réseau : on leur laisse le temps.
+            sleep 16
+            xcrun simctl io "$UDID" screenshot "/tmp/captures/$ecran.png"
+          done
           ls -la /tmp/captures
 
       - name: Publier les captures

@@ -28,9 +28,42 @@ struct HonyaApp: App {
         URLCache.shared = URLCache(memoryCapacity: 40_000_000, diskCapacity: 400_000_000)
     }
 
+    /// Écran demandé en ligne de commande, pour photographier l'application
+    /// sur simulateur sans avoir à naviguer. Jamais compilé en production.
+    private var ecranDemande: String? {
+        #if DEBUG
+        let arguments = ProcessInfo.processInfo.arguments
+        guard let position = arguments.firstIndex(of: "--ecran"),
+              arguments.indices.contains(position + 1)
+        else { return nil }
+        return arguments[position + 1]
+        #else
+        return nil
+        #endif
+    }
+
+    @ViewBuilder
+    private func ecranDeCapture(_ nom: String) -> some View {
+        switch nom {
+        case "honyaPlus":
+            HonyaPlusView()
+        case "verrou":
+            HonyaPlusView(verrou: .serie(
+                nom: "Chainsaw Man", tomes: 27, couvertures: []
+            ))
+        case "roue":
+            RoueSheet()
+        default:
+            RacineView()
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {
+                if let ecranDemande {
+                    ecranDeCapture(ecranDemande)
+                } else {
                 switch compte.etat {
                 case .indetermine:
                     BienvenueView()
@@ -41,6 +74,7 @@ struct HonyaApp: App {
                     } else {
                         OnboardingView()
                     }
+                }
                 }
             }
             .animation(.easeInOut(duration: 0.35), value: compte.etat)
