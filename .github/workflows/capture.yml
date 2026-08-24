@@ -33,22 +33,25 @@ jobs:
           echo "Simulateur : $UDID"
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
-          # L'utilisateur est en mode sombre : on se met dans ses conditions.
-          xcrun simctl ui "$UDID" appearance dark
 
           APP=$(find /tmp/dd/Build/Products -name "Honya.app" -maxdepth 2 | head -1)
           echo "Application : $APP"
           xcrun simctl install "$UDID" "$APP"
+
+          # Les deux thèmes dans la même séance : le simulateur change
+          # d'apparence à chaud, l'interface suit sans relancer.
+          xcrun simctl ui "$UDID" appearance light
           xcrun simctl launch "$UDID" com.remiabbou.honya
 
           mkdir -p /tmp/captures
-          # Trois moments : l'arrivée, les couvertures chargées, la dérive.
           sleep 6
-          xcrun simctl io "$UDID" screenshot /tmp/captures/1-arrivee.png
+          xcrun simctl io "$UDID" screenshot /tmp/captures/1-clair-arrivee.png
           sleep 14
-          xcrun simctl io "$UDID" screenshot /tmp/captures/2-charge.png
-          sleep 12
-          xcrun simctl io "$UDID" screenshot /tmp/captures/3-derive.png
+          xcrun simctl io "$UDID" screenshot /tmp/captures/2-clair-charge.png
+
+          xcrun simctl ui "$UDID" appearance dark
+          sleep 3
+          xcrun simctl io "$UDID" screenshot /tmp/captures/3-sombre.png
           ls -la /tmp/captures
 
       - name: Publier les captures
