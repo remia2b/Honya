@@ -6,16 +6,13 @@ import SwiftUI
 /// en serif, et deux chemins pour entrer — l'identifiant Apple, ou une adresse
 /// e-mail.
 ///
-/// Le mur montre les livres du lecteur dès qu'il en a : l'écran d'accueil
-/// devient le sien. Sinon, les meilleures ventes de son pays. Sans réseau,
-/// `CouvertureView` dessine ses couvertures de secours, et la mise en page
-/// tient quand même.
+/// Cette page ne se voit qu'une fois, avant d'entrer : le mur est un tirage
+/// aléatoire des livres en tendance dans le pays du lecteur, rien de plus.
+/// Sans réseau, l'écran reste net — titre et boutons, pas de mur.
 struct BienvenueView: View {
     @Environment(\.colorScheme) private var apparence
     @Environment(\.accessibilityReduceMotion) private var mouvementReduit
 
-    @Query private var oeuvres: [Oeuvre]
-    @Query private var series: [Serie]
     @Query private var objectifs: [Objectif]
 
     @State private var compte = Compte.partage
@@ -418,48 +415,37 @@ struct BienvenueView: View {
 
     private func chargerLeMur() async {
         let besoin = 24
-        let siennes = couverturesDeLaBibliotheque()
 
-        // Assez de livres à soi : le mur est complet d'emblée.
-        if siennes.count >= besoin {
-            poser(Array(siennes.prefix(besoin)))
-            return
-        }
-
-        // Sinon, on assemble bibliothèque + classement AVANT d'afficher quoi
-        // que ce soit. Poser la bibliothèque puis la compléter redistribuait
-        // toutes les cases d'un coup : le mur entier sautait aux yeux.
         for essai in 0..<4 {
             if Task.isCancelled { return }
             if essai > 0 {
                 try? await Task.sleep(for: .seconds(Double(essai) * 2))
             }
 
-            var top = await Decouverte.classement(gratuits: false, langue: langue)
-            if top.isEmpty {
-                top = await Decouverte.classement(gratuits: true, langue: langue)
+            // Les deux classements du pays, mêlés puis battus comme un jeu de
+            // cartes : les têtes d'affiche du moment, dans un ordre différent
+            // à chaque ouverture.
+            async let payants = Decouverte.classement(gratuits: false, langue: langue)
+            async let libres = Decouverte.classement(gratuits: true, langue: langue)
+            var tirage = await payants + libres
+            if tirage.isEmpty && essai == 3 {
+                tirage = await Decouverte.rayonBrut("roman", langue: langue)
             }
-            if top.isEmpty && essai == 3 {
-                top = await Decouverte.rayonBrut("roman", langue: langue)
-            }
-            guard !top.isEmpty else { continue }
+            guard !tirage.isEmpty else { continue }
 
-            let venues = top.map {
-                Vignette(id: $0.id, url: $0.couvertureURL, titre: $0.titre,
-                         manga: $0.type != .livre)
+            var vues = Set<String>()
+            let jeu = tirage.shuffled().compactMap { resultat -> Vignette? in
+                // Uniquement de vraies couvertures : une case de remplacement
+                // au milieu des tendances se verrait tout de suite.
+                guard let url = resultat.couvertureURL,
+                      vues.insert(url).inserted else { return nil }
+                return Vignette(id: resultat.id, url: url, titre: resultat.titre,
+                                manga: resultat.type != .livre)
             }
-            let assemblees = siennes + venues.filter { venue in
-                !siennes.contains { $0.url == venue.url }
-            }
-            if !assemblees.isEmpty {
-                poser(Array(assemblees.prefix(besoin)))
+            if !jeu.isEmpty {
+                poser(Array(jeu.prefix(besoin)))
                 return
             }
-        }
-
-        // Le réseau n'a rien donné : la bibliothèque seule vaut mieux que rien.
-        if !siennes.isEmpty {
-            poser(siennes)
         }
     }
 
@@ -469,23 +455,6 @@ struct BienvenueView: View {
         withAnimation(.easeOut(duration: 0.9)) {
             vignettes = jeu
         }
-    }
-
-    private func couverturesDeLaBibliotheque() -> [Vignette] {
-        var vues = Set<String>()
-        var resultat: [Vignette] = []
-
-        for serie in series {
-            guard let url = serie.couvertureAffichee, vues.insert(url).inserted else { continue }
-            resultat.append(Vignette(id: "serie-\(url)", url: url,
-                                     titre: serie.nomAffiche(langue), manga: serie.type != .livre))
-        }
-        for oeuvre in oeuvres {
-            guard let url = oeuvre.couvertureAffichee, vues.insert(url).inserted else { continue }
-            resultat.append(Vignette(id: "oeuvre-\(url)", url: url,
-                                     titre: oeuvre.titre(langue), manga: oeuvre.type != .livre))
-        }
-        return resultat.shuffled()
     }
 
     // MARK: - Actions
