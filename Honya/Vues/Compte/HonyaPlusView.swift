@@ -174,16 +174,21 @@ struct HonyaPlusView: View {
     private var rayon: some View {
         let siennes = oeuvres.compactMap(\.couvertureAffichee).shuffled()
         let urls = Array((siennes.isEmpty ? tendances : siennes).prefix(7))
-        return HStack(spacing: 8) {
-            ForEach(Array(urls.enumerated()), id: \.offset) { rang, url in
-                CouvertureView(urlString: url, titre: "", coins: 5, cote: 400)
-                    .frame(width: 82, height: 123)
-                    .offset(y: Double(rang) * 6)
+        // Une pile horizontale de sept couvertures mesure plus de 600 points :
+        // sa largeur intrinsèque emportait tout l'écran vers la gauche. Le
+        // défilement horizontal, lui, se contente de la place offerte.
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(Array(urls.enumerated()), id: \.offset) { rang, url in
+                    CouvertureView(urlString: url, titre: "", coins: 5, cote: 400)
+                        .frame(width: 82, height: 123)
+                        .offset(y: Double(rang) * 6)
+                }
             }
+            .padding(.leading, 14)
         }
+        .scrollDisabled(true)
         .rotationEffect(.degrees(-4))
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.leading, 14)
         .opacity(apparu ? 1 : 0)
         .animation(.easeOut(duration: 0.7), value: apparu)
     }

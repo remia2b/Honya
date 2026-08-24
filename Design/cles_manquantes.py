@@ -17,7 +17,7 @@ CATALOGUE = os.path.join(RACINE, "Honya", "Localizable.xcstrings")
 
 # Le motif s'arrête au retour à la ligne : sans ça il avale des blocs de
 # code entiers entre deux guillemets éloignés.
-TEXTE = re.compile('"([^"' + chr(92) + chr(10) + ']{6,})"')
+TEXTE = re.compile('"([^"' + chr(92) + chr(10) + ']{3,})"')
 VERBATIM = re.compile(r'Text\(verbatim: "[^"]*"\)')
 SYMBOLE = re.compile(r"^[a-z0-9.]+$")
 # Clés d'UserDefaults et autres identifiants techniques.
@@ -38,6 +38,8 @@ def main(fichiers):
                 continue
             cles.add(trouve)
 
+    # Les identifiants techniques passent, mais pas un texte accentué :
+    # « Alertes à chaque nouveau tome » avait été pris pour du code.
     manque = sorted(c for c in cles if c not in connues)
     print(f"{len(manque)} clé(s) absente(s) du catalogue :")
     for cle in manque:
