@@ -7,7 +7,7 @@ import SwiftUI
 /// concernés, et une seule offre : une seule décision à prendre. Sans verrou —
 /// depuis les réglages — il déroule tout, avec les trois tarifs.
 ///
-/// Refuser mène à la roue, une fois par personne.
+/// Fermer l'écran propose la roue promotionnelle, une fois par personne.
 struct HonyaPlusView: View {
     var verrou: Verrou?
 
@@ -329,7 +329,6 @@ struct HonyaPlusView: View {
             HStack {
                 Spacer()
                 Button {
-                    // Refuser mène à la roue, une fois par personne.
                     if RoueSheet.disponible {
                         roueVisible = true
                     } else {

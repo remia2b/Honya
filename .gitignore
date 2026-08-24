@@ -21,3 +21,7 @@ Design/reference.png
 
 # Cache Python des scripts de Design/
 __pycache__/
+
+# Documents de travail : maquettes, stratégie tarifaire, inventaire.
+# Ils restent sur le disque, ils ne regardent pas le dépôt.
+Design/maquettes/

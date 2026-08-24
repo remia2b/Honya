@@ -1,16 +1,13 @@
 import SwiftUI
 
-/// La roue de la deuxième chance, au refus de l'écran Honya+.
+/// La roue promotionnelle, proposée au refus de l'écran Honya+.
 ///
-/// Elle n'apparaît qu'une fois par personne, et jamais à l'ouverture de l'app.
-/// Trois temps : un premier tour qui ne donne rien, une PAGE À PART qui accorde
-/// une deuxième chance, puis le tour gagnant. Annoncer la perte et la seconde
-/// chance sur le même écran passerait inaperçu — c'est le moment qui fait
-/// basculer, il lui faut sa page.
+/// Elle n'apparaît qu'une fois par personne, et jamais à l'ouverture de
+/// l'application. Le parcours tient en trois temps : un tour, une page
+/// intermédiaire, puis l'offre. Chacun a sa page pour rester lisible.
 ///
-/// Le gain n'invente pas un prix : il révèle une offre d'introduction qui
-/// existe déjà dans App Store Connect. La roue est la mise en scène, pas la
-/// facturation.
+/// L'offre n'invente pas un prix : elle révèle un tarif d'introduction déclaré
+/// dans App Store Connect. La roue est la présentation, pas la facturation.
 struct RoueSheet: View {
     /// Appelé quand tout est fini, pour refermer l'écran Honya+ derrière.
     var surFermeture: () -> Void = {}
@@ -29,8 +26,8 @@ struct RoueSheet: View {
 
     private var sombre: Bool { apparence == .dark }
 
-    /// Une seule fois par personne : la deuxième chance n'en est une que si
-    /// elle ne revient pas tous les jours.
+    /// Une seule fois par personne : une offre qui revient tous les jours
+    /// n'est plus une offre.
     @MainActor
     static var disponible: Bool {
         !UserDefaults.standard.bool(forKey: "roueUtilisee") && !Droits.partage.plus
@@ -430,8 +427,7 @@ struct RoueSheet: View {
 
     private func tourner() {
         let premierTour = etape == .avantPremier
-        // Un secteur perdant au premier tour, le meilleur au second : la
-        // « deuxième chance » n'en est pas une, et c'est assumé.
+        // Le secteur d'arrivée est fixé par le parcours promotionnel.
         let cible = premierTour ? 5 : 0
         let tours = premierTour ? 4 : 6
 
