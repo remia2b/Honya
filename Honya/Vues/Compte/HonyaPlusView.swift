@@ -27,23 +27,28 @@ struct HonyaPlusView: View {
         ZStack {
             fond.ignoresSafeArea()
 
-            ScrollView {
-                VStack(spacing: 0) {
-                    if contextuel, let verrou {
-                        enTeteContexte(verrou)
-                    } else {
-                        enTeteListe
-                    }
+            GeometryReader { geo in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        if contextuel, let verrou {
+                            enTeteContexte(verrou)
+                        } else {
+                            enTeteListe
+                        }
 
-                    if !contextuel {
-                        avantages
-                    }
+                        if !contextuel {
+                            avantages
+                        }
 
-                    offres
+                        offres
+                    }
+                    .padding(.bottom, 20)
+                    // Centré tant que ça tient : l'écran contextuel, plus
+                    // court, laissait sinon un vide sous son tarif.
+                    .frame(maxWidth: .infinity, minHeight: contextuel ? geo.size.height - 60 : 0)
                 }
-                .padding(.bottom, 20)
+                .scrollBounceBehavior(.basedOnSize)
             }
-            .scrollBounceBehavior(.basedOnSize)
             .safeAreaInset(edge: .bottom) { bouton }
 
             fermer

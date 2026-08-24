@@ -58,11 +58,14 @@ struct RoueSheet: View {
         Double(index) * part + part / 2
     }
 
-    /// L'inclinaison de l'étiquette. Dans la moitié basse de la roue, on la
-    /// retourne : sans ça elle se lirait à l'envers.
+    /// L'inclinaison de l'étiquette, posée le long du rayon comme sur une
+    /// vraie roue de foire. À droite elle se lit vers l'extérieur, à gauche
+    /// vers le centre : dans les deux cas elle reste debout. Ma première
+    /// version basculait sur la moitié BASSE au lieu de la moitié GAUCHE, et
+    /// la moitié des étiquettes se lisaient la tête en bas.
     private static func orientation(_ index: Int) -> Double {
         let angle = milieu(index)
-        return (angle > 90 && angle < 270) ? angle - 90 : angle + 90
+        return angle < 180 ? angle - 90 : angle + 90
     }
 
     /// Où poser l'étiquette d'un secteur. Sortie de la vue : l'inférence de
