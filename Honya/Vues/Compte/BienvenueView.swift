@@ -173,17 +173,18 @@ struct BienvenueView: View {
         }
     }
 
-    /// Le voile : RIEN sur les livres — ils se montrent tels quels — puis un
-    /// dégradé franc qui devient complètement opaque sous le titre et les
-    /// boutons. Deux zones nettes, pas de pénombre posée sur les couvertures.
+    /// Le voile : RIEN sur les livres — ils se montrent tels quels — puis une
+    /// pénombre qui s'installe sous le titre et les boutons SANS jamais
+    /// devenir opaque : les couvertures restent en fantôme derrière.
     private var voile: some View {
         let fond = Color(uiColor: .systemBackground)
         return LinearGradient(
             stops: [
                 .init(color: fond.opacity(0), location: 0),
                 .init(color: fond.opacity(0), location: 0.40),
-                .init(color: fond.opacity(0.86), location: 0.54),
-                .init(color: fond, location: 0.62),
+                .init(color: fond.opacity(0.78), location: 0.56),
+                .init(color: fond.opacity(0.90), location: 0.74),
+                .init(color: fond.opacity(0.93), location: 1),
             ],
             startPoint: .top, endPoint: .bottom
         )
@@ -200,7 +201,9 @@ struct BienvenueView: View {
                     .font(.system(size: 46, weight: .semibold, design: .serif))
                 Text("Rangez vos livres, suivez vos lectures.")
                     .font(.system(size: 17))
-                    .foregroundStyle(.secondary)
+                    // Le gris secondaire s'éteignait sur la pénombre :
+                    // l'accroche prend la même encre que le titre, adoucie.
+                    .foregroundStyle(.primary.opacity(0.85))
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 26)
