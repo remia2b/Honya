@@ -148,19 +148,19 @@ struct HonyaPlusView: View {
     private var enTeteListe: some View {
         VStack(alignment: .leading, spacing: 0) {
             rayon
-                .frame(height: 128)
+                .frame(height: 108)
                 .clipped()
-                .padding(.bottom, 22)
+                .padding(.bottom, 16)
 
             HStack(spacing: 0) {
                 Text(verbatim: "Honya")
-                    .font(.system(size: 38, weight: .semibold, design: .serif))
+                    .font(.system(size: 34, weight: .semibold, design: .serif))
                 Text(verbatim: "+")
-                    .font(.system(size: 38, weight: .semibold, design: .serif))
+                    .font(.system(size: 34, weight: .semibold, design: .serif))
                     .foregroundStyle(Couleurs.accent)
             }
             Text("Le libraire qui range à votre place.")
-                .font(.system(size: 22, design: .serif))
+                .font(.system(size: 19, design: .serif))
                 .foregroundStyle(.secondary)
                 .padding(.top, 6)
         }
@@ -181,7 +181,7 @@ struct HonyaPlusView: View {
             HStack(spacing: 8) {
                 ForEach(Array(urls.enumerated()), id: \.offset) { rang, url in
                     CouvertureView(urlString: url, titre: "", coins: 5, cote: 400)
-                        .frame(width: 82, height: 123)
+                        .frame(width: 70, height: 105)
                         .offset(y: Double(rang) * 6)
                 }
             }
@@ -196,7 +196,7 @@ struct HonyaPlusView: View {
     // MARK: - Les avantages
 
     private var avantages: some View {
-        VStack(alignment: .leading, spacing: 17) {
+        VStack(alignment: .leading, spacing: 13) {
             avantage("books.vertical.fill", "Séries automatiques sans limite",
                      "un tome ajouté, tout le rayon apparaît")
             avantage("bell.badge.fill", "Alertes à chaque nouveau tome",
@@ -209,7 +209,7 @@ struct HonyaPlusView: View {
                      "sans compteur qui vous arrête")
         }
         .padding(.horizontal, 28)
-        .padding(.top, 26)
+        .padding(.top, 20)
     }
 
     private func avantage(
@@ -223,7 +223,7 @@ struct HonyaPlusView: View {
                 .background(Couleurs.accent.opacity(0.13), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             VStack(alignment: .leading, spacing: 1) {
                 Text(titre).font(.system(size: 15.5, weight: .semibold))
-                Text(detail).font(.system(size: 13.5)).foregroundStyle(.secondary)
+                Text(detail).font(.system(size: 13)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
         }
@@ -244,7 +244,7 @@ struct HonyaPlusView: View {
             }
         }
         .padding(.horizontal, 24)
-        .padding(.top, 22)
+        .padding(.top, 16)
     }
 
     private func tarif(
@@ -260,7 +260,7 @@ struct HonyaPlusView: View {
             Text(prix).font(.system(size: 19, weight: .semibold, design: .serif))
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 13)
+        .padding(.vertical, 11)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(choisi ? Couleurs.accent.opacity(0.07) : .clear)
@@ -335,8 +335,11 @@ struct HonyaPlusView: View {
                     Image(systemName: "xmark")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(.secondary)
-                        .frame(width: 30, height: 30)
-                        .background(Color.primary.opacity(0.07), in: Circle())
+                        .frame(width: 32, height: 32)
+                        // Un fond translucide plutôt qu'une teinte : la croix
+                        // se posait sur les couvertures et s'y perdait.
+                        .background(.regularMaterial, in: Circle())
+                        .shadow(color: .black.opacity(0.14), radius: 5, y: 2)
                 }
                 .buttonStyle(.plain)
             }

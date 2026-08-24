@@ -83,18 +83,23 @@ struct RoueSheet: View {
 
             // Le contenu défile si l'écran est petit ; les boutons, eux,
             // vivent dans une zone ancrée et ne peuvent jamais être coupés.
-            ScrollView {
-                VStack(spacing: 0) {
-                    if etape == .gagne {
-                        gain
-                    } else {
-                        entete
-                        roue.padding(.top, 22).padding(.bottom, 26)
+            GeometryReader { geo in
+                ScrollView {
+                    VStack(spacing: 0) {
+                        if etape == .gagne {
+                            gain
+                        } else {
+                            entete
+                            roue.padding(.top, 22).padding(.bottom, 26)
+                        }
                     }
+                    // Centré tant que ça tient, défilant au-delà : sans la
+                    // hauteur minimale, le contenu se collait en haut et
+                    // laissait un grand vide sous lui.
+                    .frame(maxWidth: .infinity, minHeight: geo.size.height)
                 }
-                .frame(maxWidth: .infinity)
+                .scrollBounceBehavior(.basedOnSize)
             }
-            .scrollBounceBehavior(.basedOnSize)
             .safeAreaInset(edge: .bottom) {
                 (etape == .gagne ? AnyView(actionGain) : AnyView(action))
                     .padding(.bottom, 12)
