@@ -181,11 +181,11 @@ struct BienvenueView: View {
         let fond = Color(uiColor: .systemBackground)
         return LinearGradient(
             stops: [
-                .init(color: fond.opacity(0.38), location: 0),
-                .init(color: fond.opacity(0.30), location: 0.28),
-                .init(color: fond.opacity(0.58), location: 0.55),
-                .init(color: fond.opacity(0.80), location: 0.74),
-                .init(color: fond.opacity(0.90), location: 1),
+                .init(color: fond.opacity(0.46), location: 0),
+                .init(color: fond.opacity(0.40), location: 0.28),
+                .init(color: fond.opacity(0.68), location: 0.55),
+                .init(color: fond.opacity(0.88), location: 0.74),
+                .init(color: fond.opacity(0.96), location: 1),
             ],
             startPoint: .top, endPoint: .bottom
         )
