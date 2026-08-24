@@ -262,6 +262,13 @@ final class Serie {
 
     var couvertureAffichee: String? { couvertureLocaleURL ?? couvertureURL }
 
+    /// Vrai dès que Honya a posé le rayon entier de cette série. Sert de
+    /// compteur : le gratuit en remplit trois, pas davantage.
+    var rayonComplet: Bool = false
+    /// Vrai quand le rayon a été demandé mais refusé faute d'abonnement :
+    /// la fiche propose alors de l'ouvrir.
+    var rayonRefuse: Bool = false
+
     var resumeAffiche: String? { resumeLocal ?? resume }
 
     var tomesTries: [Tome] { tomes.sorted { $0.numero < $1.numero } }

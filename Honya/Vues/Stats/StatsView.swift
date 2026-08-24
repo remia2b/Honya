@@ -7,6 +7,13 @@ import Charts
 /// des compteurs AUTOMATIQUES — possédés, lus, pages… tout se déduit des
 /// étagères, sans que le lecteur n'ait rien à saisir.
 struct StatsView: View {
+    @State private var plusVisible = false
+
+    /// Le minuteur n'est jamais coupé ; c'est sa mémoire qui est courte.
+    private var fenetre: Int {
+        Droits.partage.plus ? 30 : Limites.joursHistorique
+    }
+
     @Query private var sessions: [SessionLecture]
     @Query private var exemplaires: [Exemplaire]
     @Query private var series: [Serie]
@@ -39,16 +46,50 @@ struct StatsView: View {
                     bandeTemps
                     bandeBibliotheque
                     bandeDefi
-                    bandeMois
-                    bandeGenres
-                    bandeRecords
+                    // La mémoire longue est ce que Honya+ ouvre : on la montre
+                    // floutée plutôt que de la cacher. On ne dissimule pas ce
+                    // qu'on vend, et les données restent enregistrées.
+                    sousVerrou { bandeMois }
+                    sousVerrou { bandeGenres }
+                    sousVerrou { bandeRecords }
                     bandeBadges
                     bandeRetrospective
                 }
                 .padding(.bottom, 24)
             }
             .background(Color(uiColor: .systemBackground))
+            .ecranHonyaPlus($plusVisible, verrou: .statistiques())
             .toolbar(.hidden, for: .navigationBar)
+        }
+    }
+
+    /// Une bande qu'on voit sans pouvoir la lire : le flou dit qu'il y a
+    /// quelque chose, le cadenas dit comment l'ouvrir.
+    @ViewBuilder
+    private func sousVerrou<Contenu: View>(@ViewBuilder _ contenu: () -> Contenu) -> some View {
+        if Droits.partage.plus {
+            contenu()
+        } else {
+            ZStack {
+                contenu()
+                    .blur(radius: 7)
+                    .disabled(true)
+                    .allowsHitTesting(false)
+
+                Button { plusVisible = true } label: {
+                    VStack(spacing: 8) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 42, height: 42)
+                            .background(Couleurs.accent, in: Circle())
+                        Text("Ouvrir tout l'historique")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(Couleurs.accent)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
@@ -99,7 +140,7 @@ struct StatsView: View {
     }
 
     private var graphe14Jours: some View {
-        Chart(StatsEngine.derniersJours(14, sessions: sessions)) { jour in
+        Chart(StatsEngine.derniersJours(fenetre, sessions: sessions)) { jour in
             BarMark(
                 x: .value("Jour", jour.date, unit: .day),
                 y: .value("Minutes", jour.minutes)

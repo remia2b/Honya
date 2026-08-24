@@ -17,6 +17,17 @@ enum EditionsLocales {
     /// UNE requête pour toute la série : le catalogue renvoie tous les tomes
     /// d'un coup, on les matche strictement et on remplit tout — série,
     /// couvertures des tomes, résumé. Persisté ensuite : plus jamais redemandé.
+    /// Trois rayons remplis en gratuit. Une série qui en a déjà bénéficié
+    /// garde le sien : on ne reprend jamais un acquis.
+    static func rayonAutorise(_ serie: Serie) -> Bool {
+        if Droits.partage.plus || serie.rayonComplet { return true }
+        guard let contexte = serie.modelContext else { return true }
+        let deja = (try? contexte.fetchCount(
+            FetchDescriptor<Serie>(predicate: #Predicate { $0.rayonComplet })
+        )) ?? 0
+        return deja < Limites.seriesCompletes
+    }
+
     static func rafraichirSerieComplete(_ serie: Serie, langue: String) async {
         let referenceBase = Tomaison.decomposer(
             serie.noms["en"] ?? serie.nomRomaji ?? serie.nom
@@ -72,6 +83,17 @@ enum EditionsLocales {
 
         // Le rayon COMPLET : tout tome du catalogue absent de la série est
         // créé, grisé tant qu'il n'est pas possédé — précommandes comprises.
+        //
+        // C'est LE geste que Honya+ ouvre en grand : le gratuit en remplit
+        // trois, au-delà on ajoute ses tomes à la main. Les éditions locales,
+        // elles, restent gratuites — on ne dégrade pas ce qui est déjà là.
+        guard rayonAutorise(serie) else {
+            serie.rayonRefuse = true
+            return
+        }
+        serie.rayonComplet = true
+        serie.rayonRefuse = false
+
         let numerosConnus = Set(serie.tomes.map(\.numero))
         for (numero, edition) in parNumero where !numerosConnus.contains(numero) {
             let tome = Tome(numero: numero)

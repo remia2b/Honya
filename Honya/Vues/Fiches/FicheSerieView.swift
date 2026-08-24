@@ -34,6 +34,9 @@ struct FicheSerieView: View {
                 }
                 .frame(maxWidth: 280)
                 carteTomes
+                if serie.rayonRefuse && !Droits.partage.plus {
+                    invitationRayon
+                }
                 carteSortie
                 if let resume = serie.resumeAffiche, !resume.isEmpty {
                     carte {
@@ -80,10 +83,16 @@ struct FicheSerieView: View {
         }
         .alerteNouvelleEtagere(.serie(serie), visible: $etagereVisible)
         .fullScreenCover(item: $cibleSession) { SessionLectureView(cible: $0) }
-        .ecranHonyaPlus($plusVisible, verrou: .alerte(
-            nom: serie.nomAffiche(langue),
-            couvertures: [serie.couvertureAffichee].compactMap { $0 }
-        ))
+        .ecranHonyaPlus($plusVisible, verrou: serie.rayonRefuse
+            ? .serie(
+                nom: serie.nomAffiche(langue),
+                tomes: serie.tomesTotal ?? serie.tomes.count,
+                couvertures: couverturesDeLaSerie
+            )
+            : .alerte(
+                nom: serie.nomAffiche(langue),
+                couvertures: couverturesDeLaSerie
+            ))
         .sheet(isPresented: $sortieVisible) {
             SortieSheet(serie: serie, langue: langue)
         }
@@ -300,6 +309,50 @@ struct FicheSerieView: View {
                 await NotificationsService.planifierRappelSortie(pour: serie, langue: langue)
             }
         }
+    }
+
+    /// Quand le rayon automatique a été refusé, la fiche le dit clairement et
+    /// propose de l'ouvrir — plutôt que de laisser croire à un catalogue vide.
+    private var invitationRayon: some View {
+        Button { plusVisible = true } label: {
+            HStack(spacing: 13) {
+                Image(systemName: "books.vertical.fill")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(Couleurs.accent)
+                    .frame(width: 34, height: 34)
+                    .background(Couleurs.accent.opacity(0.14), in: Circle())
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Poser le rayon entier")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Tous les tomes parus et à venir, dates comprises.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Couleurs.accent.opacity(0.07))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Couleurs.accent.opacity(0.28), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Les trois premières couvertures de tomes, pour l'écran Honya+.
+    private var couverturesDeLaSerie: [String] {
+        let tomes = serie.tomesTries.compactMap(\.couvertureURL)
+        return tomes.isEmpty
+            ? [serie.couvertureAffichee].compactMap { $0 }
+            : Array(tomes.prefix(3))
     }
 
     // MARK: - Aide carte

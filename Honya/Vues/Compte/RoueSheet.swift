@@ -36,7 +36,7 @@ struct RoueSheet: View {
     // MARK: - Les secteurs
 
     private struct Secteur {
-        let libelle: LocalizedStringKey
+        let libelle: String
         let gagnant: Bool
         let teinte: Color
     }
@@ -191,7 +191,15 @@ struct RoueSheet: View {
                             Part(index: index, part: Self.part)
                                 .stroke(Color.black.opacity(0.18), lineWidth: 1)
                         )
-                    Text(secteur.libelle)
+                    // Un pourcentage est un nombre, pas un texte : il ne
+                    // passe pas par le catalogue. « Rien », si.
+                    Group {
+                        if secteur.gagnant {
+                            Text(verbatim: secteur.libelle)
+                        } else {
+                            Text("Rien")
+                        }
+                    }
                         .font(.system(size: 15, weight: .heavy))
                         .foregroundStyle(
                             secteur.gagnant ? AnyShapeStyle(Color.white)

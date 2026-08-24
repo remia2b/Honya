@@ -4,6 +4,10 @@ import SwiftData
 /// La fiche d'un titre qu'on n'a pas encore : on la consulte avant de décider,
 /// exactement comme la page produit d'Apple Books quand on vient de la recherche.
 struct ApercuResultatView: View {
+    @Query private var exemplaires: [Exemplaire]
+    @Query private var tousLesTomes: [Tome]
+    @State private var plusVisible = false
+
     let resultat: ResultatRecherche
     let langue: String
 
@@ -97,6 +101,9 @@ struct ApercuResultatView: View {
         .background(fond.ignoresSafeArea())
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
+        .ecranHonyaPlus($plusVisible, verrou: .bibliotheque(
+            couvertures: [resultat.couvertureURL].compactMap { $0 }
+        ))
         .task(id: resultat.couvertureURL) {
             guard let image = await ImageCharge.partage.uiImage(depuis: resultat.couvertureURL),
                   let couleur = CouleurCouverture.teinteDeFond(image)
@@ -200,8 +207,19 @@ struct ApercuResultatView: View {
     }
 
     private func ajouter(_ statut: StatutLecture) {
+        // Le plafond porte sur la collection, jamais sur la consultation :
+        // tout ce qui est déjà rangé reste accessible et lisible.
+        guard Droits.partage.plus || tomesRanges < Limites.tomes else {
+            plusVisible = true
+            return
+        }
         ImportService.ajouter(resultat, statut: statut, dans: contexte)
         withAnimation(.snappy) { ajoute = true }
+    }
+
+    /// Ce que compte le plafond : les livres seuls et les tomes des séries.
+    private var tomesRanges: Int {
+        exemplaires.count + tousLesTomes.count
     }
 
     // MARK: - Aides
