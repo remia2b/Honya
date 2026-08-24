@@ -147,24 +147,27 @@ struct HonyaPlusView: View {
 
     private var enTeteListe: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // Le bandeau va d'un bord à l'autre pour que la rangée déborde à
+            // droite ; seul le texte est en retrait.
             rayon
-                .frame(height: 108)
-                .clipped()
+                .frame(height: 114)
                 .padding(.bottom, 16)
 
-            HStack(spacing: 0) {
-                Text(verbatim: "Honya")
-                    .font(.system(size: 34, weight: .semibold, design: .serif))
-                Text(verbatim: "+")
-                    .font(.system(size: 34, weight: .semibold, design: .serif))
-                    .foregroundStyle(Couleurs.accent)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 0) {
+                    Text(verbatim: "Honya")
+                        .font(.system(size: 34, weight: .semibold, design: .serif))
+                    Text(verbatim: "+")
+                        .font(.system(size: 34, weight: .semibold, design: .serif))
+                        .foregroundStyle(Couleurs.accent)
+                }
+                Text("Le libraire qui range à votre place.")
+                    .font(.system(size: 19, design: .serif))
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 6)
             }
-            Text("Le libraire qui range à votre place.")
-                .font(.system(size: 19, design: .serif))
-                .foregroundStyle(.secondary)
-                .padding(.top, 6)
+            .padding(.horizontal, 28)
         }
-        .padding(.horizontal, 28)
         .padding(.top, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -177,18 +180,19 @@ struct HonyaPlusView: View {
         // Une pile horizontale de sept couvertures mesure plus de 600 points :
         // sa largeur intrinsèque emportait tout l'écran vers la gauche. Le
         // défilement horizontal, lui, se contente de la place offerte.
+        // Ni escalier ni inclinaison : les deux rognaient le bas des
+        // couvertures contre la hauteur du bandeau. Une rangée nette, qui
+        // déborde seulement à droite — une étagère qui continue.
         return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(Array(urls.enumerated()), id: \.offset) { rang, url in
+                ForEach(Array(urls.enumerated()), id: \.offset) { _, url in
                     CouvertureView(urlString: url, titre: "", coins: 5, cote: 400)
-                        .frame(width: 70, height: 105)
-                        .offset(y: Double(rang) * 6)
+                        .frame(width: 76, height: 114)
                 }
             }
-            .padding(.leading, 14)
+            .padding(.leading, 28)
         }
         .scrollDisabled(true)
-        .rotationEffect(.degrees(-4))
         .opacity(apparu ? 1 : 0)
         .animation(.easeOut(duration: 0.7), value: apparu)
     }
