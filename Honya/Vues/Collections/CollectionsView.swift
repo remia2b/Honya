@@ -144,7 +144,9 @@ struct CollectionsView: View {
                     .accessibilityLabel("Nouvelle collection")
             }
         }
-        .ecranHonyaPlus($plusVisible)
+        .ecranHonyaPlus($plusVisible, verrou: .etagere(
+            couvertures: exemplaires.prefix(3).compactMap(\.oeuvre?.couvertureAffichee)
+        ))
         .alert("Nouvelle étagère", isPresented: $creationVisible) {
             TextField("Son nom", text: $nouveauNom)
             Button("Créer") {

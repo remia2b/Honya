@@ -80,7 +80,10 @@ struct FicheSerieView: View {
         }
         .alerteNouvelleEtagere(.serie(serie), visible: $etagereVisible)
         .fullScreenCover(item: $cibleSession) { SessionLectureView(cible: $0) }
-        .ecranHonyaPlus($plusVisible)
+        .ecranHonyaPlus($plusVisible, verrou: .alerte(
+            nom: serie.nomAffiche(langue),
+            couvertures: [serie.couvertureAffichee].compactMap { $0 }
+        ))
         .sheet(isPresented: $sortieVisible) {
             SortieSheet(serie: serie, langue: langue)
         }

@@ -57,8 +57,8 @@ final class CompteurScans {
 extension View {
     /// Ouvre l'écran Honya+ quand `visible` passe à vrai. Le même écran partout :
     /// une seule vue à faire évoluer quand StoreKit arrivera.
-    func ecranHonyaPlus(_ visible: Binding<Bool>) -> some View {
-        sheet(isPresented: visible) { HonyaPlusView() }
+    func ecranHonyaPlus(_ visible: Binding<Bool>, verrou: Verrou? = nil) -> some View {
+        sheet(isPresented: visible) { HonyaPlusView(verrou: verrou) }
     }
 }
 

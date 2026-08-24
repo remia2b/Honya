@@ -49,7 +49,9 @@ struct ScannerSheet: View {
 
                 listeTrouves
             }
-            .ecranHonyaPlus($plusVisible)
+            .ecranHonyaPlus($plusVisible, verrou: .scan(
+                couvertures: trouves.prefix(3).compactMap(\.couvertureURL)
+            ))
             .navigationTitle("Scanner")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -1,97 +1,322 @@
+import SwiftData
 import SwiftUI
 
-/// L'écran Honya+ : ce que l'abonnement apporte, dit dans le ton de l'app.
+/// L'écran Honya+, sous deux formes selon d'où il vient.
 ///
-/// Pendant TestFlight, le bouton active un essai local — les abonnements
-/// StoreKit le remplaceront à la sortie App Store, sans toucher au reste.
+/// Avec un `Verrou`, il montre la chose exacte qui manque, avec les livres
+/// concernés, et une seule offre : une seule décision à prendre. Sans verrou —
+/// depuis les réglages — il déroule tout, avec les trois tarifs.
+///
+/// Refuser mène à la roue, une fois par personne.
 struct HonyaPlusView: View {
+    var verrou: Verrou?
+
     @Environment(\.dismiss) private var dismiss
+    @Query private var oeuvres: [Oeuvre]
+
     @State private var droits = Droits.partage
+    @State private var toutVoir = false
+    @State private var roueVisible = false
+    @State private var apparu = false
+
+    private var contextuel: Bool { verrou != nil && !toutVoir }
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                Image(systemName: "books.vertical.fill")
-                    .font(.system(size: 40))
-                    .foregroundStyle(Couleurs.accent)
-                    .padding(.top, 34)
+        ZStack {
+            Color(uiColor: .systemBackground).ignoresSafeArea()
 
-                Text(verbatim: "Honya+")
-                    .font(.system(size: 40, weight: .semibold, design: .serif))
-                    .padding(.top, 12)
+            ScrollView {
+                VStack(spacing: 0) {
+                    if contextuel, let verrou {
+                        enTeteContexte(verrou)
+                    } else {
+                        enTeteListe
+                    }
 
-                Text("Pour ceux qui vivent dans leur bibliothèque.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 6)
-                    .padding(.horizontal, 30)
+                    if !contextuel {
+                        avantages
+                    }
 
-                VStack(alignment: .leading, spacing: 18) {
-                    avantage("bell.badge.fill", "Alertes de sortie sur toutes vos séries")
-                    avantage("person.badge.clock.fill", "Prêts de livres : qui a quoi, depuis quand")
-                    avantage("barcode.viewfinder", "Scannez des étagères entières")
-                    avantage("chart.bar.fill", "Vos statistiques sur tout l'historique")
-                    avantage("square.grid.2x2.fill", "Étagères illimitées")
-                    avantage("gift.fill", "La rétrospective complète de décembre")
+                    offres
+                    bouton
                 }
-                .padding(26)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    Color(uiColor: .secondarySystemBackground),
-                    in: RoundedRectangle(cornerRadius: 20, style: .continuous)
-                )
-                .padding(.horizontal, 24)
-                .padding(.top, 28)
-
-                Button {
-                    droits.activerEssai()
-                    dismiss()
-                } label: {
-                    Text("Débloquer pour l'essai TestFlight")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 15)
-                        .foregroundStyle(.white)
-                        .background(
-                            Couleurs.accent,
-                            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        )
-                }
-                .buttonStyle(.plain)
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-
-                Text("Les abonnements ouvriront avec la sortie sur l'App Store.")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 12)
-
-                Button("Plus tard") { dismiss() }
-                    .font(.subheadline.weight(.semibold))
-                    .tint(.secondary)
-                    .padding(.top, 18)
-                    .padding(.bottom, 30)
+                .padding(.bottom, 26)
             }
+            .scrollBounceBehavior(.basedOnSize)
+
+            fermer
         }
-        .scrollBounceBehavior(.basedOnSize)
-        .presentationDetents([.large])
+        .animation(.snappy(duration: 0.3), value: toutVoir)
+        .onAppear { withAnimation(.easeOut(duration: 0.55)) { apparu = true } }
+        .fullScreenCover(isPresented: $roueVisible) {
+            RoueSheet { dismiss() }
+        }
     }
 
-    private func avantage(_ symbole: String, _ texte: LocalizedStringKey) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 14) {
-            Image(systemName: symbole)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(Couleurs.accent)
-                .frame(width: 24)
-            Text(texte)
-                .font(.subheadline)
-                .fixedSize(horizontal: false, vertical: true)
+    // MARK: - En-tête contextuel : les livres concernés
+
+    private func enTeteContexte(_ verrou: Verrou) -> some View {
+        VStack(spacing: 0) {
+            eventail(verrou)
+                .padding(.top, 40)
+                .padding(.bottom, 30)
+
+            Text(verrou.titre)
+                .font(.system(size: 30, weight: .semibold, design: .serif))
+                .multilineTextAlignment(.center)
+            Text(verrou.detail)
+                .font(.system(size: 16))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 10)
         }
+        .padding(.horizontal, 30)
+        .padding(.bottom, 26)
+    }
+
+    /// Trois couvertures en éventail, avec le cadenas posé dessus. Faute de
+    /// couvertures, le symbole du verrou suffit.
+    private func eventail(_ verrou: Verrou) -> some View {
+        let couvertures = Array(verrou.couvertures.prefix(3))
+        return ZStack {
+            if couvertures.isEmpty {
+                Image(systemName: verrou.symbole)
+                    .font(.system(size: 52, weight: .semibold))
+                    .foregroundStyle(Couleurs.accent)
+                    .frame(height: 180)
+            } else {
+                ForEach(Array(couvertures.enumerated()), id: \.offset) { rang, url in
+                    let ecart = Double(rang) - Double(couvertures.count - 1) / 2
+                    CouvertureView(urlString: url, titre: "", coins: 7, cote: 400)
+                        .frame(width: 116, height: 174)
+                        .shadow(color: .black.opacity(0.28), radius: 14, y: 8)
+                        .rotationEffect(.degrees(ecart * 8))
+                        .offset(x: ecart * 74, y: abs(ecart) * 10)
+                        .zIndex(ecart == 0 ? 2 : 1)
+                        .scaleEffect(apparu ? 1 : 0.9)
+                        .opacity(apparu ? 1 : 0)
+                        .animation(
+                            .spring(duration: 0.6).delay(Double(rang) * 0.06),
+                            value: apparu
+                        )
+                }
+            }
+
+            Image(systemName: "lock.fill")
+                .font(.system(size: 20, weight: .bold))
+                .foregroundStyle(.white)
+                .frame(width: 52, height: 52)
+                .background(Couleurs.accent, in: Circle())
+                .shadow(color: Couleurs.accent.opacity(0.5), radius: 12, y: 4)
+                .zIndex(3)
+                .scaleEffect(apparu ? 1 : 0.4)
+                .animation(.spring(duration: 0.5).delay(0.24), value: apparu)
+        }
+        .frame(height: 190)
+    }
+
+    // MARK: - En-tête complet : le rayon et la promesse
+
+    private var enTeteListe: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            rayon
+                .frame(height: 128)
+                .clipped()
+                .padding(.bottom, 22)
+
+            HStack(spacing: 0) {
+                Text(verbatim: "Honya")
+                    .font(.system(size: 38, weight: .semibold, design: .serif))
+                Text(verbatim: "+")
+                    .font(.system(size: 38, weight: .semibold, design: .serif))
+                    .foregroundStyle(Couleurs.accent)
+            }
+            Text("Le libraire qui range à votre place.")
+                .font(.system(size: 22, design: .serif))
+                .foregroundStyle(.secondary)
+                .padding(.top, 6)
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Les couvertures du lecteur si sa bibliothèque en a, sinon rien : mieux
+    /// vaut pas de rayon qu'un rayon de cases vides.
+    private var rayon: some View {
+        let urls = oeuvres.compactMap(\.couvertureAffichee).shuffled().prefix(7)
+        return HStack(spacing: 8) {
+            ForEach(Array(urls.enumerated()), id: \.offset) { rang, url in
+                CouvertureView(urlString: url, titre: "", coins: 5, cote: 400)
+                    .frame(width: 82, height: 123)
+                    .offset(y: Double(rang) * 6)
+            }
+        }
+        .rotationEffect(.degrees(-4))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, 14)
+        .opacity(apparu ? 1 : 0)
+        .animation(.easeOut(duration: 0.7), value: apparu)
+    }
+
+    // MARK: - Les avantages
+
+    private var avantages: some View {
+        VStack(alignment: .leading, spacing: 17) {
+            avantage("books.vertical.fill", "Séries automatiques sans limite",
+                     "un tome ajouté, tout le rayon apparaît")
+            avantage("bell.badge.fill", "Alertes à chaque nouveau tome",
+                     "sur toutes vos séries, pas une seule")
+            avantage("barcode.viewfinder", "Scan illimité, étagères entières",
+                     "une rangée de codes-barres à la volée")
+            avantage("chart.bar.fill", "Tout votre historique de lecture",
+                     "records, heatmap de l'année, humeurs")
+            avantage("heart.fill", "Prêts, citations et étagères",
+                     "sans compteur qui vous arrête")
+        }
+        .padding(.horizontal, 28)
+        .padding(.top, 26)
+    }
+
+    private func avantage(
+        _ symbole: String, _ titre: LocalizedStringKey, _ detail: LocalizedStringKey
+    ) -> some View {
+        HStack(alignment: .top, spacing: 13) {
+            Image(systemName: symbole)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(Couleurs.accent)
+                .frame(width: 26, height: 26)
+                .background(Couleurs.accent.opacity(0.13), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            VStack(alignment: .leading, spacing: 1) {
+                Text(titre).font(.system(size: 15.5, weight: .semibold))
+                Text(detail).font(.system(size: 13.5)).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    // MARK: - Les tarifs
+
+    private var offres: some View {
+        VStack(spacing: 9) {
+            if contextuel {
+                tarif("Honya+ annuel", "7 jours offerts, puis 2,50 €/mois",
+                      "29,99 €", choisi: true)
+            } else {
+                tarif("Mensuel", "sans engagement", "4,99 €", choisi: false)
+                tarif("Annuel", "2,50 € par mois", "29,99 €",
+                      choisi: true, ruban: "7 jours offerts")
+                tarif("À vie", "une seule fois", "69,99 €", choisi: false)
+            }
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 22)
+    }
+
+    private func tarif(
+        _ nom: LocalizedStringKey, _ detail: LocalizedStringKey,
+        _ prix: String, choisi: Bool, ruban: LocalizedStringKey? = nil
+    ) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(nom).font(.system(size: 16, weight: .semibold))
+                Text(detail).font(.system(size: 12.5)).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            Text(prix).font(.system(size: 19, weight: .semibold, design: .serif))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(choisi ? Couleurs.accent.opacity(0.07) : .clear)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(
+                    choisi ? Couleurs.accent : Color.primary.opacity(0.13),
+                    lineWidth: choisi ? 2 : 1.5
+                )
+        )
+        .overlay(alignment: .topLeading) {
+            if let ruban {
+                Text(ruban)
+                    .font(.system(size: 10.5, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 2)
+                    .background(Couleurs.accent, in: Capsule())
+                    .offset(x: 14, y: -9)
+            }
+        }
+    }
+
+    // MARK: - Le bas
+
+    private var bouton: some View {
+        VStack(spacing: 0) {
+            Button {
+                // Pendant TestFlight : déblocage local, sans achat.
+                droits.activerEssai()
+                dismiss()
+            } label: {
+                Text("Essayer 7 jours gratuitement")
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .foregroundStyle(.white)
+                    .background(Couleurs.accent, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            }
+            .buttonStyle(.plain)
+
+            if contextuel {
+                Button("Voir toutes les offres") { toutVoir = true }
+                    .font(.system(size: 14.5, weight: .semibold))
+                    .padding(.top, 13)
+            }
+
+            Text("Puis 29,99 €/an. Résiliable à tout moment.")
+                .font(.system(size: 11.5))
+                .foregroundStyle(.tertiary)
+                .padding(.top, 11)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 18)
+    }
+
+    private var fermer: some View {
+        VStack {
+            HStack {
+                Spacer()
+                Button {
+                    // Refuser mène à la roue, une fois par personne.
+                    if RoueSheet.disponible {
+                        roueVisible = true
+                    } else {
+                        dismiss()
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 30, height: 30)
+                        .background(Color.primary.opacity(0.07), in: Circle())
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
     }
 }
 
-#Preview {
+#Preview("Contexte") {
+    HonyaPlusView(verrou: .serie(nom: "Chainsaw Man", tomes: 27, couvertures: []))
+        .modelContainer(Apercu.conteneur)
+}
+
+#Preview("Liste") {
     HonyaPlusView()
+        .modelContainer(Apercu.conteneur)
 }

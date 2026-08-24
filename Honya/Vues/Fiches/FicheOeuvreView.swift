@@ -110,9 +110,10 @@ private struct ContenuFicheOeuvre: View {
         .sheet(isPresented: $pretVisible) {
             PreterSheet(exemplaire: exemplaire, titre: oeuvre.titre(langue))
         }
-        .sheet(isPresented: $plusVisible) {
-            HonyaPlusView()
-        }
+        .ecranHonyaPlus($plusVisible, verrou: .pret(
+            titre: oeuvre.titre(langue),
+            couvertures: [oeuvre.couvertureAffichee].compactMap { $0 }
+        ))
         .confirmationDialog(
             "Retirer « \(oeuvre.titre(langue)) » de la bibliothèque ?",
             isPresented: $confirmerSuppression,
@@ -650,7 +651,9 @@ struct ListeCitationsView: View {
                 }
             }
         }
-        .ecranHonyaPlus($plusVisible)
+        .ecranHonyaPlus($plusVisible, verrou: .citation(
+            couvertures: [oeuvre.couvertureAffichee].compactMap { $0 }
+        ))
         .sheet(isPresented: $ajoutVisible) {
             NavigationStack {
                 Form {
