@@ -1,16 +1,30 @@
 import AuthenticationServices
+import SwiftData
 import SwiftUI
 
-/// La toute première page : une étagère qui s'ouvre, le nom en serif, et deux
-/// chemins pour entrer — l'identifiant Apple, ou une adresse e-mail. Même
-/// grammaire visuelle que le reste de l'app.
+/// La toute première page : un mur de couvertures qui dérive lentement, le nom
+/// en serif, et deux chemins pour entrer — l'identifiant Apple, ou une adresse
+/// e-mail.
+///
+/// Le mur montre les livres du lecteur dès qu'il en a : l'écran d'accueil
+/// devient le sien. Sinon, les meilleures ventes de son pays. Sans réseau,
+/// `CouvertureView` dessine ses couvertures de secours, et la mise en page
+/// tient quand même.
 struct BienvenueView: View {
     @Environment(\.colorScheme) private var apparence
+    @Environment(\.accessibilityReduceMotion) private var mouvementReduit
+
+    @Query private var oeuvres: [Oeuvre]
+    @Query private var series: [Serie]
+    @Query private var objectifs: [Objectif]
+
     @State private var compte = Compte.partage
-    @State private var mode: Mode = .inscription
-    @State private var parEmail = false
+    @State private var vignettes: [Vignette] = []
+    @State private var defile = false
     @State private var apparu = false
 
+    @State private var parEmail = false
+    @State private var mode: Mode = .inscription
     @State private var email = ""
     @State private var motDePasse = ""
     @State private var enCours = false
@@ -34,50 +48,287 @@ struct BienvenueView: View {
         }
     }
 
+    /// Une case du mur. Le titre ne sert que si l'image manque — `CouvertureView`
+    /// dessine alors une couverture, plutôt qu'un rectangle vide.
+    private struct Vignette: Identifiable, Hashable {
+        let id: String
+        let url: String?
+        let titre: String
+        let manga: Bool
+    }
+
+    // Trois colonnes qui se recouvrent : le nombre de couvertures par colonne
+    // se déduit de la hauteur de l'écran, il n'est pas figé.
+    private static let colonnes = 3
+    private static let ecart: CGFloat = 9
+    private static let marge: CGFloat = 5
+    /// Les colonnes ne démarrent pas au même endroit, sinon les couvertures
+    /// forment des rangées bien alignées et le mur perd sa vie. Exprimé en
+    /// fraction d'une couverture, jamais plus d'une : au-delà, la boucle
+    /// laisserait le bas de l'écran à découvert.
+    private static let departs: [CGFloat] = [-0.10, -0.55, -0.28]
+    private static let durees: [Double] = [66, 78, 58]
+
+    private var langue: String {
+        objectifs.first?.languePrincipale ?? Langues.codeAppareil
+    }
+
     var body: some View {
         ZStack {
-            fond.ignoresSafeArea()
+            Color(uiColor: .systemBackground).ignoresSafeArea()
 
-            ScrollView {
-                VStack(spacing: 0) {
-                    if !parEmail {
-                        etagere.padding(.bottom, 30)
-                    }
-
-                    VStack(spacing: 9) {
-                        Text("Honya")
-                            .font(.system(size: parEmail ? 34 : 46, weight: .semibold, design: .serif))
-                        Text(parEmail ? sousTitreEmail : "Votre bibliothèque, tome après tome.")
-                            .font(parEmail ? .subheadline : .title3)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(.horizontal, 32)
-                    .padding(.top, parEmail ? 24 : 0)
-
-                    if parEmail {
-                        formulaire
-                            .padding(.horizontal, 28)
-                            .padding(.top, 26)
-                    } else {
-                        arguments
-                            .padding(.horizontal, 34)
-                            .padding(.top, 30)
-                    }
-
-                    actions
-                        .padding(.horizontal, 28)
-                        .padding(.top, 26)
-                        .padding(.bottom, 24)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.top, parEmail ? 8 : 20)
+            if !parEmail {
+                mur.ignoresSafeArea()
+                voile.ignoresSafeArea()
             }
-            .scrollBounceBehavior(.basedOnSize)
-            .scrollDismissesKeyboard(.interactively)
+
+            if parEmail {
+                ecranEmail
+            } else {
+                ecranAccueil
+            }
         }
         .animation(.snappy(duration: 0.3), value: parEmail)
-        .onAppear { withAnimation(.spring(duration: 0.9)) { apparu = true } }
+        .task { await chargerLeMur() }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.7)) { apparu = true }
+        }
+    }
+
+    // MARK: - Le mur
+
+    /// Chaque colonne dérive à sa vitesse, en sens alterné.
+    ///
+    /// Le jeu de couvertures est posé DEUX fois et l'animation parcourt
+    /// exactement la hauteur d'un jeu : quand le premier exemplaire a fini de
+    /// sortir, le second est précisément à sa place, et la boucle ne se voit
+    /// pas. Le jeu compte une couverture de plus que nécessaire pour couvrir
+    /// l'écran, ce qui laisse assez de marge pour décaler les colonnes sans
+    /// jamais découvrir le bas.
+    private var mur: some View {
+        GeometryReader { geo in
+            let largeur = (geo.size.width - Self.marge * 2
+                           - Self.ecart * CGFloat(Self.colonnes - 1)) / CGFloat(Self.colonnes)
+            let pas = largeur * 1.5 + Self.ecart
+            let parColonne = Int(ceil(geo.size.height / pas)) + 1
+            let course = pas * CGFloat(parColonne)
+
+            HStack(alignment: .top, spacing: Self.ecart) {
+                ForEach(0..<Self.colonnes, id: \.self) { index in
+                    colonne(index, largeur: largeur, pas: pas,
+                            parColonne: parColonne, course: course)
+                }
+            }
+            .padding(.horizontal, Self.marge)
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+            .clipped()
+        }
+        .opacity(apparu ? 1 : 0)
+        .onAppear {
+            // Le défilement ne démarre qu'une fois : l'animation est
+            // perpétuelle, la relancer la ferait sauter.
+            guard !mouvementReduit, !defile else { return }
+            defile = true
+        }
+    }
+
+    private func colonne(
+        _ index: Int, largeur: CGFloat, pas: CGFloat,
+        parColonne: Int, course: CGFloat
+    ) -> some View {
+        let depart = Self.departs[index % Self.departs.count] * pas
+        // La colonne du milieu descend pendant que les autres montent.
+        let versLeHaut = index != 1
+        let jeu = vignettesDeLaColonne(index, combien: parColonne)
+
+        return VStack(spacing: Self.ecart) {
+            ForEach(Array((jeu + jeu).enumerated()), id: \.offset) { _, vignette in
+                CouvertureView(
+                    urlString: vignette.url,
+                    titre: vignette.titre,
+                    coins: 5,
+                    manga: vignette.manga,
+                    cote: 400          // affichée sur ~120 points : inutile d'aller plus haut
+                )
+                .frame(width: largeur)
+                .shadow(color: .black.opacity(0.18), radius: 9, y: 5)
+            }
+        }
+        .offset(y: depart + (defile == versLeHaut ? -course : 0))
+        .animation(
+            defile
+                ? .linear(duration: Self.durees[index % Self.durees.count])
+                    .repeatForever(autoreverses: false)
+                : nil,
+            value: defile
+        )
+    }
+
+    private func vignettesDeLaColonne(_ index: Int, combien: Int) -> [Vignette] {
+        guard !vignettes.isEmpty else {
+            // Avant l'arrivée des données : des cases sans titre, que
+            // CouvertureView remplit de ses dégradés. La mise en page ne bouge
+            // pas quand les vraies couvertures se posent.
+            return (0..<combien).map {
+                Vignette(id: "vide-\(index)-\($0)", url: nil, titre: "", manga: false)
+            }
+        }
+        return (0..<combien).map { rang in
+            vignettes[(index * combien + rang) % vignettes.count]
+        }
+    }
+
+    /// Le voile qui ramène le mur au fond : transparent en haut pour laisser
+    /// voir les livres, opaque en bas pour que le texte se lise sans effort.
+    private var voile: some View {
+        let fond = Color(uiColor: .systemBackground)
+        return LinearGradient(
+            stops: [
+                .init(color: fond.opacity(0.42), location: 0),
+                .init(color: fond.opacity(0), location: 0.16),
+                .init(color: fond.opacity(0), location: 0.33),
+                .init(color: fond.opacity(0.90), location: 0.53),
+                .init(color: fond, location: 0.63),
+            ],
+            startPoint: .top, endPoint: .bottom
+        )
+    }
+
+    // MARK: - L'accueil
+
+    private var ecranAccueil: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+
+            VStack(spacing: 10) {
+                Text("Honya")
+                    .font(.system(size: 46, weight: .semibold, design: .serif))
+                Text("Rangez vos livres, suivez vos lectures.")
+                    .font(.system(size: 17))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.horizontal, 26)
+            .padding(.bottom, 28)
+
+            entrees
+        }
+        .opacity(apparu ? 1 : 0)
+        .offset(y: apparu ? 0 : 14)
+        .animation(.easeOut(duration: 0.6).delay(0.15), value: apparu)
+    }
+
+    private var entrees: some View {
+        VStack(spacing: 12) {
+            SignInWithAppleButton(
+                .signIn,
+                onRequest: { compte.preparerDemandeApple($0) },
+                onCompletion: { traiterApple($0) }
+            )
+            .signInWithAppleButtonStyle(apparence == .dark ? .white : .black)
+            .frame(height: 50)
+            .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+
+            Button {
+                erreur = nil
+                information = nil
+                parEmail = true
+            } label: {
+                Text("Continuer avec un e-mail")
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        Color.primary.opacity(0.06),
+                        in: RoundedRectangle(cornerRadius: 15, style: .continuous)
+                    )
+            }
+            .buttonStyle(.plain)
+
+            Button("Continuer sans compte") {
+                compte.continuerSansCompte()
+            }
+            .font(.system(size: 15))
+            .tint(.secondary)
+            .padding(.top, 4)
+        }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 34)
+    }
+
+    // MARK: - L'entrée par e-mail
+
+    private var ecranEmail: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                HStack {
+                    Button {
+                        champActif = nil
+                        erreur = nil
+                        information = nil
+                        parEmail = false
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 17, weight: .semibold))
+                            .frame(width: 36, height: 36)
+                            .background(Color.primary.opacity(0.06), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    Spacer()
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 18)
+
+                VStack(spacing: 8) {
+                    Text("Honya")
+                        .font(.system(size: 34, weight: .semibold, design: .serif))
+                    Text(sousTitreEmail)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 32)
+
+                Picker("", selection: $mode) {
+                    ForEach(Mode.allCases) { cas in
+                        Text(cas.libelle).tag(cas)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal, 28)
+                .padding(.top, 24)
+                .onChange(of: mode) { _, _ in
+                    erreur = nil
+                    information = nil
+                }
+
+                formulaire
+                    .padding(.horizontal, 28)
+                    .padding(.top, 18)
+
+                if let information {
+                    message(information, couleur: Couleurs.lu)
+                        .padding(.horizontal, 28)
+                        .padding(.top, 14)
+                }
+                if let erreur {
+                    message(erreur, couleur: .red)
+                        .padding(.horizontal, 28)
+                        .padding(.top, 14)
+                }
+
+                Text("Vos lectures restent sur votre appareil. Vous pouvez supprimer votre compte à tout moment depuis les réglages.")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 36)
+                    .padding(.top, 26)
+                    .padding(.bottom, 30)
+            }
+            .padding(.top, 14)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private var sousTitreEmail: String {
@@ -86,133 +337,9 @@ struct BienvenueView: View {
             : String(localized: "Content de vous revoir.")
     }
 
-    // MARK: - Le fond, chaud comme une lampe de chevet
-
-    private var fond: some View {
-        ZStack {
-            Color(uiColor: .systemBackground)
-            RadialGradient(
-                colors: [Couleurs.accent.opacity(apparence == .dark ? 0.26 : 0.18), .clear],
-                center: .init(x: 0.5, y: 0.16),
-                startRadius: 20,
-                endRadius: 520
-            )
-        }
-    }
-
-    // MARK: - L'étagère qui accueille
-
-    private var etagere: some View {
-        HStack(alignment: .bottom, spacing: -26) {
-            couverture(index: 0, largeur: 92, angle: -11, hauteur: 10)
-            couverture(index: 1, largeur: 112, angle: -4, hauteur: -6)
-            couverture(index: 2, largeur: 128, angle: 3, hauteur: -16)
-            couverture(index: 3, largeur: 112, angle: 9, hauteur: -4)
-            couverture(index: 4, largeur: 92, angle: 15, hauteur: 12)
-        }
-        .padding(.top, 22)
-    }
-
-    private static let teintes: [(Color, Color)] = [
-        (Color(red: 0.85, green: 0.44, blue: 0.30), Color(red: 0.66, green: 0.26, blue: 0.18)),
-        (Color(red: 0.33, green: 0.45, blue: 0.62), Color(red: 0.18, green: 0.27, blue: 0.42)),
-        (Color(red: 0.93, green: 0.66, blue: 0.28), Color(red: 0.78, green: 0.44, blue: 0.14)),
-        (Color(red: 0.42, green: 0.56, blue: 0.44), Color(red: 0.23, green: 0.35, blue: 0.27)),
-        (Color(red: 0.62, green: 0.42, blue: 0.66), Color(red: 0.40, green: 0.24, blue: 0.46)),
-    ]
-
-    private func couverture(index: Int, largeur: CGFloat, angle: Double, hauteur: CGFloat) -> some View {
-        let teinte = Self.teintes[index % Self.teintes.count]
-        return RoundedRectangle(cornerRadius: 7, style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: [teinte.0, teinte.1],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                )
-            )
-            .frame(width: largeur, height: largeur * 1.5)
-            .overlay(alignment: .leading) {
-                // La gorge de reliure, comme sur les couvertures de l'app.
-                HStack(spacing: 0) {
-                    Rectangle().fill(.black.opacity(0.26)).frame(width: 2.5)
-                    Rectangle().fill(.white.opacity(0.22)).frame(width: 1)
-                    Rectangle()
-                        .fill(LinearGradient(
-                            colors: [.black.opacity(0.22), .clear],
-                            startPoint: .leading, endPoint: .trailing
-                        ))
-                        .frame(width: 8)
-                }
-            }
-            .overlay(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(LinearGradient(
-                        colors: [.white.opacity(0.16), .clear],
-                        startPoint: .top, endPoint: .bottom
-                    ))
-            )
-            .shadow(color: .black.opacity(0.4), radius: 16, y: 10)
-            .rotationEffect(.degrees(apparu ? angle : 0))
-            .offset(y: apparu ? hauteur : 40)
-            .opacity(apparu ? 1 : 0)
-            .animation(.spring(duration: 0.85).delay(Double(index) * 0.07), value: apparu)
-    }
-
-    // MARK: - Ce que le compte apporte
-
-    private var arguments: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            argument(
-                "books.vertical.fill",
-                "Tous vos tomes, à jour",
-                "Ajoutez un tome, la série entière apparaît — dates de sortie comprises."
-            )
-            argument(
-                "globe",
-                "Dans votre langue",
-                "Titres, couvertures et résumés dans l'édition de votre pays."
-            )
-            argument(
-                "lock.fill",
-                "Vos lectures vous appartiennent",
-                "Rien n'est partagé, et votre compte s'efface d'un bouton."
-            )
-        }
-    }
-
-    private func argument(
-        _ symbole: String,
-        _ titre: LocalizedStringKey,
-        _ detail: LocalizedStringKey
-    ) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: symbole)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(Couleurs.accent)
-                .frame(width: 28, height: 28)
-                .background(Couleurs.accent.opacity(0.14), in: Circle())
-            VStack(alignment: .leading, spacing: 2) {
-                Text(titre)
-                    .font(.subheadline.weight(.semibold))
-                Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Spacer(minLength: 0)
-        }
-    }
-
-    // MARK: - Le formulaire e-mail
-
     private var formulaire: some View {
         VStack(spacing: 12) {
-            champ(
-                "Adresse e-mail",
-                systemImage: "envelope",
-                texte: $email,
-                champ: .email
-            )
+            champ("Adresse e-mail", systemImage: "envelope", texte: $email, champ: .email)
             champ(
                 mode == .inscription ? "Mot de passe (6 caractères min.)" : "Mot de passe",
                 systemImage: "lock",
@@ -249,7 +376,7 @@ struct BienvenueView: View {
     }
 
     private func champ(
-        _ invite: String,
+        _ invite: LocalizedStringKey,
         systemImage: String,
         texte: Binding<String>,
         champ cible: Champ,
@@ -280,83 +407,58 @@ struct BienvenueView: View {
         )
     }
 
-    // MARK: - Les chemins d'entrée
-
-    private var actions: some View {
-        VStack(spacing: 14) {
-            Picker("", selection: $mode) {
-                ForEach(Mode.allCases) { cas in
-                    Text(cas.libelle).tag(cas)
-                }
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: mode) { _, _ in
-                erreur = nil
-                information = nil
-            }
-
-            if !parEmail {
-                SignInWithAppleButton(
-                    mode == .inscription ? .signUp : .signIn,
-                    onRequest: { requete in
-                        compte.preparerDemandeApple(requete)
-                    },
-                    onCompletion: { resultat in
-                        traiterApple(resultat)
-                    }
-                )
-                .signInWithAppleButtonStyle(apparence == .dark ? .white : .black)
-                .frame(height: 52)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-            }
-
-            Button {
-                erreur = nil
-                information = nil
-                parEmail.toggle()
-            } label: {
-                Label(
-                    parEmail ? "Utiliser mon identifiant Apple" : "Utiliser une adresse e-mail",
-                    systemImage: parEmail ? "apple.logo" : "envelope"
-                )
-                .font(.subheadline.weight(.semibold))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(
-                    Color(uiColor: .secondarySystemBackground),
-                    in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-                )
-            }
-            .buttonStyle(.plain)
-
-            if let information {
-                message(information, couleur: Couleurs.lu)
-            }
-            if let erreur {
-                message(erreur, couleur: .red)
-            }
-
-            Button("Continuer sans compte") {
-                compte.continuerSansCompte()
-            }
-            .font(.subheadline.weight(.semibold))
-            .tint(.secondary)
-            .padding(.top, 2)
-
-            Text("Vos lectures restent sur votre appareil. Vous pouvez supprimer votre compte à tout moment depuis les réglages.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 8)
-        }
-    }
-
     private func message(_ texte: String, couleur: Color) -> some View {
         Text(texte)
             .font(.caption)
             .foregroundStyle(couleur)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    // MARK: - Les couvertures du mur
+
+    private func chargerLeMur() async {
+        // Large : la hauteur de l'écran décide du nombre réellement affiché,
+        // le surplus alimente simplement la variété.
+        let besoin = 24
+
+        // Ce que le lecteur possède déjà passe avant tout : au deuxième
+        // lancement, il retrouve ses propres livres.
+        let siennes = couverturesDeLaBibliotheque()
+        if siennes.count >= besoin {
+            vignettes = Array(siennes.prefix(besoin))
+            return
+        }
+
+        let top = await Decouverte.classement(gratuits: false, langue: langue)
+        let venues = top.map {
+            Vignette(id: $0.id, url: $0.couvertureURL, titre: $0.titre,
+                     manga: $0.type != .livre)
+        }
+
+        let assemblees = siennes + venues.filter { venue in
+            !siennes.contains { $0.url == venue.url }
+        }
+        if !assemblees.isEmpty {
+            vignettes = Array(assemblees.prefix(besoin))
+        }
+    }
+
+    private func couverturesDeLaBibliotheque() -> [Vignette] {
+        var vues = Set<String>()
+        var resultat: [Vignette] = []
+
+        for serie in series {
+            guard let url = serie.couvertureAffichee, vues.insert(url).inserted else { continue }
+            resultat.append(Vignette(id: "serie-\(url)", url: url,
+                                     titre: serie.nomAffiche(langue), manga: serie.type != .livre))
+        }
+        for oeuvre in oeuvres {
+            guard let url = oeuvre.couvertureAffichee, vues.insert(url).inserted else { continue }
+            resultat.append(Vignette(id: "oeuvre-\(url)", url: url,
+                                     titre: oeuvre.titre(langue), manga: oeuvre.type != .livre))
+        }
+        return resultat.shuffled()
     }
 
     // MARK: - Actions
@@ -371,7 +473,7 @@ struct BienvenueView: View {
             // Une annulation n'est pas une erreur : on ne dit rien.
             let code = (souci as? ASAuthorizationError)?.code
             if code != .canceled && code != .unknown {
-                erreur = "La connexion n'a pas abouti. Réessayez dans un instant."
+                erreur = String(localized: "La connexion n'a pas abouti. Réessayez dans un instant.")
             }
         }
     }
@@ -401,13 +503,13 @@ struct BienvenueView: View {
     private func envoyerReinitialisation() async {
         let adresse = email.trimmingCharacters(in: .whitespaces)
         guard !adresse.isEmpty else {
-            erreur = "Saisissez d'abord votre adresse e-mail."
+            erreur = String(localized: "Saisissez d'abord votre adresse e-mail.")
             return
         }
         erreur = nil
         do {
             try await compte.envoyerReinitialisation(email: adresse)
-            information = "Un courrier vient de partir vers \(adresse)."
+            information = String(localized: "Un courrier vient de partir vers \(adresse).")
         } catch {
             erreur = error.localizedDescription
         }
@@ -416,4 +518,5 @@ struct BienvenueView: View {
 
 #Preview {
     BienvenueView()
+        .modelContainer(Apercu.conteneur)
 }

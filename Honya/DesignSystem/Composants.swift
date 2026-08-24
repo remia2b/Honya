@@ -10,6 +10,9 @@ struct CouvertureView: View {
     /// Un manga se relie à droite (sens de lecture japonais), un roman à gauche :
     /// la gorge du dos change de côté, comme sur les rendus d'Apple Books.
     var manga: Bool = false
+    /// Côté de la vignette demandée au serveur, en pixels. La valeur par défaut
+    /// convient à une fiche ; une grille de vignettes doit demander moins.
+    var cote: Int = 1200
 
     @State private var image: UIImage?
 
@@ -96,7 +99,7 @@ struct CouvertureView: View {
         ))
         .shadow(color: .black.opacity(0.18), radius: 7, x: 0, y: 2)
         .task(id: urlString) {
-            image = await ImageCharge.partage.uiImage(depuis: urlString)
+            image = await ImageCharge.partage.uiImage(depuis: urlString, cote: cote)
         }
         .accessibilityLabel(Text(titre))
     }
