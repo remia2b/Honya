@@ -241,6 +241,7 @@
  "Objectif du jour : %lld minutes sur %lld",
  "Objectifs",
  "Ouvrir ma bibliothèque",
+ "Ouvrir tout l'historique",
  "Où en es-tu ?",
  "Page (optionnel)",
  "Pages",
@@ -261,6 +262,7 @@
  "Polygraphe",
  "Populaires en ce moment",
  "Portée",
+ "Poser le rayon entier",
  "Possédés",
  "Possédés jusqu'au tome",
  "Possédés jusqu'à…",
@@ -361,6 +363,7 @@
  "Tomes",
  "Tomes parus",
  "Tous",
+ "Tous les tomes parus et à venir, dates comprises.",
  "Tout",
  "Tout effacer",
  "Tout effacer…",
@@ -454,9 +457,5 @@
  "À vie",
  "Étagère vide",
  "Être prévenu pour toutes vos séries",
- "à acheter",
- "−10 %",
- "−15 %",
- "−25 %",
- "−40 %"
+ "à acheter"
 ]
