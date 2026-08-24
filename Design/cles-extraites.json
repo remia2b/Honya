@@ -16,6 +16,8 @@
  "%lld pages.",
  "%lld possédés · %lld lus",
  "%lld prêtés",
+ "%lld scans restants",
+ "%lld sur %lld",
  "%lld sur %lld débloqués",
  "%lld séries",
  "%lld tomes",
