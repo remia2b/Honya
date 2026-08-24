@@ -428,17 +428,38 @@ struct BienvenueView: View {
         }
         if siennes.count >= besoin { return }
 
-        let top = await Decouverte.classement(gratuits: false, langue: langue)
-        let venues = top.map {
-            Vignette(id: $0.id, url: $0.couvertureURL, titre: $0.titre,
-                     manga: $0.type != .livre)
-        }
+        // Le réseau du premier lancement est capricieux, et cet appel ne se
+        // refait pas de lui-même : un échec unique laisserait le mur vide pour
+        // toujours. On retente donc calmement, et on change de source si le
+        // classement payant ne répond pas.
+        for essai in 0..<4 {
+            if Task.isCancelled { return }
+            if essai > 0 {
+                try? await Task.sleep(for: .seconds(Double(essai) * 2))
+            }
 
-        let assemblees = siennes + venues.filter { venue in
-            !siennes.contains { $0.url == venue.url }
-        }
-        if !assemblees.isEmpty {
-            vignettes = Array(assemblees.prefix(besoin))
+            var top = await Decouverte.classement(gratuits: false, langue: langue)
+            if top.isEmpty {
+                top = await Decouverte.classement(gratuits: true, langue: langue)
+            }
+            if top.isEmpty && essai == 3 {
+                // Dernier recours : le catalogue de recherche, une seule
+                // requête, qui passe par la même file d'attente que le reste.
+                top = await Decouverte.rayonBrut("roman", langue: langue)
+            }
+            guard !top.isEmpty else { continue }
+
+            let venues = top.map {
+                Vignette(id: $0.id, url: $0.couvertureURL, titre: $0.titre,
+                         manga: $0.type != .livre)
+            }
+            let assemblees = siennes + venues.filter { venue in
+                !siennes.contains { $0.url == venue.url }
+            }
+            if !assemblees.isEmpty {
+                vignettes = Array(assemblees.prefix(besoin))
+                return
+            }
         }
     }
 
