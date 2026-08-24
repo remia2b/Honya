@@ -47,14 +47,30 @@ struct HonyaApp: App {
         switch nom {
         case "honyaPlus":
             HonyaPlusView()
-        case "verrou":
+        case "verrou", "verrouSerie":
             HonyaPlusView(verrou: .serie(
-                nom: "Chainsaw Man", tomes: 27, couvertures: []
+                nom: "Chainsaw Man", tomes: 27, couvertures: Apercu.couvertures
             ))
+        case "verrouScan":
+            HonyaPlusView(verrou: .scan(couvertures: Apercu.couvertures))
+        case "verrouEtagere":
+            HonyaPlusView(verrou: .etagere(couvertures: Apercu.couvertures))
+        case "verrouCitation":
+            HonyaPlusView(verrou: .citation(couvertures: Apercu.couvertures))
+        case "verrouAlerte":
+            HonyaPlusView(verrou: .alerte(nom: "One Piece", couvertures: Apercu.couvertures))
+        case "verrouPret":
+            HonyaPlusView(verrou: .pret(titre: "Dune", couvertures: Apercu.couvertures))
+        case "verrouBibliotheque":
+            HonyaPlusView(verrou: .bibliotheque(couvertures: Apercu.couvertures))
+        case "verrouStats":
+            HonyaPlusView(verrou: .statistiques(couvertures: Apercu.couvertures))
         case "roue":
             RoueSheet()
+        case "perdu":
+            RoueSheet(etapeDepart: "perdu")
         case "gain":
-            RoueSheet(surLeGain: true)
+            RoueSheet(etapeDepart: "gain")
         default:
             RacineView()
         }
@@ -91,6 +107,14 @@ struct HonyaApp: App {
 
 @MainActor
 enum Apercu {
+    /// Trois couvertures réelles, pour les aperçus et les captures d'écran :
+    /// un verrou dessiné sur des cases vides ne se juge pas.
+    static let couvertures = [
+        "https://is1-ssl.mzstatic.com/image/thumb/Publication122/v4/f8/d6/07/f8d6075e-7bc9-abef-0c21-89652f8875ba/9782820350480-001-x.jpeg/400x400bb.jpg",
+        "https://is1-ssl.mzstatic.com/image/thumb/Publication6/v4/47/ad/ec/47adec6f-1a55-e9f0-a242-19c2e749dc74/9782331009532-X.jpg/400x400bb.jpg",
+        "https://is1-ssl.mzstatic.com/image/thumb/Publication113/v4/a6/89/a3/a689a3a6-2d9a-8afb-96fe-29ffcc5aebe6/9782809492002-001-x.jpeg/400x400bb.jpg",
+    ]
+
     static let conteneur: ModelContainer = {
         let schema = Schema([
             Oeuvre.self, Exemplaire.self, Serie.self, Tome.self,

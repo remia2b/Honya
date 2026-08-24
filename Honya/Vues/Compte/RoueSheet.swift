@@ -3,8 +3,10 @@ import SwiftUI
 /// La roue de la deuxième chance, au refus de l'écran Honya+.
 ///
 /// Elle n'apparaît qu'une fois par personne, et jamais à l'ouverture de l'app.
-/// Premier tour perdant, puis « tout le monde a droit à une deuxième chance » :
-/// c'est le mécanisme de Yazio, qui l'affiche jusqu'à 75 %.
+/// Trois temps : un premier tour qui ne donne rien, une PAGE À PART qui accorde
+/// une deuxième chance, puis le tour gagnant. Annoncer la perte et la seconde
+/// chance sur le même écran passerait inaperçu — c'est le moment qui fait
+/// basculer, il lui faut sa page.
 ///
 /// Le gain n'invente pas un prix : il révèle une offre d'introduction qui
 /// existe déjà dans App Store Connect. La roue est la mise en scène, pas la
@@ -12,17 +14,20 @@ import SwiftUI
 struct RoueSheet: View {
     /// Appelé quand tout est fini, pour refermer l'écran Honya+ derrière.
     var surFermeture: () -> Void = {}
-    /// Ouvre directement sur le gain, pour les aperçus et les captures.
-    var surLeGain = false
+    /// Ouvre directement sur une étape, pour les aperçus et les captures.
+    var etapeDepart: String?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var apparence
     @AppStorage("roueUtilisee") private var utilisee = false
 
     @State private var etape: Etape = .avantPremier
     @State private var angle: Double = 0
     @State private var apparu = false
 
-    private enum Etape { case avantPremier, tourne, entreDeux, gagne }
+    private enum Etape { case avantPremier, tourne, perdu, avantSecond, gagne }
+
+    private var sombre: Bool { apparence == .dark }
 
     /// Une seule fois par personne : la deuxième chance n'en est une que si
     /// elle ne revient pas tous les jours.
@@ -41,18 +46,17 @@ struct RoueSheet: View {
 
     private static let secteurs: [Secteur] = [
         .init(libelle: "−40 %", gagnant: true,  teinte: Color(red: 0.85, green: 0.36, blue: 0.06)),
-        .init(libelle: "Rien",  gagnant: false, teinte: Color(red: 0.29, green: 0.24, blue: 0.20)),
+        .init(libelle: "Rien",  gagnant: false, teinte: Color(red: 0.42, green: 0.36, blue: 0.30)),
         .init(libelle: "−15 %", gagnant: true,  teinte: Color(red: 0.93, green: 0.62, blue: 0.16)),
-        .init(libelle: "Rien",  gagnant: false, teinte: Color(red: 0.35, green: 0.29, blue: 0.24)),
+        .init(libelle: "Rien",  gagnant: false, teinte: Color(red: 0.50, green: 0.43, blue: 0.36)),
         .init(libelle: "−25 %", gagnant: true,  teinte: Color(red: 0.78, green: 0.26, blue: 0.22)),
-        .init(libelle: "Rien",  gagnant: false, teinte: Color(red: 0.29, green: 0.24, blue: 0.20)),
+        .init(libelle: "Rien",  gagnant: false, teinte: Color(red: 0.42, green: 0.36, blue: 0.30)),
         .init(libelle: "−10 %", gagnant: true,  teinte: Color(red: 0.96, green: 0.75, blue: 0.28)),
-        .init(libelle: "Rien",  gagnant: false, teinte: Color(red: 0.35, green: 0.29, blue: 0.24)),
+        .init(libelle: "Rien",  gagnant: false, teinte: Color(red: 0.50, green: 0.43, blue: 0.36)),
     ]
 
     private static let part = 360.0 / Double(secteurs.count)
 
-    /// L'angle du milieu d'un secteur, en degrés, zéro pointant vers le haut.
     private static func milieu(_ index: Int) -> Double {
         Double(index) * part + part / 2
     }
@@ -72,38 +76,40 @@ struct RoueSheet: View {
         return CGSize(width: rayon * cos(radians), height: rayon * sin(radians))
     }
 
-    /// L'angle qui amène le milieu du secteur sous la flèche, après `tours`.
-    private static func arret(sur index: Int, tours: Int) -> Double {
-        Double(tours) * 360 - milieu(index)
+    // MARK: - Les couleurs, selon le thème
+
+    private var encre: Color { sombre ? .white : Color(red: 0.16, green: 0.11, blue: 0.06) }
+    private var encreDouce: Color { encre.opacity(sombre ? 0.7 : 0.62) }
+    private var cerclage: Color {
+        sombre ? Color(red: 0.96, green: 0.75, blue: 0.28)
+               : Color(red: 0.82, green: 0.55, blue: 0.13)
+    }
+    private var fondRoue: Color {
+        sombre ? Color(red: 0.20, green: 0.15, blue: 0.12)
+               : Color(red: 0.99, green: 0.96, blue: 0.90)
     }
 
     var body: some View {
         ZStack {
             fond.ignoresSafeArea()
 
-            // Le contenu défile si l'écran est petit ; les boutons, eux,
-            // vivent dans une zone ancrée et ne peuvent jamais être coupés.
             GeometryReader { geo in
                 ScrollView {
                     VStack(spacing: 0) {
-                        if etape == .gagne {
-                            gain
-                        } else {
+                        switch etape {
+                        case .gagne: gain
+                        case .perdu: pageDeuxiemeChance
+                        default:
                             entete
                             roue.padding(.top, 22).padding(.bottom, 26)
                         }
                     }
-                    // Centré tant que ça tient, défilant au-delà : sans la
-                    // hauteur minimale, le contenu se collait en haut et
-                    // laissait un grand vide sous lui.
+                    // Centré tant que ça tient, défilant au-delà.
                     .frame(maxWidth: .infinity, minHeight: geo.size.height)
                 }
                 .scrollBounceBehavior(.basedOnSize)
             }
-            .safeAreaInset(edge: .bottom) {
-                (etape == .gagne ? AnyView(actionGain) : AnyView(action))
-                    .padding(.bottom, 12)
-            }
+            .safeAreaInset(edge: .bottom) { bas.padding(.bottom, 12) }
 
             if etape == .gagne {
                 PluieConfettis()
@@ -113,7 +119,11 @@ struct RoueSheet: View {
         }
         .onAppear {
             withAnimation(.easeOut(duration: 0.5)) { apparu = true }
-            if surLeGain { etape = .gagne }
+            switch etapeDepart {
+            case "gain": etape = .gagne
+            case "perdu": etape = .perdu
+            default: break
+            }
         }
     }
 
@@ -123,8 +133,11 @@ struct RoueSheet: View {
                 ? [Color(red: 0.76, green: 0.37, blue: 0.05),
                    Color(red: 0.50, green: 0.21, blue: 0.02),
                    Color(red: 0.34, green: 0.14, blue: 0.02)]
-                : [Color(red: 0.16, green: 0.12, blue: 0.10),
-                   Color(red: 0.10, green: 0.08, blue: 0.07)],
+                : sombre
+                    ? [Color(red: 0.16, green: 0.12, blue: 0.10),
+                       Color(red: 0.10, green: 0.08, blue: 0.07)]
+                    : [Color(red: 1.00, green: 0.93, blue: 0.83),
+                       Color(red: 0.99, green: 0.96, blue: 0.92)],
             startPoint: .top, endPoint: .bottom
         )
         .animation(.easeInOut(duration: 0.6), value: etape)
@@ -134,18 +147,18 @@ struct RoueSheet: View {
 
     private var entete: some View {
         VStack(spacing: 12) {
-            Text(etape == .entreDeux
-                 ? "Tout le monde a droit à une deuxième chance"
+            Text(etape == .avantSecond
+                 ? "Votre deuxième chance"
                  : "Une chance, avant de partir")
                 .font(.system(size: 29, weight: .semibold, design: .serif))
-                .foregroundStyle(.white)
+                .foregroundStyle(encre)
                 .multilineTextAlignment(.center)
 
-            Text(etape == .entreDeux
-                 ? "Votre premier tour n'a rien donné. Celui-ci est le bon."
+            Text(etape == .avantSecond
+                 ? "Celui-ci est le bon. Faites-la tourner."
                  : "Un tour de roue, sans rien acheter.")
                 .font(.system(size: 15.5))
-                .foregroundStyle(.white.opacity(0.7))
+                .foregroundStyle(encreDouce)
                 .multilineTextAlignment(.center)
         }
         .padding(.horizontal, 34)
@@ -157,21 +170,19 @@ struct RoueSheet: View {
 
     private var roue: some View {
         ZStack {
-            // Le cerclage, avec ses ampoules de fête foraine.
             Circle()
-                .fill(Color(red: 0.20, green: 0.15, blue: 0.12))
-                .overlay(Circle().strokeBorder(Color(red: 0.96, green: 0.75, blue: 0.28), lineWidth: 3))
-                .shadow(color: .black.opacity(0.5), radius: 26, y: 12)
+                .fill(fondRoue)
+                .overlay(Circle().strokeBorder(cerclage, lineWidth: 3))
+                .shadow(color: .black.opacity(sombre ? 0.5 : 0.18), radius: 26, y: 12)
             ForEach(0..<16, id: \.self) { rang in
                 Circle()
-                    .fill(Color(red: 1, green: 0.90, blue: 0.68))
+                    .fill(cerclage.opacity(sombre ? 0.9 : 0.8))
                     .frame(width: 5, height: 5)
                     .offset(y: -145)
                     .rotationEffect(.degrees(Double(rang) * 22.5))
                     .opacity(etape == .tourne ? 0.45 : 1)
             }
 
-            // Les parts, dessinées à l'arc.
             ZStack {
                 ForEach(Array(Self.secteurs.enumerated()), id: \.offset) { index, secteur in
                     Part(index: index, part: Self.part)
@@ -184,7 +195,7 @@ struct RoueSheet: View {
                         .font(.system(size: 15, weight: .heavy))
                         .foregroundStyle(
                             secteur.gagnant ? AnyShapeStyle(Color.white)
-                                            : AnyShapeStyle(Color.white.opacity(0.42))
+                                            : AnyShapeStyle(Color.white.opacity(0.55))
                         )
                         .rotationEffect(.degrees(Self.orientation(index)))
                         .offset(Self.position(index))
@@ -193,9 +204,8 @@ struct RoueSheet: View {
             .frame(width: 268, height: 268)
             .rotationEffect(.degrees(angle))
 
-            // Le moyeu.
             Circle()
-                .fill(Color(red: 0.96, green: 0.75, blue: 0.28))
+                .fill(cerclage)
                 .frame(width: 66, height: 66)
                 .overlay(
                     Image(systemName: "book.closed.fill")
@@ -204,9 +214,9 @@ struct RoueSheet: View {
                 )
                 .shadow(color: .black.opacity(0.35), radius: 8, y: 3)
 
-            // La flèche, en haut, fixe.
             Triangle()
-                .fill(Color(red: 1, green: 0.93, blue: 0.76))
+                .fill(sombre ? Color(red: 1, green: 0.93, blue: 0.76)
+                             : Color(red: 0.68, green: 0.28, blue: 0.04))
                 .frame(width: 26, height: 22)
                 .offset(y: -152)
                 .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
@@ -216,31 +226,40 @@ struct RoueSheet: View {
         .opacity(apparu ? 1 : 0)
     }
 
-    // MARK: - Le bouton
+    // MARK: - La page de la deuxième chance
 
-    private var action: some View {
-        VStack(spacing: 14) {
-            Button(action: tourner) {
-                Text(etape == .entreDeux ? "Retenter ma chance" : "Faire tourner la roue")
-                    .font(.system(size: 17, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 54)
-                    .foregroundStyle(Color(red: 0.20, green: 0.10, blue: 0.03))
-                    .background(
-                        Color(red: 0.96, green: 0.78, blue: 0.34),
-                        in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    )
+    private var pageDeuxiemeChance: some View {
+        VStack(spacing: 0) {
+            ZStack {
+                Circle()
+                    .fill(cerclage.opacity(sombre ? 0.16 : 0.22))
+                    .frame(width: 132, height: 132)
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 52, weight: .semibold))
+                    .foregroundStyle(cerclage)
             }
-            .buttonStyle(.plain)
-            .disabled(etape == .tourne)
-            .opacity(etape == .tourne ? 0.5 : 1)
+            .padding(.bottom, 30)
 
-            Button("Non merci") { fermer() }
-                .font(.system(size: 15))
-                .tint(.white.opacity(0.55))
+            Text("Rien cette fois.")
+                .font(.system(size: 21, design: .serif))
+                .foregroundStyle(encreDouce)
+
+            Text("Tout le monde a droit à une deuxième chance")
+                .font(.system(size: 32, weight: .semibold, design: .serif))
+                .foregroundStyle(encre)
+                .multilineTextAlignment(.center)
+                .padding(.top, 10)
+                .padding(.horizontal, 30)
+
+            Text("Une seule autre, et elle est pour vous.")
+                .font(.system(size: 16))
+                .foregroundStyle(encreDouce)
+                .multilineTextAlignment(.center)
+                .padding(.top, 12)
+                .padding(.horizontal, 40)
         }
-        .padding(.horizontal, 30)
-        .padding(.top, 20)
+        .padding(.vertical, 30)
+        .transition(.opacity)
     }
 
     // MARK: - Le gain
@@ -269,43 +288,13 @@ struct RoueSheet: View {
             .padding(.top, 26)
             .padding(.horizontal, 34)
             .frame(maxWidth: .infinity, alignment: .leading)
-
         }
         .padding(.top, 26)
         .padding(.bottom, 10)
         .transition(.opacity)
     }
 
-    private var actionGain: some View {
-        VStack(spacing: 0) {
-            Button {
-                Droits.partage.activerEssai()
-                fermer()
-            } label: {
-                Text("Profiter des 17,99 €")
-                    .font(.system(size: 17, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 54)
-                    .foregroundStyle(Color(red: 0.50, green: 0.21, blue: 0.02))
-                    .background(.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            }
-            .buttonStyle(.plain)
-
-            Button("Plus tard") { fermer() }
-                .font(.system(size: 15))
-                .tint(.white.opacity(0.6))
-                .padding(.top, 12)
-
-            Text("Cette offre n'est proposée qu'une fois.")
-                .font(.system(size: 11.5))
-                .foregroundStyle(.white.opacity(0.5))
-                .padding(.top, 8)
-        }
-        .padding(.horizontal, 30)
-    }
-
-    /// Un billet de tombola : le prix barré, le nouveau à côté. C'est lui qui
-    /// remplit le vide que laissait le grand chiffre tout seul.
+    /// Un billet de tombola : le prix barré, le nouveau à côté.
     private var billet: some View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 2) {
@@ -354,6 +343,89 @@ struct RoueSheet: View {
         }
     }
 
+    // MARK: - Le bas, selon l'étape
+
+    @ViewBuilder
+    private var bas: some View {
+        switch etape {
+        case .gagne: actionGain
+        case .perdu: actionDeuxiemeChance
+        default: actionRoue
+        }
+    }
+
+    private var actionRoue: some View {
+        VStack(spacing: 14) {
+            Button(action: tourner) {
+                boutonJaune(etape == .avantSecond ? "Retenter ma chance" : "Faire tourner la roue")
+            }
+            .buttonStyle(.plain)
+            .disabled(etape == .tourne)
+            .opacity(etape == .tourne ? 0.5 : 1)
+
+            Button("Non merci") { fermer() }
+                .font(.system(size: 15))
+                .tint(encreDouce)
+        }
+        .padding(.horizontal, 30)
+    }
+
+    private var actionDeuxiemeChance: some View {
+        VStack(spacing: 14) {
+            Button {
+                withAnimation(.snappy(duration: 0.4)) { etape = .avantSecond }
+            } label: {
+                boutonJaune("Retenter ma chance")
+            }
+            .buttonStyle(.plain)
+
+            Button("Non merci") { fermer() }
+                .font(.system(size: 15))
+                .tint(encreDouce)
+        }
+        .padding(.horizontal, 30)
+    }
+
+    private func boutonJaune(_ titre: LocalizedStringKey) -> some View {
+        Text(titre)
+            .font(.system(size: 17, weight: .semibold))
+            .frame(maxWidth: .infinity)
+            .frame(height: 54)
+            .foregroundStyle(Color(red: 0.20, green: 0.10, blue: 0.03))
+            .background(
+                Color(red: 0.96, green: 0.78, blue: 0.34),
+                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+            )
+    }
+
+    private var actionGain: some View {
+        VStack(spacing: 0) {
+            Button {
+                Droits.partage.activerEssai()
+                fermer()
+            } label: {
+                Text("Profiter des 17,99 €")
+                    .font(.system(size: 17, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 54)
+                    .foregroundStyle(Color(red: 0.50, green: 0.21, blue: 0.02))
+                    .background(.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
+
+            Button("Plus tard") { fermer() }
+                .font(.system(size: 15))
+                .tint(.white.opacity(0.6))
+                .padding(.top, 12)
+
+            Text("Cette offre n'est proposée qu'une fois.")
+                .font(.system(size: 11.5))
+                .foregroundStyle(.white.opacity(0.5))
+                .padding(.top, 8)
+        }
+        .padding(.horizontal, 30)
+    }
+
     // MARK: - La mécanique
 
     private func tourner() {
@@ -365,17 +437,16 @@ struct RoueSheet: View {
 
         etape = .tourne
         // On repart du tour entier suivant : sans ça, le second lancer
-        // calculerait un angle plus petit que le premier et la roue
-        // reviendrait en arrière.
+        // calculerait un angle plus petit et la roue reviendrait en arrière.
         let base = (angle / 360).rounded(.up) * 360
         withAnimation(.timingCurve(0.17, 0.72, 0.15, 1, duration: premierTour ? 3.2 : 4.0)) {
             angle = base + Double(tours) * 360 - Self.milieu(cible)
         }
 
         Task { @MainActor in
-            try? await Task.sleep(for: .seconds(premierTour ? 3.4 : 4.2))
+            try? await Task.sleep(for: .seconds(premierTour ? 3.6 : 4.3))
             withAnimation(.snappy(duration: 0.45)) {
-                etape = premierTour ? .entreDeux : .gagne
+                etape = premierTour ? .perdu : .gagne
             }
             if !premierTour { utilisee = true }
         }
@@ -423,6 +494,6 @@ private struct Triangle: Shape {
     }
 }
 
-#Preview {
-    RoueSheet()
-}
+#Preview("La roue") { RoueSheet() }
+#Preview("Deuxième chance") { RoueSheet(etapeDepart: "perdu") }
+#Preview("Le gain") { RoueSheet(etapeDepart: "gain") }
