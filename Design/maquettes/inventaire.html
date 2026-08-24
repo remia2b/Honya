@@ -1,0 +1,250 @@
+<title>L'inventaire de Honya</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --fond:#F4EFE6; --carte:#FCFAF5; --creux:#EBE4D7; --trait:#D9D0C1;
+    --encre:#221D17; --texte:#575047; --discret:#8D857A;
+    --accent:#D96A12; --vert:#2E7D46; --bleu:#3A6EA5;
+    --serif:'Iowan Old Style','Palatino Linotype',Palatino,'Times New Roman',serif;
+    --sans:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --fond:#171310; --carte:#211C17; --creux:#2A241D; --trait:#3B342A;
+      --encre:#F2EDE3; --texte:#B8AFA2; --discret:#8B8276;
+      --accent:#F09344; --vert:#6FBF87; --bleu:#7FA9D9;
+    }
+  }
+  :root[data-theme="dark"] {
+    --fond:#171310; --carte:#211C17; --creux:#2A241D; --trait:#3B342A;
+    --encre:#F2EDE3; --texte:#B8AFA2; --discret:#8B8276;
+    --accent:#F09344; --vert:#6FBF87; --bleu:#7FA9D9;
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--fond); color:var(--texte); font-family:var(--sans);
+         -webkit-font-smoothing:antialiased; line-height:1.55; }
+  .page { max-width:860px; margin:0 auto; padding:56px 22px 90px; }
+
+  .surtitre { font-family:var(--mono); font-size:12px; letter-spacing:.15em;
+              text-transform:uppercase; color:var(--discret); margin:0 0 14px; }
+  h1 { font-family:var(--serif); font-size:clamp(34px,5.5vw,48px); line-height:1.1;
+       font-weight:600; color:var(--encre); margin:0 0 16px; }
+  h2 { font-family:var(--serif); font-size:25px; font-weight:600; color:var(--encre);
+       margin:52px 0 4px; }
+  h2 .compte { font-family:var(--mono); font-size:12px; color:var(--discret);
+               letter-spacing:.06em; margin-left:10px; }
+  p.intro { font-size:17px; max-width:64ch; }
+  p.sous { font-size:14.5px; color:var(--discret); margin:2px 0 14px; max-width:66ch; }
+
+  .avancement { position:sticky; top:0; z-index:5; background:var(--fond);
+                padding:14px 0 12px; margin-top:26px; border-bottom:1px solid var(--trait); }
+  .barre { height:7px; border-radius:99px; background:var(--creux); overflow:hidden; }
+  .barre i { display:block; height:100%; width:0; background:var(--accent);
+             transition:width .3s ease; }
+  .avancement span { font-family:var(--mono); font-size:12px; color:var(--discret);
+                     display:block; margin-top:7px; }
+
+  .item { display:flex; gap:12px; align-items:flex-start; padding:11px 14px;
+          border:1px solid var(--trait); border-radius:12px; background:var(--carte);
+          margin-bottom:7px; cursor:pointer; }
+  .item:hover { border-color:var(--accent); }
+  .item.coche { opacity:.5; }
+  .item.coche .nom { text-decoration:line-through; }
+  .case { width:19px; height:19px; border:1.8px solid var(--trait); border-radius:5px;
+          flex:none; margin-top:2px; display:grid; place-items:center;
+          font-size:12px; color:#FFF; }
+  .item.coche .case { background:var(--vert); border-color:var(--vert); }
+  .item.coche .case::after { content:"✓"; }
+  .corps { flex:1; min-width:0; }
+  .nom { color:var(--encre); font-weight:600; font-size:15.5px; }
+  .quoi { font-size:13.5px; color:var(--discret); }
+  .pastilles { display:flex; gap:6px; flex:none; align-items:center; flex-wrap:wrap;
+               justify-content:flex-end; }
+  .p { font-family:var(--mono); font-size:10.5px; letter-spacing:.05em;
+       padding:3px 7px; border-radius:99px; white-space:nowrap; }
+  .fait { background:rgba(46,125,70,.13); color:var(--vert); }
+  .afaire { background:rgba(217,106,18,.13); color:var(--accent); }
+  .partiel { background:rgba(58,110,165,.14); color:var(--bleu); }
+  .plus { background:var(--encre); color:var(--fond); }
+  .gratuit { border:1px solid var(--trait); color:var(--discret); }
+
+  .note { background:var(--creux); border-radius:12px; padding:16px 20px;
+          margin:16px 0 0; font-size:14.5px; }
+  .note b { color:var(--encre); }
+
+  footer { margin-top:64px; padding-top:22px; border-top:1px solid var(--trait);
+           font-size:14px; color:var(--discret); }
+
+  @media (max-width:620px) {
+    .item { flex-wrap:wrap; }
+    .pastilles { width:100%; justify-content:flex-start; padding-left:31px; }
+  }
+</style>
+
+<div class="page">
+  <p class="surtitre">Honya · inventaire</p>
+  <h1>Tout ce que fait Honya, ligne par ligne</h1>
+  <p class="intro">Chaque fonction du code, son état réel et le côté de la
+    barrière où elle tombe. Cochez au fur et à mesure de vos vérifications sur
+    l'iPhone — votre avancement est gardé sur cet appareil.</p>
+
+  <div class="avancement">
+    <div class="barre"><i id="jauge"></i></div>
+    <span id="score">0 vérifié sur 0</span>
+  </div>
+
+  <h2>Aujourd'hui<span class="compte">l'écran d'accueil</span></h2>
+  <div data-groupe>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Reprendre la lecture</div><div class="quoi">le livre en cours, sa page, en un tap</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Objectif du jour</div><div class="quoi">minutes visées, anneau de progression</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Série de jours</div><div class="quoi">jours consécutifs, joker hebdomadaire</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Sorties à venir</div><div class="quoi">les prochains tomes de vos séries, avec dates</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p plus">Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">File « À suivre »</div><div class="quoi">les livres à ouvrir bientôt</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+  </div>
+
+  <h2>Bibliothèque</h2>
+  <div data-groupe>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Grille 3 colonnes</div><div class="quoi">badges de statut SOUS la couverture, à la Apple Books</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Filtres et tri</div><div class="quoi">par statut, par type, par date, par titre</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Appui long sur une série</div><div class="quoi">tome suivant lu, série entière lue, retirer</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Badge « Prêté »</div><div class="quoi">sous la couverture, en rose</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p plus">Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Plafond de 200 tomes</div><div class="quoi">au-delà, la consultation reste libre</div></div><div class="pastilles"><span class="p afaire">à faire</span><span class="p plus">Plus</span></div></div>
+  </div>
+
+  <h2>Séries automatiques<span class="compte">le cœur de Honya</span></h2>
+  <div data-groupe>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Le rayon entier apparaît</div><div class="quoi">un tome ajouté, tous les autres se posent, grisés</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p plus">Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Dates de sortie automatiques</div><div class="quoi">précommandes comprises, badge orange</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p plus">Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Éditions du pays</div><div class="quoi">titres, couvertures et résumés dans votre langue</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Limite de 3 séries en gratuit</div><div class="quoi">la 4e demande Honya+</div></div><div class="pastilles"><span class="p afaire">à faire</span><span class="p plus">Plus</span></div></div>
+  </div>
+
+  <h2>Recherche &amp; ajout</h2>
+  <div data-groupe>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Recherche catalogue</div><div class="quoi">Apple Books en tête, Google et Open Library en repli</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Suggestions quand le champ est vide</div><div class="quoi">populaires du moment, tendances de recherche</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Scanner de code-barres</div><div class="quoi">titre, couverture et pages en une seconde</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p partiel">10 puis Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Choix du statut à l'ajout</div><div class="quoi">possédé, en cours, lu, à acheter</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Scan d'étagère entière</div><div class="quoi">une rangée de codes-barres à la volée</div></div><div class="pastilles"><span class="p afaire">à faire</span><span class="p plus">Plus</span></div></div>
+  </div>
+
+  <h2>Découverte</h2>
+  <div data-groupe>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Nouveautés et tendances</div><div class="quoi">flux Apple du pays, hors quota</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Classements payant et gratuit</div><div class="quoi">rangs sérif, top 5</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">« Dans vos goûts »</div><div class="quoi">rayons déduits de votre bibliothèque</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p plus">Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Rayons par genre</div><div class="quoi">manga, thriller, romance, fantasy…</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p plus">Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Bientôt disponibles</div><div class="quoi">les précommandes, halo accent</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p plus">Plus</span></div></div>
+  </div>
+
+  <h2>Session de lecture</h2>
+  <div data-groupe>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Minuteur plein écran</div><div class="quoi">l'écran reste allumé, jamais de limite</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Pages lues et humeur</div><div class="quoi">notés à la fin de la session</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Confettis de fin</div><div class="quoi">livre terminé, série complète</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Carte partageable</div><div class="quoi">après les confettis, avec filigrane honya.app</div></div><div class="pastilles"><span class="p afaire">à faire</span><span class="p gratuit">gratuit</span></div></div>
+  </div>
+
+  <h2>Statistiques</h2>
+  <div data-groupe>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Temps de lecture</div><div class="quoi">héros sérif, graphe des derniers jours</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p partiel">7 j puis Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Votre bibliothèque en chiffres</div><div class="quoi">possédés, lus, en cours, à acheter, pages</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Mois par mois</div><div class="quoi">heatmap de l'année</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p plus">Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Genres et records</div><div class="quoi">répartition, meilleures séries</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p plus">Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Badges</div><div class="quoi">décernés automatiquement</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p partiel">base puis Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Rétrospective de décembre</div><div class="quoi">teaser en place, cartes à construire</div></div><div class="pastilles"><span class="p partiel">partiel</span><span class="p plus">Plus</span></div></div>
+  </div>
+
+  <h2>Fiches</h2>
+  <div data-groupe>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Fiche œuvre teintée</div><div class="quoi">fond dérivé de la couverture, à la Apple Books</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Fiche série</div><div class="quoi">tous les tomes, prochaine sortie, statut par tome</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Fiche auteur</div><div class="quoi">ses autres livres</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Note, format, prix payé, ISBN</div><div class="quoi">les détails de votre exemplaire</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Sens de reliure</div><div class="quoi">gorge à droite pour les mangas, partout</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+  </div>
+
+  <h2>Citations</h2>
+  <div data-groupe>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Garder une phrase</div><div class="quoi">texte et numéro de page, depuis la fiche</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p partiel">5 puis Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Liste des citations d'un livre</div><div class="quoi">écran dédié</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Widget écran verrouillé</div><div class="quoi">une citation au hasard, renouvelée dans la journée</div></div><div class="pastilles"><span class="p afaire">à faire</span><span class="p plus">Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Carte de citation partageable</div><div class="quoi">la phrase sur la couverture, pour Instagram</div></div><div class="pastilles"><span class="p afaire">à faire</span><span class="p gratuit">gratuit</span></div></div>
+  </div>
+
+  <h2>Étagères &amp; prêts</h2>
+  <div data-groupe>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Étagères manuelles</div><div class="quoi">créées et remplies à la main</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p partiel">2 puis Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Étagères automatiques</div><div class="quoi">par statut, séries incomplètes, coups de cœur, prêtés…</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Prêter un livre</div><div class="quoi">à qui, depuis quand, suggestions d'habitués</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p plus">Plus</span></div></div>
+  </div>
+
+  <h2>Compte &amp; réglages</h2>
+  <div data-groupe>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Connexion avec Apple</div><div class="quoi">native, sans mot de passe</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Compte par e-mail</div><div class="quoi">Supabase, courriels Resend</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Suppression de compte</div><div class="quoi">exigée par Apple, efface tout</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">14 langues</div><div class="quoi">traduction automatique à chaque ajout de texte</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p gratuit">gratuit</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Sauvegarde et multi-appareils</div><div class="quoi">la bibliothèque suit le compte, iPhone et iPad</div></div><div class="pastilles"><span class="p afaire">à faire</span><span class="p plus">Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Export CSV</div><div class="quoi">vos données vous appartiennent</div></div><div class="pastilles"><span class="p afaire">à faire</span><span class="p plus">Plus</span></div></div>
+  </div>
+
+  <h2>Notifications &amp; widgets</h2>
+  <div data-groupe>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Alerte de nouveau tome</div><div class="quoi">notification à la date de sortie</div></div><div class="pastilles"><span class="p fait">fait</span><span class="p partiel">1 puis Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Widget lecture en cours</div><div class="quoi">couverture et page, sur l'écran d'accueil</div></div><div class="pastilles"><span class="p afaire">à faire</span><span class="p plus">Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Widget objectif du jour</div><div class="quoi">l'anneau, en petit</div></div><div class="pastilles"><span class="p afaire">à faire</span><span class="p plus">Plus</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Icônes d'app alternatives</div><div class="quoi">le livre orange en plusieurs humeurs</div></div><div class="pastilles"><span class="p afaire">à faire</span><span class="p plus">Plus</span></div></div>
+  </div>
+
+  <h2>La caisse</h2>
+  <div data-groupe>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Écran Honya+</div><div class="quoi">les avantages, le déblocage TestFlight</div></div><div class="pastilles"><span class="p partiel">partiel</span><span class="p gratuit">—</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">StoreKit 2</div><div class="quoi">les trois produits, l'essai, la restauration</div></div><div class="pastilles"><span class="p afaire">à faire</span><span class="p gratuit">—</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Compteurs visibles</div><div class="quoi">« 2 étagères sur 2 », « 7 scans restants »</div></div><div class="pastilles"><span class="p afaire">à faire</span><span class="p gratuit">—</span></div></div>
+    <div class="item"><div class="case"></div><div class="corps"><div class="nom">Verrous flous</div><div class="quoi">on montre ce qu'on vend, on ne le cache pas</div></div><div class="pastilles"><span class="p afaire">à faire</span><span class="p gratuit">—</span></div></div>
+  </div>
+
+  <div class="note">
+    <p style="margin:0;"><b>Les statuts sont ceux du code, pas de mes souvenirs.</b>
+      « fait » = j'ai vu la fonction branchée dans une vue. « partiel » = le
+      modèle ou l'écran existe mais la fonction n'est pas complète. « à faire » =
+      rien dans le code. Si vous trouvez un « fait » qui ne marche pas sur votre
+      iPhone, c'est précisément ce que cette liste sert à débusquer.</p>
+  </div>
+
+  <footer>La colonne de droite indique le côté de la barrière prévu par la
+    stratégie Honya+ — aucune limite n'est encore posée dans le code, hormis le
+    prêt de livres.</footer>
+</div>
+
+<script>
+  // L'avancement de vérification tient sur cet appareil : rien n'est envoyé.
+  const CLE = "honya-inventaire";
+  const items = [...document.querySelectorAll(".item")];
+  const garde = JSON.parse(localStorage.getItem(CLE) || "[]");
+
+  items.forEach((item, i) => {
+    if (garde.includes(i)) item.classList.add("coche");
+    item.addEventListener("click", () => {
+      item.classList.toggle("coche");
+      enregistrer();
+    });
+  });
+
+  function enregistrer() {
+    const coches = items.map((it, i) => it.classList.contains("coche") ? i : -1)
+                        .filter(i => i >= 0);
+    localStorage.setItem(CLE, JSON.stringify(coches));
+    const total = items.length;
+    document.getElementById("jauge").style.width = (coches.length / total * 100) + "%";
+    document.getElementById("score").textContent =
+      coches.length + " vérifié" + (coches.length > 1 ? "s" : "") + " sur " + total;
+  }
+  enregistrer();
+</script>
