@@ -1,0 +1,58 @@
+name: Capturer l'écran d'ouverture
+
+# Voir l'application SANS lancer de construction payante : le simulateur
+# iOS des machines GitHub suffit pour ouvrir l'écran d'accueil et le
+# photographier. Les captures remontent en artefact du travail.
+#
+# Lancement : gh workflow run capture.yml
+
+on:
+  workflow_dispatch:
+
+jobs:
+  capturer:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compiler pour le simulateur
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Honya.xcodeproj \
+            -scheme Honya \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath /tmp/dd \
+            CODE_SIGNING_ALLOWED=NO \
+            | tail -5
+
+      - name: Démarrer un iPhone et photographier
+        run: |
+          UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE '[A-F0-9-]{36}')
+          echo "Simulateur : $UDID"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          # L'utilisateur est en mode sombre : on se met dans ses conditions.
+          xcrun simctl ui "$UDID" appearance dark
+
+          APP=$(find /tmp/dd/Build/Products -name "Honya.app" -maxdepth 2 | head -1)
+          echo "Application : $APP"
+          xcrun simctl install "$UDID" "$APP"
+          xcrun simctl launch "$UDID" com.remiabbou.honya
+
+          mkdir -p /tmp/captures
+          # Trois moments : l'arrivée, les couvertures chargées, la dérive.
+          sleep 6
+          xcrun simctl io "$UDID" screenshot /tmp/captures/1-arrivee.png
+          sleep 14
+          xcrun simctl io "$UDID" screenshot /tmp/captures/2-charge.png
+          sleep 12
+          xcrun simctl io "$UDID" screenshot /tmp/captures/3-derive.png
+          ls -la /tmp/captures
+
+      - name: Publier les captures
+        uses: actions/upload-artifact@v4
+        with:
+          name: captures
+          path: /tmp/captures/

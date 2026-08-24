@@ -20,7 +20,6 @@ struct BienvenueView: View {
 
     @State private var compte = Compte.partage
     @State private var vignettes: [Vignette] = []
-    @State private var defile = false
     @State private var apparu = false
 
     @State private var parEmail = false
@@ -101,46 +100,54 @@ struct BienvenueView: View {
 
     /// Chaque colonne dérive à sa vitesse, en sens alterné.
     ///
-    /// Le jeu de couvertures est posé DEUX fois et l'animation parcourt
-    /// exactement la hauteur d'un jeu : quand le premier exemplaire a fini de
-    /// sortir, le second est précisément à sa place, et la boucle ne se voit
-    /// pas. Le jeu compte une couverture de plus que nécessaire pour couvrir
-    /// l'écran, ce qui laisse assez de marge pour décaler les colonnes sans
-    /// jamais découvrir le bas.
+    /// Le mouvement vient d'une horloge (TimelineView), PAS d'une animation
+    /// SwiftUI : une animation `repeatForever` posée sur les colonnes capture
+    /// les changements de ses enfants, et l'apparition des images de
+    /// couverture se retrouvait fondue sur 66 secondes — l'écran semblait
+    /// n'afficher que des boîtes noires. Avec l'horloge, la position est un
+    /// simple calcul à chaque image : rien à capturer.
+    ///
+    /// Le jeu de couvertures est posé DEUX fois et la dérive parcourt
+    /// exactement la hauteur d'un jeu : quand le premier exemplaire est
+    /// sorti, le second est précisément à sa place, la boucle ne se voit pas.
     private var mur: some View {
-        GeometryReader { geo in
-            let largeur = (geo.size.width - Self.marge * 2
-                           - Self.ecart * CGFloat(Self.colonnes - 1)) / CGFloat(Self.colonnes)
-            let pas = largeur * 1.5 + Self.ecart
-            let parColonne = Int(ceil(geo.size.height / pas)) + 1
-            let course = pas * CGFloat(parColonne)
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: mouvementReduit)) { contexte in
+            GeometryReader { geo in
+                let largeur = (geo.size.width - Self.marge * 2
+                               - Self.ecart * CGFloat(Self.colonnes - 1)) / CGFloat(Self.colonnes)
+                let pas = largeur * 1.5 + Self.ecart
+                let parColonne = Int(ceil(geo.size.height / pas)) + 1
+                let course = pas * CGFloat(parColonne)
+                let instant = contexte.date.timeIntervalSinceReferenceDate
 
-            HStack(alignment: .top, spacing: Self.ecart) {
-                ForEach(0..<Self.colonnes, id: \.self) { index in
-                    colonne(index, largeur: largeur, pas: pas,
-                            parColonne: parColonne, course: course)
+                HStack(alignment: .top, spacing: Self.ecart) {
+                    ForEach(0..<Self.colonnes, id: \.self) { index in
+                        colonne(index, largeur: largeur, pas: pas,
+                                parColonne: parColonne, course: course, instant: instant)
+                    }
                 }
+                .padding(.horizontal, Self.marge)
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+                .clipped()
             }
-            .padding(.horizontal, Self.marge)
-            .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
-            .clipped()
         }
         .opacity(apparu ? 1 : 0)
-        .onAppear {
-            // Le défilement ne démarre qu'une fois : l'animation est
-            // perpétuelle, la relancer la ferait sauter.
-            guard !mouvementReduit, !defile else { return }
-            defile = true
-        }
     }
 
     private func colonne(
         _ index: Int, largeur: CGFloat, pas: CGFloat,
-        parColonne: Int, course: CGFloat
+        parColonne: Int, course: CGFloat, instant: TimeInterval
     ) -> some View {
         let depart = Self.departs[index % Self.departs.count] * pas
-        // La colonne du milieu descend pendant que les autres montent.
-        let versLeHaut = index != 1
+        let duree = Self.durees[index % Self.durees.count]
+        // Fraction du tour accomplie, qui boucle d'elle-même.
+        let cycle = CGFloat((instant / duree).truncatingRemainder(dividingBy: 1))
+        // Les colonnes extérieures montent, celle du milieu descend. Une
+        // colonne qui descend part une hauteur de jeu plus haut : c'est le
+        // second exemplaire qui occupe l'écran, et il en sort par le bas.
+        let position = index == 1
+            ? depart - course + course * cycle
+            : depart - course * cycle
         let jeu = vignettesDeLaColonne(index, combien: parColonne)
 
         return VStack(spacing: Self.ecart) {
@@ -152,29 +159,13 @@ struct BienvenueView: View {
                     manga: vignette.manga,
                     cote: 400          // affichée sur ~120 points : inutile d'aller plus haut
                 )
-                // Hauteur imposée, pas seulement la largeur : CouvertureView
-                // porte un aspectRatio(.fit), et sans hauteur fixe la pile lui
-                // proposerait moins de place, ce qui la ferait rétrécir EN
-                // LARGEUR pour tenir le ratio. Les couvertures maigrissaient, et
-                // la boucle du défilement se décalait d'autant.
+                // Hauteur imposée avec la largeur : CouvertureView porte un
+                // aspectRatio(.fit), et sans hauteur fixe la pile la ferait
+                // rétrécir en largeur pour tenir le ratio.
                 .frame(width: largeur, height: largeur * 1.5)
             }
         }
-        .offset(y: depart + (defile == versLeHaut ? -course : 0))
-        .animation(
-            defile
-                ? .linear(duration: Self.durees[index % Self.durees.count])
-                    .repeatForever(autoreverses: false)
-                : nil,
-            value: defile
-        )
-    }
-
-    private func vignettesDeLaColonne(_ index: Int, combien: Int) -> [Vignette] {
-        guard !vignettes.isEmpty else { return [] }
-        return (0..<combien).map { rang in
-            vignettes[(index * combien + rang) % vignettes.count]
-        }
+        .offset(y: position)
     }
 
     /// Le voile qui ramène le mur au fond : transparent en haut pour laisser
