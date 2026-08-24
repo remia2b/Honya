@@ -168,6 +168,13 @@ struct BienvenueView: View {
         .offset(y: position)
     }
 
+    private func vignettesDeLaColonne(_ index: Int, combien: Int) -> [Vignette] {
+        guard !vignettes.isEmpty else { return [] }
+        return (0..<combien).map { rang in
+            vignettes[(index * combien + rang) % vignettes.count]
+        }
+    }
+
     /// Le voile qui ramène le mur au fond : transparent en haut pour laisser
     /// voir les livres, opaque en bas pour que le texte se lise sans effort.
     private var voile: some View {
