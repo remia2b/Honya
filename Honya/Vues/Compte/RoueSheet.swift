@@ -12,6 +12,8 @@ import SwiftUI
 struct RoueSheet: View {
     /// Appelé quand tout est fini, pour refermer l'écran Honya+ derrière.
     var surFermeture: () -> Void = {}
+    /// Ouvre directement sur le gain, pour les aperçus et les captures.
+    var surLeGain = false
 
     @Environment(\.dismiss) private var dismiss
     @AppStorage("roueUtilisee") private var utilisee = false
@@ -92,7 +94,10 @@ struct RoueSheet: View {
                     .allowsHitTesting(false)
             }
         }
-        .onAppear { withAnimation(.easeOut(duration: 0.5)) { apparu = true } }
+        .onAppear {
+            withAnimation(.easeOut(duration: 0.5)) { apparu = true }
+            if surLeGain { etape = .gagne }
+        }
     }
 
     private var fond: some View {

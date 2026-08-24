@@ -53,6 +53,8 @@ struct HonyaApp: App {
             ))
         case "roue":
             RoueSheet()
+        case "gain":
+            RoueSheet(surLeGain: true)
         default:
             RacineView()
         }
