@@ -80,7 +80,9 @@ struct BienvenueView: View {
                 // Un mur de cases vides est pire que pas de mur : tant qu'on
                 // n'a rien à montrer, l'écran reste net.
                 mur.ignoresSafeArea()
+                    .transition(.opacity)
                 voile.ignoresSafeArea()
+                    .transition(.opacity)
             }
 
             if parEmail {
@@ -416,20 +418,17 @@ struct BienvenueView: View {
 
     private func chargerLeMur() async {
         let besoin = 24
-
-        // Ce que le lecteur possède déjà s'affiche TOUT DE SUITE : attendre le
-        // réseau avant de rien montrer laisserait l'écran nu alors qu'on a
-        // déjà de quoi le remplir.
         let siennes = couverturesDeLaBibliotheque()
-        if !siennes.isEmpty {
-            vignettes = Array(siennes.prefix(besoin))
-        }
-        if siennes.count >= besoin { return }
 
-        // Le réseau du premier lancement est capricieux, et cet appel ne se
-        // refait pas de lui-même : un échec unique laisserait le mur vide pour
-        // toujours. On retente donc calmement, et on change de source si le
-        // classement payant ne répond pas.
+        // Assez de livres à soi : le mur est complet d'emblée.
+        if siennes.count >= besoin {
+            poser(Array(siennes.prefix(besoin)))
+            return
+        }
+
+        // Sinon, on assemble bibliothèque + classement AVANT d'afficher quoi
+        // que ce soit. Poser la bibliothèque puis la compléter redistribuait
+        // toutes les cases d'un coup : le mur entier sautait aux yeux.
         for essai in 0..<4 {
             if Task.isCancelled { return }
             if essai > 0 {
@@ -441,8 +440,6 @@ struct BienvenueView: View {
                 top = await Decouverte.classement(gratuits: true, langue: langue)
             }
             if top.isEmpty && essai == 3 {
-                // Dernier recours : le catalogue de recherche, une seule
-                // requête, qui passe par la même file d'attente que le reste.
                 top = await Decouverte.rayonBrut("roman", langue: langue)
             }
             guard !top.isEmpty else { continue }
@@ -455,9 +452,22 @@ struct BienvenueView: View {
                 !siennes.contains { $0.url == venue.url }
             }
             if !assemblees.isEmpty {
-                vignettes = Array(assemblees.prefix(besoin))
+                poser(Array(assemblees.prefix(besoin)))
                 return
             }
+        }
+
+        // Le réseau n'a rien donné : la bibliothèque seule vaut mieux que rien.
+        if !siennes.isEmpty {
+            poser(siennes)
+        }
+    }
+
+    /// Pose le mur en fondu, une seule fois. L'animation est brève et se
+    /// termine : rien à voir avec le repeatForever qui capturait les images.
+    private func poser(_ jeu: [Vignette]) {
+        withAnimation(.easeOut(duration: 0.9)) {
+            vignettes = jeu
         }
     }
 
