@@ -67,6 +67,28 @@ struct HonyaApp: App {
             HonyaPlusView(verrou: .statistiques(couvertures: Apercu.couvertures))
         case "email":
             BienvenueView(surLEmail: true)
+        case "clavierTest":
+            // Le banc : le formulaire s'ouvre, le focus se pose sur
+            // l'e-mail, puis bascule vers le mot de passe et revient,
+            // pendant que la CI photographie en rafale.
+            BienvenueView(surLEmail: true)
+                .task {
+                    func focus(_ champ: String) {
+                        NotificationCenter.default.post(
+                            name: Notification.Name("honya.banc.focus"),
+                            object: nil,
+                            userInfo: ["champ": champ]
+                        )
+                    }
+                    try? await Task.sleep(for: .seconds(3))
+                    focus("email")
+                    for _ in 0..<3 {
+                        try? await Task.sleep(for: .seconds(3))
+                        focus("motDePasse")
+                        try? await Task.sleep(for: .seconds(3))
+                        focus("email")
+                    }
+                }
         case "oubli":
             BienvenueView(surLOubli: "demande")
         case "oubliCode":

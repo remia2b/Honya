@@ -136,6 +136,29 @@ final class ChampsSessionVue: UIView {
         rangMotDePasse.champ.isSecureTextEntry = true
         rangNouveau.champ.isSecureTextEntry = true
         for rang in tous { addSubview(rang) }
+
+        #if DEBUG
+        // Le banc d'essai bascule le focus sans doigt : une notification
+        // nomme le champ, la vue transfère le premier répondant — le même
+        // chemin exactement qu'un toucher.
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("honya.banc.focus"), object: nil, queue: .main
+        ) { [weak self] notification in
+            MainActor.assumeIsolated {
+                guard let self, let nom = notification.userInfo?["champ"] as? String
+                else { return }
+                let cible: RangChamp
+                switch nom {
+                case "motDePasse": cible = self.rangMotDePasse
+                case "code": cible = self.rangCode
+                case "nouveau": cible = self.rangNouveau
+                default: cible = self.rangEmail
+                }
+                journalClavier("banc -> focus \(nom)")
+                cible.champ.becomeFirstResponder()
+            }
+        }
+        #endif
     }
 
     @available(*, unavailable)
@@ -355,9 +378,14 @@ struct ChampsSession: UIViewRepresentable {
         }
 
         func textFieldDidBeginEditing(_ champ: UITextField) {
+            journalClavier("didBeginEditing \(champ.isSecureTextEntry ? "secret" : "clair")")
             // La session s'ouvre une seule fois ; passer ensuite d'un champ
             // à l'autre ne change plus aucun état de géométrie.
             proprietaire.session.ouvrir()
+        }
+
+        func textFieldDidEndEditing(_ champ: UITextField) {
+            journalClavier("didEndEditing \(champ.isSecureTextEntry ? "secret" : "clair")")
         }
 
         func textFieldShouldReturn(_ champ: UITextField) -> Bool {

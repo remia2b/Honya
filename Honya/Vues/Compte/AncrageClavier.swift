@@ -27,6 +27,20 @@ import UIKit
 //    qu'un éventuel faux départ se démente — puis on rend le contenu au guide
 //    plutôt que de le laisser flotter au milieu de l'écran.
 
+#if DEBUG
+/// Trace du banc d'essai : simctl capture la console, chaque événement
+/// clavier y laisse une ligne horodatée.
+@MainActor
+func journalClavier(_ message: String) {
+    let temps = Date().timeIntervalSinceReferenceDate
+    print(String(format: "[clavier %.3f] %@", temps, message))
+}
+#else
+@MainActor
+@inline(__always)
+func journalClavier(_ message: String) {}
+#endif
+
 /// La saisie vue comme une session : ouverte au premier champ touché,
 /// inchangée tant qu'on passe d'un champ à l'autre, fermée une seule fois.
 @MainActor
@@ -165,10 +179,23 @@ final class ControleurAncrageClavier<Contenu: View>: UIViewController {
         contenu.didMove(toParent: self)
 
         observer(UIResponder.keyboardDidShowNotification) { [weak self] _ in
+            journalClavier("didShow")
             self?.gelerLaPosition()
         }
         observer(UIResponder.keyboardWillChangeFrameNotification) { [weak self] notification in
+            let cadre = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey]
+                         as? NSValue)?.cgRectValue ?? .zero
+            journalClavier("willChangeFrame -> \(Int(cadre.minY)) h\(Int(cadre.height))")
             self?.traiterChangementDeFrame(notification)
+        }
+        observer(UIResponder.keyboardWillShowNotification) { _ in
+            journalClavier("willShow")
+        }
+        observer(UIResponder.keyboardWillHideNotification) { _ in
+            journalClavier("willHide")
+        }
+        observer(UIResponder.keyboardDidHideNotification) { _ in
+            journalClavier("didHide")
         }
     }
 
@@ -267,10 +294,12 @@ final class ControleurAncrageClavier<Contenu: View>: UIViewController {
             view.layoutIfNeeded()
         }
         positionGelee = gelee
+        journalClavier("gel a y=\(Int(hautDuClavier))")
     }
 
     private func suivreANouveau() {
         guard isViewLoaded, let suitLeClavier, let positionGelee else { return }
+        journalClavier("degel")
         UIView.performWithoutAnimation {
             positionGelee.isActive = false
             suitLeClavier.isActive = true

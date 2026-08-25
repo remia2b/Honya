@@ -1,0 +1,58 @@
+name: Banc d'essai clavier
+
+# Reproduire le plongeon du clavier SANS build payant : le banc bascule le
+# focus e-mail ↔ mot de passe tout seul pendant qu'on photographie en rafale
+# et qu'on capture la console — chaque événement clavier y laisse une ligne.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  banc:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compiler pour le simulateur
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project Honya.xcodeproj \
+            -scheme Honya \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath /tmp/dd \
+            CODE_SIGNING_ALLOWED=NO \
+            | tail -5
+
+      - name: Démarrer un iPhone
+        run: |
+          UDID=$(xcrun simctl list devices available | grep "iPhone" | head -1 | grep -oE '[A-F0-9-]{36}')
+          echo "UDID=$UDID" >> "$GITHUB_ENV"
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          APP=$(find /tmp/dd/Build/Products -name "Honya.app" -maxdepth 2 | head -1)
+          xcrun simctl install "$UDID" "$APP"
+
+      - name: Dérouler le banc en rafale
+        run: |
+          mkdir -p /tmp/banc
+          xcrun simctl launch --console-pty "$UDID" com.remiabbou.honya \
+            --ecran clavierTest > /tmp/banc/console.log 2>&1 &
+
+          # ~24 s de banc : 3 s de pose, puis une bascule toutes les 3 s.
+          # Une photo toutes les ~0,4 s pour voir chaque étape du clavier.
+          for i in $(seq -w 1 55); do
+            xcrun simctl io "$UDID" screenshot "/tmp/banc/r$i.png" 2>/dev/null
+            sleep 0.25
+          done
+
+          sleep 2
+          echo "── console ──"
+          cat /tmp/banc/console.log || true
+
+      - name: Publier le banc
+        uses: actions/upload-artifact@v4
+        with:
+          name: banc
+          path: /tmp/banc/
