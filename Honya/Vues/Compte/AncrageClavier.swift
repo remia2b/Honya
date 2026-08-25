@@ -27,10 +27,11 @@ import UIKit
 //    qu'un éventuel faux départ se démente — puis on rend le contenu au guide
 //    plutôt que de le laisser flotter au milieu de l'écran.
 
-#if DEBUG
-/// Trace du banc d'essai. La console d'un simulateur sans terminal ne
-/// remonte pas : le journal s'écrit dans Documents, que la CI récupère
-/// avec `simctl get_app_container` une fois le banc déroulé.
+/// Trace du plongeon du clavier — TEMPORAIREMENT active aussi en version
+/// installée : le bug ne se montre que sur un vrai iPhone, et seul ce
+/// journal peut dire qui retire le clavier. La CI le ramasse avec
+/// `simctl get_app_container` ; sur appareil, Réglages sait le partager.
+/// À redescendre en DEBUG une fois le plongeon compris.
 @MainActor
 func journalClavier(_ message: String) {
     let temps = Date().timeIntervalSinceReferenceDate
@@ -51,11 +52,13 @@ func journalClavier(_ message: String) {
         }
     }
 }
-#else
+
+/// L'emplacement du journal, pour le partage depuis les réglages.
 @MainActor
-@inline(__always)
-func journalClavier(_ message: String) {}
-#endif
+var journalClavierURL: URL? {
+    FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        .first?.appendingPathComponent("journal-clavier.log")
+}
 
 /// La saisie vue comme une session : ouverte au premier champ touché,
 /// inchangée tant qu'on passe d'un champ à l'autre, fermée une seule fois.
@@ -78,6 +81,7 @@ final class SessionClavier {
     func ouvrir() {
         guard phase != .active else { return }
         phase = .active
+        journalClavier("session -> active")
     }
 
     /// Ferme dans le bon ordre : la phase d'abord, le focus ensuite — le
@@ -85,6 +89,7 @@ final class SessionClavier {
     func fermerLaSaisie() {
         guard phase == .active else { return }
         phase = .fermeture
+        journalClavier("session -> fermeture")
         if !terminerLaSaisie() { phase = .inactive }
     }
 

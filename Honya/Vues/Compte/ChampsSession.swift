@@ -34,6 +34,7 @@ final class RangChamp: UIView {
         champ.backgroundColor = .clear
         champ.font = .systemFont(ofSize: 17)
         champ.contentVerticalAlignment = .center
+        champ.autocapitalizationType = .none
         champ.autocorrectionType = .no
         champ.spellCheckingType = .no
         champ.smartQuotesType = .no

@@ -121,6 +121,28 @@ struct ReglagesView: View {
                     }
                 }
 
+                // Diagnostic du clavier — section temporaire, le temps de
+                // comprendre le plongeon sur appareil. À retirer ensuite.
+                Section {
+                    if let url = journalClavierURL,
+                       FileManager.default.fileExists(atPath: url.path) {
+                        ShareLink(item: url) {
+                            Label("Partager le journal du clavier", systemImage: "keyboard.badge.ellipsis")
+                        }
+                        Button(role: .destructive) {
+                            try? FileManager.default.removeItem(at: url)
+                        } label: {
+                            Label("Effacer le journal", systemImage: "trash")
+                        }
+                    } else {
+                        Text("Ouvrez l'écran de connexion et passez d'un champ à l'autre : le journal se remplira ici.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("Diagnostic")
+                }
+
                 Section("À propos") {
                     LabeledContent("Application", value: "Honya")
                     LabeledContent("Version", value: "1.0")
