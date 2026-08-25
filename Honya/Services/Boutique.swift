@@ -60,7 +60,8 @@ final class Boutique {
     private(set) var achatEnCours: Formule?
     private(set) var souci: String?
 
-    /// Une veille qui tourne pour toute la durée de vie de l'application.
+    /// Une veille qui tourne pour toute la durée de vie de l'application —
+    /// elle n'est jamais annulée, la boutique étant un partagé unique.
     ///
     /// Un achat peut aboutir hors de l'écran d'abonnement — validation
     /// parentale accordée plus tard, achat commencé sur un autre appareil,
@@ -81,8 +82,6 @@ final class Boutique {
             await relireLesDroits()
         }
     }
-
-    deinit { veille?.cancel() }
 
     // MARK: - Le catalogue
 
