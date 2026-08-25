@@ -1,18 +1,31 @@
 import SwiftUI
 import UIKit
 
-// L'ancrage clavier de l'écran de bienvenue — l'architecture éprouvée sur
-// Binjo, dont l'écran de connexion a le même décor et les mêmes champs.
+// L'ancrage clavier de l'écran de bienvenue.
 //
 // Le contenu vit dans un contrôleur UIKit dont le bord bas est contraint au
-// guide clavier d'Apple (`UIKeyboardLayoutGuide`, la méthode documentée), et
-// l'évitement automatique de SwiftUI est explicitement coupé : deux pilotes
-// pour le même déplacement, c'était précisément l'origine des sauts.
+// guide clavier d'Apple (`UIKeyboardLayoutGuide`) — le mécanisme documenté :
+// contraint au guide, le contenu suit les animations du clavier sans écouter
+// soi-même les notifications. L'évitement automatique de SwiftUI est coupé
+// (`safeAreaRegions = .container`) : deux pilotes sur le même trajet, c'était
+// l'origine des sauts.
 //
-// Surtout, la position n'est SUIVIE que pendant l'ouverture. À
-// `keyboardDidShow`, elle est capturée puis verrouillée jusqu'à la fin de la
-// saisie : le passage e-mail → mot de passe, où la barre « Mots de passe »
-// change la hauteur du clavier, ne peut alors plus rien déplacer du tout.
+// Le guide seul ne suffit pourtant pas : au passage e-mail → mot de passe, la
+// barre d'AutoFill change la hauteur du clavier et iOS émet parfois de FAUX
+// willHide/didHide alors que le clavier reste à l'écran. Quiconque suit ces
+// événements — le guide compris — rejoue le trajet. D'où les deux règles :
+//
+// 1. LE GEL. Une fois le clavier posé (`keyboardDidShow`), la position du
+//    contenu est capturée puis verrouillée : plus rien ne suit le guide, les
+//    reconfigurations d'AutoFill ne déplacent plus un pixel.
+// 2. LA GÉOMÉTRIE, PAS LES ÉVÉNEMENTS. Le dégel ne se décide jamais sur
+//    willHide/didHide — invérifiables — mais sur la destination réelle du
+//    clavier, lue dans `keyboardWillChangeFrame` : une frame d'arrivée hors
+//    écran veut dire « le clavier part vraiment ». Fermeture voulue, le
+//    contenu se rattache au guide et redescend avec lui ; départ subi (fiche
+//    AutoFill, dictée, clavier matériel), on marque un temps court — le temps
+//    qu'un éventuel faux départ se démente — puis on rend le contenu au guide
+//    plutôt que de le laisser flotter au milieu de l'écran.
 
 /// La saisie vue comme une session : ouverte au premier champ touché,
 /// inchangée tant qu'on passe d'un champ à l'autre, fermée une seule fois.
@@ -31,9 +44,8 @@ final class SessionClavier {
         phase = .active
     }
 
-    /// À appeler AVANT de rendre le focus : le contrôleur doit savoir que
-    /// cette disparition du clavier est voulue — pendant la saisie, AutoFill
-    /// en annonce de fausses qu'il faut ignorer.
+    /// À appeler AVANT de rendre le focus : le contrôleur doit savoir que le
+    /// départ du clavier qui suit est voulu.
     func fermer() {
         guard phase == .active else { return }
         phase = .fermeture
@@ -85,6 +97,9 @@ final class ControleurAncrageClavier<Contenu: View>: UIViewController {
     private var positionGelee: NSLayoutConstraint?
     private var phase: SessionClavier.Phase = .inactive
     private var observateurs: [NSObjectProtocol] = []
+    /// Numérote les départs subis : un faux départ, démenti par la frame
+    /// suivante, périme le dégel programmé avant qu'il ne s'exécute.
+    private var generationDepart = 0
 
     var fermetureVoulue: () -> Bool
     var clavierRange: () -> Void
@@ -98,9 +113,9 @@ final class ControleurAncrageClavier<Contenu: View>: UIViewController {
         self.fermetureVoulue = fermetureVoulue
         self.clavierRange = clavierRange
         super.init(nibName: nil, bundle: nil)
-        // Ce contrôleur pilote seul le clavier. Sans cette exclusion, SwiftUI
-        // appliquerait SON évitement par-dessus le nôtre — deux animations
-        // concurrentes sur le même trajet, et l'écran saute.
+        // Ce contrôleur pilote seul le clavier : on retire la région
+        // `.keyboard` de la zone sûre du contenu, sans quoi SwiftUI
+        // appliquerait SON évitement par-dessus le nôtre.
         contenu.safeAreaRegions = .container
     }
 
@@ -142,37 +157,81 @@ final class ControleurAncrageClavier<Contenu: View>: UIViewController {
         ])
         contenu.didMove(toParent: self)
 
-        observer(UIResponder.keyboardDidShowNotification) { [weak self] in
+        observer(UIResponder.keyboardDidShowNotification) { [weak self] _ in
             self?.gelerLaPosition()
         }
-        observer(UIResponder.keyboardWillHideNotification) { [weak self] in
-            // Une fermeture voulue se prépare AVANT la disparition : on
-            // rattache au guide pour que le formulaire redescende AVEC le
-            // clavier. Un willHide pendant la saisie — AutoFill qui remplace
-            // la barre — reste ignoré : la position gelée ne bouge pas.
-            guard let self, self.fermetureVoulue() else { return }
-            self.suivreANouveau()
-        }
-        observer(UIResponder.keyboardDidHideNotification) { [weak self] in
-            guard let self, self.fermetureVoulue() else { return }
-            self.suivreANouveau()
-            self.clavierRange()
+        observer(UIResponder.keyboardWillChangeFrameNotification) { [weak self] notification in
+            self?.traiterChangementDeFrame(notification)
         }
     }
 
-    private func observer(_ nom: Notification.Name, _ action: @escaping () -> Void) {
+    private func observer(
+        _ nom: Notification.Name, _ action: @escaping (Notification) -> Void
+    ) {
         observateurs.append(NotificationCenter.default.addObserver(
             forName: nom, object: nil, queue: .main
-        ) { _ in action() })
+        ) { notification in
+            MainActor.assumeIsolated { action(notification) }
+        })
     }
 
-    /// Tout changement de phase rend la vue au guide ; le gel ne se
-    /// réarme qu'au prochain `keyboardDidShow` d'une session active.
+    // MARK: - Les décisions
+
+    /// Tout changement de phase rend la vue au guide ; le gel ne se réarme
+    /// qu'au prochain `keyboardDidShow` d'une session active.
     func appliquerPhase(_ nouvelle: SessionClavier.Phase) {
         guard phase != nouvelle else { return }
         phase = nouvelle
+        generationDepart += 1
         suivreANouveau()
     }
+
+    /// Où le clavier va-t-il VRAIMENT ? La frame d'arrivée fait foi.
+    private func traiterChangementDeFrame(_ notification: Notification) {
+        guard isViewLoaded, view.window != nil else { return }
+        guard let valeur = notification
+            .userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue
+        else { return }
+
+        let arrivee = valeur.cgRectValue
+        let ecran = view.window?.screen.bounds ?? UIScreen.main.bounds
+        let resteVisible = arrivee.minY < ecran.maxY - 1 && arrivee.height > 0
+
+        if resteVisible {
+            // Le clavier reste (ou revient) : tout départ annoncé était faux,
+            // le dégel programmé ne doit plus s'exécuter. La position gelée,
+            // elle, n'a jamais bougé — c'est tout l'intérêt.
+            generationDepart += 1
+            return
+        }
+
+        if fermetureVoulue() {
+            // Fermeture demandée par l'écran : on se rattache au guide tout
+            // de suite — les deux contraintes décrivent la même position à
+            // cet instant — et le contenu redescend AVEC le clavier.
+            generationDepart += 1
+            suivreANouveau()
+            clavierRange()
+            return
+        }
+
+        // Départ subi en pleine saisie : fiche AutoFill, dictée, clavier
+        // matériel… ou un faux départ d'iOS. On laisse au démenti le temps
+        // d'arriver ; s'il ne vient pas, le contenu est rendu au guide —
+        // un formulaire figé au milieu d'un écran sans clavier n'a pas de
+        // sens. La session, elle, reste ouverte : si le clavier revient,
+        // `keyboardDidShow` regèlera au bon endroit.
+        generationDepart += 1
+        let generation = generationDepart
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, generation == self.generationDepart else { return }
+                self.suivreANouveau()
+            }
+        }
+    }
+
+    // MARK: - Le gel
 
     /// La capture : le guide et la constante décrivent exactement la même
     /// position à cet instant, l'échange est invisible. À partir d'ici, plus
@@ -211,5 +270,15 @@ final class ControleurAncrageClavier<Contenu: View>: UIViewController {
             view.layoutIfNeeded()
         }
         self.positionGelee = nil
+    }
+
+    /// Rotation ou changement de fenêtre : une constante capturée dans
+    /// l'ancienne géométrie serait fausse — on rend la vue au guide.
+    override func viewWillTransition(
+        to size: CGSize, with coordinator: UIViewControllerTransitionCoordinator
+    ) {
+        super.viewWillTransition(to: size, with: coordinator)
+        generationDepart += 1
+        suivreANouveau()
     }
 }

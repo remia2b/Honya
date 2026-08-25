@@ -34,6 +34,8 @@ struct BienvenueView: View {
     @State private var information: String?
     @FocusState private var champActif: Champ?
     @State private var session = SessionClavier()
+    /// Périme les fermetures différées quand le focus revient aussitôt.
+    @State private var generationFocus = 0
     @Environment(\.scenePhase) private var vieApplication
 
     /// Le mot de passe oublié occupe la même plaque que la connexion : c'est
@@ -135,12 +137,22 @@ struct BienvenueView: View {
             .ignoresSafeArea(.keyboard)
         }
         .onChange(of: champActif) { _, nouveau in
+            generationFocus += 1
             if nouveau != nil {
                 session.ouvrir()
-            } else {
-                // Filet pour les chemins qui rendent le focus sans passer
-                // par fermerLeClavier() — la fermeture volontaire, elle, a
-                // déjà posé sa phase avant d'éteindre le focus.
+                return
+            }
+            // Filet pour les chemins qui rendent le focus sans passer par
+            // fermerLeClavier() — la fermeture volontaire a déjà posé sa
+            // phase. MAIS le focus s'éteint aussi un instant pendant le
+            // passage d'un champ à l'autre : fermer tout de suite romprait
+            // le gel en pleine saisie. On laisse donc un tour de boucle au
+            // champ suivant pour se déclarer ; s'il ne vient pas, c'était
+            // une vraie fin de saisie.
+            let generation = generationFocus
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(80))
+                guard generation == generationFocus, champActif == nil else { return }
                 session.fermer()
             }
         }
@@ -288,14 +300,17 @@ struct BienvenueView: View {
         // Une pile ordinaire : son placement face au clavier appartient
         // entièrement au contrôleur d'ancrage qui l'héberge.
         VStack(spacing: 0) {
-            Spacer(minLength: 0)
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    // Un geste attendu : toucher hors du formulaire range le
-                    // clavier. Sans lui, seul « Retour » savait le faire.
-                    if enSaisie { fermerLeClavier() }
+            // La zone au-dessus du formulaire — et elle seule — ferme la
+            // saisie au toucher. Un rectangle réel plutôt qu'un Spacer : un
+            // Spacer nu ne reçoit pas les gestes de façon fiable.
+            ZStack {
+                if enSaisie {
+                    Color.clear
+                        .contentShape(Rectangle())
+                        .onTapGesture { fermerLeClavier() }
                 }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             if !alEtroit {
                     // Le titre s'efface pendant la saisie : sur un écran
