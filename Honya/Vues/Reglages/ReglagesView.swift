@@ -123,24 +123,34 @@ struct ReglagesView: View {
 
                 // Diagnostic du clavier — section temporaire, le temps de
                 // comprendre le plongeon sur appareil. À retirer ensuite.
+                // Volontairement hors catalogue (verbatim) : cette section
+                // disparaît avec le diagnostic, on ne la traduit pas.
                 Section {
                     if let url = journalClavierURL,
                        FileManager.default.fileExists(atPath: url.path) {
                         ShareLink(item: url) {
-                            Label("Partager le journal du clavier", systemImage: "keyboard.badge.ellipsis")
+                            Label {
+                                Text(verbatim: "Partager le journal du clavier")
+                            } icon: {
+                                Image(systemName: "keyboard.badge.ellipsis")
+                            }
                         }
                         Button(role: .destructive) {
                             try? FileManager.default.removeItem(at: url)
                         } label: {
-                            Label("Effacer le journal", systemImage: "trash")
+                            Label {
+                                Text(verbatim: "Effacer le journal")
+                            } icon: {
+                                Image(systemName: "trash")
+                            }
                         }
                     } else {
-                        Text("Ouvrez l'écran de connexion et passez d'un champ à l'autre : le journal se remplira ici.")
+                        Text(verbatim: "Ouvrez l'écran de connexion et passez d'un champ à l'autre : le journal se remplira ici.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 } header: {
-                    Text("Diagnostic")
+                    Text(verbatim: "Diagnostic")
                 }
 
                 Section("À propos") {
