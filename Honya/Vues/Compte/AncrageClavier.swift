@@ -39,16 +39,23 @@ final class SessionClavier {
     /// Le clavier est-il à l'écran — la seule question que le décor se pose.
     var enSaisie: Bool { phase == .active }
 
+    /// Les deux poignées vers les champs natifs, posées à leur arrivée à
+    /// l'écran : fermer la saisie, et lire l'état réel du focus. La session
+    /// n'a pas besoin d'en savoir plus sur eux.
+    @ObservationIgnored var terminerLaSaisie: () -> Bool = { false }
+    @ObservationIgnored var saisieEncoreActive: () -> Bool = { false }
+
     func ouvrir() {
         guard phase != .active else { return }
         phase = .active
     }
 
-    /// À appeler AVANT de rendre le focus : le contrôleur doit savoir que le
-    /// départ du clavier qui suit est voulu.
-    func fermer() {
+    /// Ferme dans le bon ordre : la phase d'abord, le focus ensuite — le
+    /// contrôleur sait ainsi que le départ du clavier qui suit est voulu.
+    func fermerLaSaisie() {
         guard phase == .active else { return }
         phase = .fermeture
+        if !terminerLaSaisie() { phase = .inactive }
     }
 
     func clavierRange() {
@@ -58,9 +65,9 @@ final class SessionClavier {
 
     /// Une interruption (permission, AutoFill, changement d'app) peut avaler
     /// la fin de session : on tranche d'après l'état réel du focus.
-    func reconcilier(enSaisie: Bool) {
+    func reconcilier() {
         guard phase == .fermeture else { return }
-        phase = enSaisie ? .active : .inactive
+        phase = saisieEncoreActive() ? .active : .inactive
     }
 }
 

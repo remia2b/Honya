@@ -32,10 +32,7 @@ struct BienvenueView: View {
     @State private var enCours = false
     @State private var erreur: String?
     @State private var information: String?
-    @FocusState private var champActif: Champ?
     @State private var session = SessionClavier()
-    /// Périme les fermetures différées quand le focus revient aussitôt.
-    @State private var generationFocus = 0
     @Environment(\.scenePhase) private var vieApplication
 
     /// Le mot de passe oublié occupe la même plaque que la connexion : c'est
@@ -44,8 +41,6 @@ struct BienvenueView: View {
     @State private var codeEnvoye = false
     @State private var code = ""
     @State private var nouveauMotDePasse = ""
-
-    private enum Champ { case email, motDePasse, code, nouveau }
 
     /// L'écran est-il à l'étroit : clavier ouvert, ou formulaire long.
     ///
@@ -136,32 +131,12 @@ struct BienvenueView: View {
             .ignoresSafeArea()
             .ignoresSafeArea(.keyboard)
         }
-        .onChange(of: champActif) { _, nouveau in
-            generationFocus += 1
-            if nouveau != nil {
-                session.ouvrir()
-                return
-            }
-            // Filet pour les chemins qui rendent le focus sans passer par
-            // fermerLeClavier() — la fermeture volontaire a déjà posé sa
-            // phase. MAIS le focus s'éteint aussi un instant pendant le
-            // passage d'un champ à l'autre : fermer tout de suite romprait
-            // le gel en pleine saisie. On laisse donc un tour de boucle au
-            // champ suivant pour se déclarer ; s'il ne vient pas, c'était
-            // une vraie fin de saisie.
-            let generation = generationFocus
-            Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(80))
-                guard generation == generationFocus, champActif == nil else { return }
-                session.fermer()
-            }
-        }
         .onChange(of: vieApplication) { _, etat in
             switch etat {
             case .background:
                 fermerLeClavier()
             case .active:
-                session.reconcilier(enSaisie: champActif != nil)
+                session.reconcilier()
             default:
                 break
             }
@@ -286,12 +261,11 @@ struct BienvenueView: View {
         )
     }
 
-    /// Ferme la saisie dans le bon ordre : la session d'abord, le focus
-    /// ensuite. Le contrôleur sait ainsi que le willHide qui suit est voulu,
-    /// et rattache le formulaire au clavier pour qu'ils descendent ensemble.
+    /// Ferme la saisie dans le bon ordre — la session d'abord, le focus
+    /// ensuite : le contrôleur sait ainsi que le départ du clavier qui suit
+    /// est voulu, et rattache le formulaire pour qu'ils descendent ensemble.
     private func fermerLeClavier() {
-        session.fermer()
-        champActif = nil
+        session.fermerLaSaisie()
     }
 
     // MARK: - L'accueil
@@ -385,11 +359,24 @@ struct BienvenueView: View {
     /// pour trois champs cassait la continuité de la page d'accueil.
     private var formulaireEnBas: some View {
         VStack(spacing: 12) {
-            if oubli {
-                contenuOubli
-            } else {
-                contenuConnexion
+            if oubli { enTeteOubli } else { selecteurMode }
+
+            // De vrais UITextField dans un arbre persistant : le premier
+            // répondant passe de l'un à l'autre DIRECTEMENT, sans resign
+            // intermédiaire — le clavier ne fait plus l'aller-retour au
+            // changement de champ.
+            ChampsSession(
+                configuration: configurationChamps,
+                email: $email,
+                motDePasse: $motDePasse,
+                code: $code,
+                nouveau: $nouveauMotDePasse,
+                session: session
+            ) {
+                Task { await validationParClavier() }
             }
+
+            boutonPrincipal
 
             if let information {
                 message(information, couleur: Couleurs.lu)
@@ -417,78 +404,75 @@ struct BienvenueView: View {
         .animation(.snappy(duration: 0.25), value: codeEnvoye)
     }
 
-    private var contenuConnexion: some View {
-        Group {
-            Picker("", selection: $mode) {
-                ForEach(Mode.allCases) { cas in
-                    Text(cas.libelle).tag(cas)
-                }
-            }
-            .pickerStyle(.segmented)
-            .onChange(of: mode) { _, _ in
-                erreur = nil
-                information = nil
-            }
+    private var configurationChamps: ChampsSessionVue.Configuration {
+        if oubli { return codeEnvoye ? .oubliCode : .oubliDemande }
+        return .identifiants(inscription: mode == .inscription)
+    }
 
-            champ("Adresse e-mail", systemImage: "envelope", texte: $email, champ: .email)
-            champ(
-                mode == .inscription ? "Mot de passe (6 caractères min.)" : "Mot de passe",
-                systemImage: "lock",
-                texte: $motDePasse,
-                champ: .motDePasse,
-                secret: true
-            )
+    private var selecteurMode: some View {
+        Picker("", selection: $mode) {
+            ForEach(Mode.allCases) { cas in
+                Text(cas.libelle).tag(cas)
+            }
+        }
+        .pickerStyle(.segmented)
+        .onChange(of: mode) { _, _ in
+            erreur = nil
+            information = nil
+        }
+    }
 
+    private var enTeteOubli: some View {
+        VStack(spacing: 4) {
+            Text("Réinitialiser le mot de passe")
+                .font(.system(size: 16, weight: .semibold))
+            Text(codeEnvoye
+                 ? "Recopiez le code reçu, puis choisissez votre nouveau mot de passe."
+                 : "Un code part vers votre adresse, à recopier ici même.")
+                .font(.system(size: 12.5))
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(.bottom, 2)
+    }
+
+    @ViewBuilder
+    private var boutonPrincipal: some View {
+        if !oubli {
             bouton(
                 titre: mode == .inscription ? "Créer mon compte" : "Se connecter",
                 actif: !email.isEmpty && motDePasse.count >= 6
             ) {
                 await valider()
             }
+        } else if codeEnvoye {
+            bouton(
+                titre: "Valider et me connecter",
+                actif: code.count >= 4 && nouveauMotDePasse.count >= 6
+            ) {
+                await terminerReinitialisation()
+            }
+        } else {
+            bouton(
+                titre: "Envoyer le code",
+                actif: !email.trimmingCharacters(in: .whitespaces).isEmpty
+            ) {
+                await envoyerReinitialisation()
+            }
         }
     }
 
-    /// Le mot de passe oublié se termine ici, par un code à recopier.
-    ///
-    /// Pas de lien à suivre : un lien suppose que Honya sache se faire rouvrir
-    /// depuis Safari, et sort le lecteur de l'écran où il était. Le code se
-    /// recopie sans quitter l'application.
-    private var contenuOubli: some View {
-        Group {
-            VStack(spacing: 4) {
-                Text("Réinitialiser le mot de passe")
-                    .font(.system(size: 16, weight: .semibold))
-                Text(codeEnvoye
-                     ? "Recopiez le code reçu, puis choisissez votre nouveau mot de passe."
-                     : "Un code part vers votre adresse, à recopier ici même.")
-                    .font(.system(size: 12.5))
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.bottom, 2)
-
-            champ("Adresse e-mail", systemImage: "envelope", texte: $email, champ: .email)
-
-            if codeEnvoye {
-                champ("Code reçu par courrier", systemImage: "number",
-                      texte: $code, champ: .code, clavier: .numberPad)
-                champ("Nouveau mot de passe (6 caractères min.)", systemImage: "lock.rotation",
-                      texte: $nouveauMotDePasse, champ: .nouveau, secret: true)
-
-                bouton(
-                    titre: "Valider et me connecter",
-                    actif: code.count >= 4 && nouveauMotDePasse.count >= 6
-                ) {
-                    await terminerReinitialisation()
-                }
-            } else {
-                bouton(
-                    titre: "Envoyer le code",
-                    actif: !email.trimmingCharacters(in: .whitespaces).isEmpty
-                ) {
-                    await envoyerReinitialisation()
-                }
-            }
+    /// La touche retour du dernier champ vaut le bouton principal.
+    private func validationParClavier() async {
+        if !oubli {
+            guard !email.isEmpty, motDePasse.count >= 6 else { return }
+            await valider()
+        } else if codeEnvoye {
+            guard code.count >= 4, nouveauMotDePasse.count >= 6 else { return }
+            await terminerReinitialisation()
+        } else {
+            guard !email.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+            await envoyerReinitialisation()
         }
     }
 
@@ -553,50 +537,6 @@ struct BienvenueView: View {
         mode == .inscription
             ? String(localized: "Créez votre compte avec une adresse e-mail.")
             : String(localized: "Content de vous revoir.")
-    }
-
-    private func champ(
-        _ invite: LocalizedStringKey,
-        systemImage: String,
-        texte: Binding<String>,
-        champ cible: Champ,
-        secret: Bool = false,
-        clavier: UIKeyboardType? = nil
-    ) -> some View {
-        HStack(spacing: 10) {
-            Image(systemName: systemImage)
-                .foregroundStyle(.secondary)
-                .frame(width: 20)
-            Group {
-                if secret {
-                    SecureField(invite, text: texte)
-                } else if let clavier {
-                    TextField(invite, text: texte)
-                        .keyboardType(clavier)
-                        .textContentType(.oneTimeCode)
-                } else {
-                    TextField(invite, text: texte)
-                        .keyboardType(.emailAddress)
-                        .textContentType(.emailAddress)
-                        .autocapitalization(.none)
-                }
-            }
-            .autocorrectionDisabled()
-            .focused($champActif, equals: cible)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 14)
-        // Sur un mur de couvertures, un matériau seul se noyait : il lui faut
-        // un fond opaque dessous et un contour net pour que le champ se lise
-        // comme un champ.
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.16), lineWidth: 1)
-        )
     }
 
     private func message(_ texte: String, couleur: Color) -> some View {
