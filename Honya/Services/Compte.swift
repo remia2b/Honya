@@ -134,15 +134,29 @@ final class Compte {
         try await SupabaseAuth.reinitialiserMotDePasse(email: adresse)
     }
 
-    /// Le chemin complet du mot de passe oublié : le code vaut preuve, le
-    /// nouveau mot de passe est posé, et le lecteur entre dans la foulée —
-    /// lui redemander de se connecter juste après serait absurde.
-    func reinitialiser(email adresse: String, code: String, nouveau: String) async throws {
-        let session = try await SupabaseAuth.verifierCodeRecuperation(
+    /// La session ouverte par le code, en attente du nouveau mot de passe.
+    private var sessionRecuperation: SupabaseAuth.Session?
+
+    /// Première marche du mot de passe oublié : le code vaut preuve. Le
+    /// vérifier tout de suite donne un retour immédiat — un code faux se
+    /// voit ici, pas après avoir choisi un mot de passe pour rien.
+    func verifierCode(email adresse: String, code: String) async throws {
+        sessionRecuperation = try await SupabaseAuth.verifierCodeRecuperation(
             email: adresse, code: code
         )
+    }
+
+    /// Seconde marche : le nouveau mot de passe est posé et le lecteur entre
+    /// dans la foulée — lui redemander de se connecter serait absurde.
+    func poserNouveauMotDePasse(_ nouveau: String, email adresse: String) async throws {
+        guard let session = sessionRecuperation else {
+            throw SupabaseAuth.Souci.message(
+                String(localized: "Recommencez : le code n'a pas été vérifié.")
+            )
+        }
         try await SupabaseAuth.changerMotDePasse(nouveau, jeton: session.access_token)
         adopter(session, adresse: adresse)
+        sessionRecuperation = nil
     }
 
     private func adopter(_ session: SupabaseAuth.Session, adresse: String) {

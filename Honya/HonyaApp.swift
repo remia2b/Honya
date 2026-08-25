@@ -93,6 +93,10 @@ struct HonyaApp: App {
             BienvenueView(surLOubli: "demande")
         case "oubliCode":
             BienvenueView(surLOubli: "code")
+        case "oubliNouveau":
+            BienvenueView(surLOubli: "nouveau")
+        case "motdepasse":
+            BienvenueView(surLOubli: "mdp")
         case "bienvenue":
             BienvenueView()
         case "reglages":

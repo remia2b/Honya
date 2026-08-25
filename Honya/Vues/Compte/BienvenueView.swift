@@ -35,10 +35,18 @@ struct BienvenueView: View {
     @State private var session = SessionClavier()
     @Environment(\.scenePhase) private var vieApplication
 
-    /// Le mot de passe oublié occupe la même plaque que la connexion : c'est
-    /// la même page, on ne change pas d'écran pour trois champs.
-    @State private var oubli = false
-    @State private var codeEnvoye = false
+    /// La plaque est un escalier : une marche, UN champ. La bascule de
+    /// premier répondant entre deux champs fait re-négocier AutoFill et
+    /// reconstruit le clavier — à une marche par champ, on ne bascule plus.
+    private enum Marche: Equatable {
+        case adresse            // l'e-mail, porte d'entrée de tout
+        case motDePasse         // connexion ou inscription
+        case oubliEnvoi         // l'e-mail part chercher un code
+        case oubliCode          // le code reçu
+        case oubliNouveau       // le nouveau mot de passe
+    }
+
+    @State private var marche: Marche = .adresse
     @State private var code = ""
     @State private var nouveauMotDePasse = ""
 
@@ -47,7 +55,7 @@ struct BienvenueView: View {
     /// La réinitialisation avec son code compte trois champs et un en-tête :
     /// la plaque monte, et le titre se retrouvait posé sur des couvertures en
     /// pleine lumière, là où la pénombre ne descend pas encore.
-    private var alEtroit: Bool { enSaisie || (oubli && codeEnvoye) }
+    private var alEtroit: Bool { enSaisie }
 
     /// La saisie est-elle en cours — au sens de la session, pas du focus.
     ///
@@ -147,10 +155,18 @@ struct BienvenueView: View {
             if surLEmail { parEmail = true }
             if let surLOubli {
                 parEmail = true
-                oubli = true
-                if surLOubli == "code" {
+                switch surLOubli {
+                case "code":
                     email = "remi@exemple.fr"
-                    codeEnvoye = true
+                    marche = .oubliCode
+                case "nouveau":
+                    email = "remi@exemple.fr"
+                    marche = .oubliNouveau
+                case "mdp":
+                    email = "remi@exemple.fr"
+                    marche = .motDePasse
+                default:
+                    marche = .oubliEnvoi
                 }
             }
         }
@@ -331,6 +347,7 @@ struct BienvenueView: View {
             Button {
                 erreur = nil
                 information = nil
+                marche = .adresse
                 parEmail = true
             } label: {
                 Text("Continuer avec un e-mail")
@@ -359,12 +376,11 @@ struct BienvenueView: View {
     /// pour trois champs cassait la continuité de la page d'accueil.
     private var formulaireEnBas: some View {
         VStack(spacing: 12) {
-            if oubli { enTeteOubli } else { selecteurMode }
+            enTeteDeMarche
 
-            // De vrais UITextField dans un arbre persistant : le premier
-            // répondant passe de l'un à l'autre DIRECTEMENT, sans resign
-            // intermédiaire — le clavier ne fait plus l'aller-retour au
-            // changement de champ.
+            // De vrais UITextField dans un arbre persistant, UN SEUL visible
+            // par marche : le clavier s'ouvre et se ferme, il ne se
+            // transfère plus jamais d'un champ à l'autre.
             ChampsSession(
                 configuration: configurationChamps,
                 email: $email,
@@ -400,79 +416,143 @@ struct BienvenueView: View {
         )
         .padding(.horizontal, 16)
         .padding(.bottom, 26)
-        .animation(.snappy(duration: 0.25), value: oubli)
-        .animation(.snappy(duration: 0.25), value: codeEnvoye)
+        .animation(.snappy(duration: 0.25), value: marche)
     }
 
     private var configurationChamps: ChampsSessionVue.Configuration {
-        if oubli { return codeEnvoye ? .oubliCode : .oubliDemande }
-        return .identifiants(inscription: mode == .inscription)
+        switch marche {
+        case .adresse, .oubliEnvoi: return .email
+        case .motDePasse: return .motDePasse(inscription: mode == .inscription)
+        case .oubliCode: return .code
+        case .oubliNouveau: return .nouveau
+        }
     }
 
-    private var selecteurMode: some View {
-        Picker("", selection: $mode) {
-            ForEach(Mode.allCases) { cas in
-                Text(cas.libelle).tag(cas)
+    /// Changer de marche ferme d'abord la saisie : le clavier descend avec
+    /// la plaque, la marche suivante s'ouvre d'un toucher sur son champ.
+    /// JAMAIS de transfert de focus — c'est lui qui faisait plonger le
+    /// clavier.
+    private func aller(a nouvelle: Marche) {
+        fermerLeClavier()
+        erreur = nil
+        information = nil
+        withAnimation(.snappy(duration: 0.25)) { marche = nouvelle }
+    }
+
+    @ViewBuilder
+    private var enTeteDeMarche: some View {
+        switch marche {
+        case .adresse:
+            Picker("", selection: $mode) {
+                ForEach(Mode.allCases) { cas in
+                    Text(cas.libelle).tag(cas)
+                }
             }
-        }
-        .pickerStyle(.segmented)
-        .onChange(of: mode) { _, _ in
-            erreur = nil
-            information = nil
+            .pickerStyle(.segmented)
+            .onChange(of: mode) { _, _ in
+                erreur = nil
+                information = nil
+            }
+
+        case .motDePasse:
+            // L'adresse retenue, et la porte pour la corriger : le lecteur
+            // sait toujours pour quel compte il tape son mot de passe.
+            HStack(spacing: 10) {
+                Image(systemName: "envelope")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20)
+                Text(email)
+                    .font(.system(size: 15, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer(minLength: 8)
+                Button("Modifier") { aller(a: .adresse) }
+                    .font(.system(size: 13, weight: .semibold))
+                    .tint(Couleurs.accent)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(uiColor: .secondarySystemBackground).opacity(0.6))
+            )
+
+        case .oubliEnvoi, .oubliCode, .oubliNouveau:
+            VStack(spacing: 4) {
+                Text("Réinitialiser le mot de passe")
+                    .font(.system(size: 16, weight: .semibold))
+                Text(sousTitreOubli)
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.bottom, 2)
         }
     }
 
-    private var enTeteOubli: some View {
-        VStack(spacing: 4) {
-            Text("Réinitialiser le mot de passe")
-                .font(.system(size: 16, weight: .semibold))
-            Text(codeEnvoye
-                 ? "Recopiez le code reçu, puis choisissez votre nouveau mot de passe."
-                 : "Un code part vers votre adresse, à recopier ici même.")
-                .font(.system(size: 12.5))
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+    private var sousTitreOubli: String {
+        switch marche {
+        case .oubliCode:
+            return String(localized: "Recopiez le code reçu, puis choisissez votre nouveau mot de passe.")
+        case .oubliNouveau:
+            return String(localized: "Choisissez votre nouveau mot de passe.")
+        default:
+            return String(localized: "Un code part vers votre adresse, à recopier ici même.")
         }
-        .padding(.bottom, 2)
     }
 
     @ViewBuilder
     private var boutonPrincipal: some View {
-        if !oubli {
+        switch marche {
+        case .adresse:
+            bouton(titre: "Continuer", actif: adresseValable) {
+                aller(a: .motDePasse)
+            }
+        case .motDePasse:
             bouton(
                 titre: mode == .inscription ? "Créer mon compte" : "Se connecter",
-                actif: !email.isEmpty && motDePasse.count >= 6
+                actif: motDePasse.count >= 6
             ) {
                 await valider()
             }
-        } else if codeEnvoye {
-            bouton(
-                titre: "Valider et me connecter",
-                actif: code.count >= 4 && nouveauMotDePasse.count >= 6
-            ) {
-                await terminerReinitialisation()
-            }
-        } else {
-            bouton(
-                titre: "Envoyer le code",
-                actif: !email.trimmingCharacters(in: .whitespaces).isEmpty
-            ) {
+        case .oubliEnvoi:
+            bouton(titre: "Envoyer le code", actif: adresseValable) {
                 await envoyerReinitialisation()
+            }
+        case .oubliCode:
+            bouton(titre: "Valider le code", actif: code.count >= 4) {
+                await validerLeCode()
+            }
+        case .oubliNouveau:
+            bouton(titre: "Valider et me connecter", actif: nouveauMotDePasse.count >= 6) {
+                await terminerReinitialisation()
             }
         }
     }
 
-    /// La touche retour du dernier champ vaut le bouton principal.
+    private var adresseValable: Bool {
+        let adresse = email.trimmingCharacters(in: .whitespaces)
+        return adresse.contains("@") && adresse.contains(".")
+    }
+
+    /// La touche retour du champ vaut le bouton de la marche.
     private func validationParClavier() async {
-        if !oubli {
-            guard !email.isEmpty, motDePasse.count >= 6 else { return }
+        switch marche {
+        case .adresse:
+            guard adresseValable else { return }
+            aller(a: .motDePasse)
+        case .motDePasse:
+            guard motDePasse.count >= 6 else { return }
             await valider()
-        } else if codeEnvoye {
-            guard code.count >= 4, nouveauMotDePasse.count >= 6 else { return }
-            await terminerReinitialisation()
-        } else {
-            guard !email.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        case .oubliEnvoi:
+            guard adresseValable else { return }
             await envoyerReinitialisation()
+        case .oubliCode:
+            guard code.count >= 4 else { return }
+            await validerLeCode()
+        case .oubliNouveau:
+            guard nouveauMotDePasse.count >= 6 else { return }
+            await terminerReinitialisation()
         }
     }
 
@@ -499,33 +579,18 @@ struct BienvenueView: View {
 
     private var liens: some View {
         HStack(spacing: 18) {
-            Button("Retour") {
-                fermerLeClavier()
-                erreur = nil
-                information = nil
-                if oubli {
-                    oubli = false
-                    codeEnvoye = false
-                    code = ""
-                    nouveauMotDePasse = ""
-                } else {
-                    parEmail = false
-                }
-            }
+            Button("Retour") { revenir() }
             Spacer(minLength: 0)
-            if oubli {
-                if codeEnvoye {
-                    Button("Renvoyer le code") {
-                        Task { await envoyerReinitialisation() }
-                    }
-                    .disabled(enCours)
+            switch marche {
+            case .adresse, .motDePasse:
+                Button("Mot de passe oublié ?") { aller(a: .oubliEnvoi) }
+            case .oubliCode:
+                Button("Renvoyer le code") {
+                    Task { await envoyerReinitialisation() }
                 }
-            } else {
-                Button("Mot de passe oublié ?") {
-                    erreur = nil
-                    information = nil
-                    oubli = true
-                }
+                .disabled(enCours)
+            case .oubliEnvoi, .oubliNouveau:
+                EmptyView()
             }
         }
         .font(.system(size: 14, weight: .semibold))
@@ -533,10 +598,21 @@ struct BienvenueView: View {
         .padding(.top, 2)
     }
 
-    private var sousTitreEmail: String {
-        mode == .inscription
-            ? String(localized: "Créez votre compte avec une adresse e-mail.")
-            : String(localized: "Content de vous revoir.")
+    /// Chaque marche redescend d'où elle vient.
+    private func revenir() {
+        switch marche {
+        case .adresse:
+            fermerLeClavier()
+            erreur = nil
+            information = nil
+            parEmail = false
+        case .motDePasse, .oubliEnvoi:
+            aller(a: .adresse)
+        case .oubliCode:
+            aller(a: .oubliEnvoi)
+        case .oubliNouveau:
+            aller(a: .oubliCode)
+        }
     }
 
     private func message(_ texte: String, couleur: Color) -> some View {
@@ -693,8 +769,25 @@ struct BienvenueView: View {
         defer { enCours = false }
         do {
             try await compte.envoyerReinitialisation(email: adresse)
-            codeEnvoye = true
+            withAnimation(.snappy(duration: 0.25)) { marche = .oubliCode }
             information = String(localized: "Un courrier vient de partir vers \(adresse).")
+        } catch {
+            erreur = error.localizedDescription
+        }
+    }
+
+    private func validerLeCode() async {
+        fermerLeClavier()
+        erreur = nil
+        information = nil
+        enCours = true
+        defer { enCours = false }
+        do {
+            try await compte.verifierCode(
+                email: email.trimmingCharacters(in: .whitespaces),
+                code: code.trimmingCharacters(in: .whitespaces)
+            )
+            withAnimation(.snappy(duration: 0.25)) { marche = .oubliNouveau }
         } catch {
             erreur = error.localizedDescription
         }
@@ -707,10 +800,9 @@ struct BienvenueView: View {
         enCours = true
         defer { enCours = false }
         do {
-            try await compte.reinitialiser(
-                email: email.trimmingCharacters(in: .whitespaces),
-                code: code.trimmingCharacters(in: .whitespaces),
-                nouveau: nouveauMotDePasse
+            try await compte.poserNouveauMotDePasse(
+                nouveauMotDePasse,
+                email: email.trimmingCharacters(in: .whitespaces)
             )
         } catch {
             erreur = error.localizedDescription

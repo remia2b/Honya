@@ -102,10 +102,16 @@ final class RangChamp: UIView {
 /// cacher. Détruire puis recréer un champ, c'est détruire son premier
 /// répondant — exactement ce qu'on interdit.
 final class ChampsSessionVue: UIView {
+    /// UN champ à la fois. La bascule de premier répondant entre deux
+    /// champs fait re-négocier AutoFill — bandeau retiré, clavier
+    /// reconstruit, bandeau remis, le plongeon prouvé par le journal. À un
+    /// champ par étape, il n'y a plus jamais de bascule : le clavier
+    /// s'ouvre et se ferme, il ne se transfère plus.
     enum Configuration: Equatable {
-        case identifiants(inscription: Bool)
-        case oubliDemande
-        case oubliCode
+        case email
+        case motDePasse(inscription: Bool)
+        case code
+        case nouveau
     }
 
     static let hauteurRang: CGFloat = 50
@@ -116,15 +122,16 @@ final class ChampsSessionVue: UIView {
     let rangCode = RangChamp(symbole: "number")
     let rangNouveau = RangChamp(symbole: "lock.rotation")
 
-    private(set) var configuration: Configuration = .identifiants(inscription: true)
+    private(set) var configuration: Configuration = .email
 
     var tous: [RangChamp] { [rangEmail, rangMotDePasse, rangCode, rangNouveau] }
 
     var visibles: [RangChamp] {
         switch configuration {
-        case .identifiants: return [rangEmail, rangMotDePasse]
-        case .oubliDemande: return [rangEmail]
-        case .oubliCode: return [rangEmail, rangCode, rangNouveau]
+        case .email: return [rangEmail]
+        case .motDePasse: return [rangMotDePasse]
+        case .code: return [rangCode]
+        case .nouveau: return [rangNouveau]
         }
     }
 
@@ -168,13 +175,7 @@ final class ChampsSessionVue: UIView {
     }
 
     static func hauteur(_ configuration: Configuration) -> CGFloat {
-        let combien: CGFloat
-        switch configuration {
-        case .identifiants: combien = 2
-        case .oubliDemande: combien = 1
-        case .oubliCode: combien = 3
-        }
-        return combien * hauteurRang + (combien - 1) * ecart
+        hauteurRang
     }
 
     func appliquer(_ nouvelle: Configuration) {
@@ -184,11 +185,12 @@ final class ChampsSessionVue: UIView {
 
         for rang in tous { rang.isHidden = !visibles.contains(rang) }
 
-        // Un champ caché ne peut pas garder le clavier : le focus passe à
-        // l'e-mail — présent dans toutes les configurations — par transfert
-        // direct, sans fermeture du clavier.
+        // Les étapes ferment la saisie AVANT de changer de configuration ;
+        // ceci n'est qu'un filet : un champ caché ne peut pas garder le
+        // clavier, et surtout on ne TRANSFÈRE jamais — c'est le transfert
+        // qui déclenche la re-négociation d'AutoFill.
         if let focalise, focalise.isHidden {
-            rangEmail.champ.becomeFirstResponder()
+            endEditing(true)
         }
 
         invalidateIntrinsicContentSize()
@@ -283,7 +285,7 @@ struct ChampsSession: UIViewRepresentable {
         vue.appliquer(configuration)
 
         let inscription: Bool
-        if case .identifiants(true) = configuration { inscription = true } else { inscription = false }
+        if case .motDePasse(true) = configuration { inscription = true } else { inscription = false }
 
         configurer(
             vue.rangEmail.champ,
@@ -291,7 +293,7 @@ struct ChampsSession: UIViewRepresentable {
             invite: String(localized: "Adresse e-mail"),
             clavier: .emailAddress,
             contenu: .username,
-            retour: configuration == .oubliDemande ? .go : .next
+            retour: .continue
         )
         vue.rangEmail.champ.autocapitalizationType = .none
 
@@ -390,16 +392,8 @@ struct ChampsSession: UIViewRepresentable {
         }
 
         func textFieldShouldReturn(_ champ: UITextField) -> Bool {
-            guard let vue else { return false }
-            let champs = vue.visibles.map(\.champ)
-            if let position = champs.firstIndex(where: { $0 === champ }),
-               position + 1 < champs.count {
-                // Transfert DIRECT : aucun resign intermédiaire, le clavier
-                // reste en place.
-                champs[position + 1].becomeFirstResponder()
-            } else {
-                proprietaire.surValidation()
-            }
+            // Un champ par étape : la touche retour vaut toujours le bouton.
+            proprietaire.surValidation()
             return false
         }
     }
