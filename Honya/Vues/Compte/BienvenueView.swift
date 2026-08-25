@@ -43,6 +43,13 @@ struct BienvenueView: View {
 
     private enum Champ { case email, motDePasse, code, nouveau }
 
+    /// L'écran est-il à l'étroit : clavier ouvert, ou formulaire long.
+    ///
+    /// La réinitialisation avec son code compte trois champs et un en-tête :
+    /// la plaque monte, et le titre se retrouvait posé sur des couvertures en
+    /// pleine lumière, là où la pénombre ne descend pas encore.
+    private var alEtroit: Bool { enSaisie || (oubli && codeEnvoye) }
+
     /// Le clavier est-il ouvert — sans dire sur quel champ.
     ///
     /// C'est la distinction qui compte. Animer sur `champActif` déclenchait une
@@ -108,7 +115,7 @@ struct BienvenueView: View {
                 voile
                     .ignoresSafeArea()
                     .ignoresSafeArea(.keyboard)
-                    .animation(.snappy(duration: 0.28), value: enSaisie)
+                    .animation(.snappy(duration: 0.28), value: alEtroit)
             }
 
             ecranAccueil
@@ -215,7 +222,7 @@ struct BienvenueView: View {
         // de l'écran : la pénombre doit remonter avec lui, sinon les
         // couvertures percent derrière les champs.
         return LinearGradient(
-            stops: !enSaisie
+            stops: !alEtroit
                 ? [
                     .init(color: fond.opacity(0), location: 0),
                     .init(color: fond.opacity(0), location: 0.40),
@@ -244,7 +251,7 @@ struct BienvenueView: View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
 
-            if !enSaisie {
+            if !alEtroit {
                     // Le titre s'efface pendant la saisie : sur un écran
                     // réduit par le clavier, il finissait par chevaucher les
                     // couvertures et le formulaire.
@@ -268,7 +275,7 @@ struct BienvenueView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .animation(.snappy(duration: 0.28), value: enSaisie)
+        .animation(.snappy(duration: 0.28), value: alEtroit)
         .animation(.snappy(duration: 0.3), value: parEmail)
         .opacity(apparu ? 1 : 0)
         .offset(y: apparu ? 0 : 14)

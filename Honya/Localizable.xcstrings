@@ -46992,6 +46992,182 @@
           }
         }
       }
+    },
+    "Retour": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atrás"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atrás"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voltar"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zurück"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Indietro"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terug"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wstecz"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tillbaka"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geri"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Назад"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "戻る"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "뒤로"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返回"
+          }
+        }
+      }
+    },
+    "Se déconnecter garde votre bibliothèque sur cet appareil. Supprimer votre compte l'efface. Pour retirer Honya de votre identifiant Apple, allez dans Réglages > votre nom > Connexion avec Apple.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Signing out keeps your library on this device. Deleting your account erases it. To remove Honya from your Apple Account, go to Settings > your name > Sign in with Apple."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerrar sesión mantiene tu biblioteca en el dispositivo. Eliminar la cuenta la borra. Para quitar Honya de tu cuenta de Apple, ve a Ajustes > tu nombre > Iniciar sesión con Apple."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cerrar sesión mantiene tu biblioteca en el dispositivo. Eliminar la cuenta la borra. Para quitar Honya de tu cuenta de Apple, ve a Configuración > tu nombre > Iniciar sesión con Apple."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sair mantém sua estante neste aparelho. Excluir a conta apaga tudo. Para remover o Honya da sua Conta Apple, vá em Ajustes > seu nome > Iniciar sessão com a Apple."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beim Abmelden bleibt deine Bibliothek auf dem Gerät. Beim Löschen des Accounts verschwindet sie. Um Honya von deinem Apple-Account zu trennen, geh zu Einstellungen > dein Name > Mit Apple anmelden."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uscire lascia la tua biblioteca su questo dispositivo. Eliminare l'account la cancella. Per togliere Honya dal tuo account Apple, vai in Impostazioni > il tuo nome > Accedi con Apple."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uitloggen laat je bibliotheek op dit apparaat staan. Je account verwijderen wist hem. Ga naar Instellingen > je naam > Inloggen met Apple om Honya van je Apple-account te halen."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wylogowanie zostawia bibliotekę na tym urządzeniu. Usunięcie konta ją kasuje. Aby odłączyć Honyę od konta Apple, wejdź w Ustawienia > Twoje imię > Zaloguj się z Apple."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Att logga ut behåller biblioteket på enheten. Att radera kontot tar bort det. Gå till Inställningar > ditt namn > Logga in med Apple för att koppla bort Honya."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Çıkış yapmak kitaplığını bu cihazda bırakır. Hesabını silmek onu da siler. Honya'yı Apple hesabından kaldırmak için Ayarlar > adın > Apple ile Giriş Yap yolunu izle."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Выход сохраняет библиотеку на устройстве. Удаление аккаунта стирает её. Чтобы отвязать Honya от аккаунта Apple, откройте Настройки > ваше имя > Вход с Apple."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "サインアウトしても本棚はこの端末に残ります。アカウントを削除すると消えます。Apple アカウントから Honya を外すには、設定 > 名前 > Apple でサインイン、と進んでください。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "로그아웃해도 서재는 이 기기에 남아요. 계정을 삭제하면 함께 지워져요. Apple 계정에서 Honya를 빼려면 설정 > 이름 > Apple로 로그인으로 가세요."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "退出登录会把书库留在这台设备上，删除账户则会一并抹去。要把 Honya 从 Apple 账户中移除，请前往「设置 > 你的名字 > 使用 Apple 登录」。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

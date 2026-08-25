@@ -38,6 +38,12 @@ jobs:
       - name: Toutes les langues sont-elles complètes ?
         run: python3 .github/verifier_traductions.py
 
+      # Le contrôle précédent ne voit que le catalogue : un texte qui n'y est
+      # jamais entré s'affiche en français dans les quatorze langues sans que
+      # rien ne s'en aperçoive. C'est ainsi que « Retour » a traversé.
+      - name: Un texte affiché échappe-t-il au catalogue ?
+        run: python3 Design/fuites_francaises.py
+
       - name: Erreurs de compilation
         if: failure()
         run: |
