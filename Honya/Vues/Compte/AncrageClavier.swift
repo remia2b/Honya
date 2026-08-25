@@ -34,8 +34,7 @@ import UIKit
 @MainActor
 func journalClavier(_ message: String) {
     let temps = Date().timeIntervalSinceReferenceDate
-    let ligne = String(format: "[%.3f] %@
-", temps, message)
+    let ligne = String(format: "[%.3f] %@", temps, message) + "\n"
     print(ligne, terminator: "")
     if let documents = FileManager.default.urls(
         for: .documentDirectory, in: .userDomainMask
