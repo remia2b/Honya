@@ -33,6 +33,8 @@ struct BienvenueView: View {
     @State private var erreur: String?
     @State private var information: String?
     @FocusState private var champActif: Champ?
+    @State private var session = SessionClavier()
+    @Environment(\.scenePhase) private var vieApplication
 
     /// Le mot de passe oublié occupe la même plaque que la connexion : c'est
     /// la même page, on ne change pas d'écran pour trois champs.
@@ -50,14 +52,13 @@ struct BienvenueView: View {
     /// pleine lumière, là où la pénombre ne descend pas encore.
     private var alEtroit: Bool { enSaisie || (oubli && codeEnvoye) }
 
-    /// Le clavier est-il ouvert — sans dire sur quel champ.
+    /// La saisie est-elle en cours — au sens de la session, pas du focus.
     ///
-    /// C'est la distinction qui compte. Animer sur `champActif` déclenchait une
-    /// transition à CHAQUE passage d'un champ à l'autre, alors que rien ne
-    /// change à l'écran à ce moment-là : la seule chose qui bougeait était le
-    /// décalage imposé par le clavier, qui se retrouvait animé deux fois — par
-    /// iOS avec sa courbe, et par nous avec la nôtre. D'où le saut.
-    private var enSaisie: Bool { champActif != nil }
+    /// C'est la distinction qui compte : le focus SwiftUI s'éteint un
+    /// instant pendant le passage d'un champ à l'autre, alors que rien ne
+    /// change à l'écran à ce moment-là. La session, elle, s'ouvre au premier
+    /// champ et ne se ferme qu'une fois la saisie réellement terminée.
+    private var enSaisie: Bool { session.enSaisie }
 
     enum Mode: String, CaseIterable, Identifiable {
         case inscription = "Créer un compte"
@@ -118,7 +119,40 @@ struct BienvenueView: View {
                     .animation(.snappy(duration: 0.28), value: alEtroit)
             }
 
-            ecranAccueil
+            // L'écran vit dans le contrôleur qui ancre au guide clavier
+            // d'Apple — voir AncrageClavier.swift : l'évitement SwiftUI y est
+            // coupé, et la position se fige une fois le clavier posé. Les
+            // deux ignoresSafeArea rendent bien TOUT l'écran au contrôleur ;
+            // à l'intérieur, c'est UIKit qui place le contenu.
+            AncrageClavier(
+                phase: session.phase,
+                fermetureVoulue: { session.phase != .active },
+                clavierRange: { session.clavierRange() }
+            ) {
+                ecranAccueil
+            }
+            .ignoresSafeArea()
+            .ignoresSafeArea(.keyboard)
+        }
+        .onChange(of: champActif) { _, nouveau in
+            if nouveau != nil {
+                session.ouvrir()
+            } else {
+                // Filet pour les chemins qui rendent le focus sans passer
+                // par fermerLeClavier() — la fermeture volontaire, elle, a
+                // déjà posé sa phase avant d'éteindre le focus.
+                session.fermer()
+            }
+        }
+        .onChange(of: vieApplication) { _, etat in
+            switch etat {
+            case .background:
+                fermerLeClavier()
+            case .active:
+                session.reconcilier(enSaisie: champActif != nil)
+            default:
+                break
+            }
         }
         .task { await chargerLeMur() }
         .onAppear {
@@ -240,16 +274,28 @@ struct BienvenueView: View {
         )
     }
 
+    /// Ferme la saisie dans le bon ordre : la session d'abord, le focus
+    /// ensuite. Le contrôleur sait ainsi que le willHide qui suit est voulu,
+    /// et rattache le formulaire au clavier pour qu'ils descendent ensemble.
+    private func fermerLeClavier() {
+        session.fermer()
+        champActif = nil
+    }
+
     // MARK: - L'accueil
 
     private var ecranAccueil: some View {
-        // Une pile ordinaire, décalée par l'évitement automatique du clavier
-        // (SwiftUI, iOS 14+). Rien à écrire pour cela : il suffit de ne pas
-        // l'empêcher de travailler. `.ignoresSafeArea(.keyboard)` ne se pose
-        // donc QUE sur le décor, jamais ici ni sur la racine — posé trop haut,
-        // il désactive l'évitement pour tout ce qu'il couvre.
+        // Une pile ordinaire : son placement face au clavier appartient
+        // entièrement au contrôleur d'ancrage qui l'héberge.
         VStack(spacing: 0) {
             Spacer(minLength: 0)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    // Un geste attendu : toucher hors du formulaire range le
+                    // clavier. Sans lui, seul « Retour » savait le faire.
+                    if enSaisie { fermerLeClavier() }
+                }
 
             if !alEtroit {
                     // Le titre s'efface pendant la saisie : sur un écran
@@ -455,7 +501,7 @@ struct BienvenueView: View {
     private var liens: some View {
         HStack(spacing: 18) {
             Button("Retour") {
-                champActif = nil
+                fermerLeClavier()
                 erreur = nil
                 information = nil
                 if oubli {
@@ -662,7 +708,7 @@ struct BienvenueView: View {
     }
 
     private func valider() async {
-        champActif = nil
+        fermerLeClavier()
         erreur = nil
         information = nil
         enCours = true
@@ -686,7 +732,7 @@ struct BienvenueView: View {
     private func envoyerReinitialisation() async {
         let adresse = email.trimmingCharacters(in: .whitespaces)
         guard !adresse.isEmpty else { return }
-        champActif = nil
+        fermerLeClavier()
         erreur = nil
         enCours = true
         defer { enCours = false }
@@ -700,7 +746,7 @@ struct BienvenueView: View {
     }
 
     private func terminerReinitialisation() async {
-        champActif = nil
+        fermerLeClavier()
         erreur = nil
         information = nil
         enCours = true
