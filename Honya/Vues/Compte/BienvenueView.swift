@@ -78,15 +78,23 @@ struct BienvenueView: View {
 
             if !vignettes.isEmpty {
                 // Le mur reste derrière l'écran e-mail : c'est la même page,
-                // pas un formulaire posé sur du vide. Un mur de cases vides,
-                // en revanche, est pire que pas de mur.
-                mur.ignoresSafeArea()
-                voile.ignoresSafeArea()
+                // pas un formulaire posé sur du vide.
+                //
+                // `.keyboard` explicitement : à l'ouverture du clavier, iOS
+                // rétrécit la zone sûre et le décor se serait redimensionné
+                // avec le formulaire. Le fond doit rester immobile.
+                mur
+                    .ignoresSafeArea()
+                    .ignoresSafeArea(.keyboard)
+                voile
+                    .ignoresSafeArea()
+                    .ignoresSafeArea(.keyboard)
             }
 
             ecranAccueil
         }
         .animation(.snappy(duration: 0.3), value: parEmail)
+        .animation(.snappy(duration: 0.28), value: champActif)
         .task { await chargerLeMur() }
         .onAppear {
             withAnimation(.easeOut(duration: 0.7)) { apparu = true }
@@ -177,14 +185,24 @@ struct BienvenueView: View {
     /// devenir opaque : les couvertures restent en fantôme derrière.
     private var voile: some View {
         let fond = Color(uiColor: .systemBackground)
+        // Pendant la saisie, le clavier remonte le formulaire jusqu'au milieu
+        // de l'écran : la pénombre doit remonter avec lui, sinon les
+        // couvertures percent derrière les champs.
         return LinearGradient(
-            stops: [
-                .init(color: fond.opacity(0), location: 0),
-                .init(color: fond.opacity(0), location: 0.40),
-                .init(color: fond.opacity(0.78), location: 0.56),
-                .init(color: fond.opacity(0.90), location: 0.74),
-                .init(color: fond.opacity(0.93), location: 1),
-            ],
+            stops: champActif == nil
+                ? [
+                    .init(color: fond.opacity(0), location: 0),
+                    .init(color: fond.opacity(0), location: 0.40),
+                    .init(color: fond.opacity(0.78), location: 0.56),
+                    .init(color: fond.opacity(0.90), location: 0.74),
+                    .init(color: fond.opacity(0.93), location: 1),
+                  ]
+                : [
+                    .init(color: fond.opacity(0.30), location: 0),
+                    .init(color: fond.opacity(0.62), location: 0.14),
+                    .init(color: fond.opacity(0.88), location: 0.28),
+                    .init(color: fond.opacity(0.95), location: 1),
+                  ],
             startPoint: .top, endPoint: .bottom
         )
     }
@@ -192,28 +210,41 @@ struct BienvenueView: View {
     // MARK: - L'accueil
 
     private var ecranAccueil: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
+        // Un défilement ancré en bas plutôt qu'une pile qui se redimensionne :
+        // c'est le mécanisme natif d'évitement du clavier. La barre « Mots de
+        // passe » d'iOS apparaît sur le champ de mot de passe et CHANGE la
+        // hauteur du clavier — avec une pile, tout l'écran sautait à chaque
+        // passage d'un champ à l'autre.
+        ScrollView {
+            VStack(spacing: 0) {
+                if champActif == nil {
+                    // Le titre s'efface pendant la saisie : sur un écran
+                    // réduit par le clavier, il finissait par chevaucher les
+                    // couvertures et le formulaire.
+                    VStack(spacing: 10) {
+                        Text("Honya")
+                            .font(.system(size: 46, weight: .semibold, design: .serif))
+                        Text("Rangez vos livres, suivez vos lectures.")
+                            .font(.system(size: 17))
+                            .foregroundStyle(.primary.opacity(0.85))
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(.horizontal, 26)
+                    .padding(.bottom, parEmail ? 20 : 28)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                }
 
-            VStack(spacing: 10) {
-                Text("Honya")
-                    .font(.system(size: 46, weight: .semibold, design: .serif))
-                Text("Rangez vos livres, suivez vos lectures.")
-                    .font(.system(size: 17))
-                    // Le gris secondaire s'éteignait sur la pénombre :
-                    // l'accroche prend la même encre que le titre, adoucie.
-                    .foregroundStyle(.primary.opacity(0.85))
-                    .multilineTextAlignment(.center)
+                if parEmail {
+                    formulaireEnBas
+                } else {
+                    entrees
+                }
             }
-            .padding(.horizontal, 26)
-            .padding(.bottom, parEmail ? 20 : 28)
-
-            if parEmail {
-                formulaireEnBas
-            } else {
-                entrees
-            }
+            .frame(maxWidth: .infinity)
         }
+        .scrollBounceBehavior(.basedOnSize)
+        .scrollDismissesKeyboard(.interactively)
+        .defaultScrollAnchor(.bottom)
         .opacity(apparu ? 1 : 0)
         .offset(y: apparu ? 0 : 14)
         .animation(.easeOut(duration: 0.6).delay(0.15), value: apparu)
