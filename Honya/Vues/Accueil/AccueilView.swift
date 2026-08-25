@@ -15,6 +15,7 @@ struct AccueilView: View {
 
     @State private var reglagesVisibles = false
     @State private var cibleSession: CibleSession?
+    @State private var choixVisible = false
 
     private var objectifMinutes: Int { objectifs.first?.minutesParJour ?? 20 }
     private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
@@ -111,6 +112,16 @@ struct AccueilView: View {
             .toolbar(.hidden, for: .navigationBar)
             .sheet(isPresented: $reglagesVisibles) { ReglagesView() }
             .fullScreenCover(item: $cibleSession) { SessionLectureView(cible: $0) }
+            .sheet(isPresented: $choixVisible) {
+                ChoixLectureSheet { cible in
+                    // Un court délai : la feuille doit finir de se refermer
+                    // avant que le chronomètre ne prenne l'écran entier.
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(350))
+                        cibleSession = cible
+                    }
+                }
+            }
         }
     }
 
@@ -148,13 +159,9 @@ struct AccueilView: View {
         let fraction = objectifMinutes > 0
             ? min(1, Double(minutesDuJour) / Double(objectifMinutes)) : 0
         return Button {
-            if let oeuvre = enCeMoment?.oeuvre {
-                cibleSession = .oeuvre(oeuvre)
-            } else if let serie = serieEnCours {
-                cibleSession = .serie(serie)
-            } else {
-                allerRecherche()
-            }
+            // On demande QUOI plutôt que de partir sur le dernier livre : une
+            // session lancée sur le mauvais titre ne se rattrape pas.
+            choixVisible = true
         } label: {
             ZStack {
                 Circle()

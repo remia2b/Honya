@@ -15,6 +15,7 @@ struct ScannerSheet: View {
     @State private var ajoutes: Set<String> = []
     @State private var plusVisible = false
     @State private var compteur = CompteurScans.partage
+    @State private var oublisVisibles = false
 
     private var scannerDisponible: Bool {
         DataScannerViewController.isSupported && DataScannerViewController.isAvailable
@@ -56,21 +57,51 @@ struct ScannerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Tout « À lire »") {
-                        for resultat in trouves where !estAjoute(resultat) {
-                            ImportService.ajouter(resultat, statut: .aLire, dans: contexte)
-                            ajoutes.insert(resultat.id)
+                    Menu {
+                        // Un seul statut imposé n'allait pas : on scanne une
+                        // étagère de livres lus aussi bien qu'une pile à lire.
+                        ForEach(StatutLecture.allCases) { statut in
+                            Button {
+                                ajouterTout(statut)
+                            } label: {
+                                Label(statut.libelle, systemImage: statut.symbole)
+                            }
                         }
+                    } label: {
+                        Text("Tout ajouter…")
                     }
                     .disabled(trouves.allSatisfy(estAjoute))
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Terminé") { dismiss() }
-                        .fontWeight(.bold)
+                    Button("Terminé") {
+                        // Partir en laissant des livres reconnus mais non
+                        // ajoutés était la meilleure façon de croire qu'ils
+                        // étaient rangés : on le dit.
+                        if trouves.contains(where: { !estAjoute($0) }) {
+                            oublisVisibles = true
+                        } else {
+                            dismiss()
+                        }
+                    }
+                    .fontWeight(.bold)
                 }
             }
         }
         .sensoryFeedback(.impact(weight: .light), trigger: scannes.count)
+        .confirmationDialog(
+            "\(oublies) livre(s) scanné(s) ne sont pas encore dans votre bibliothèque.",
+            isPresented: $oublisVisibles,
+            titleVisibility: .visible
+        ) {
+            ForEach(StatutLecture.allCases) { statut in
+                Button("Tout ajouter — \(statut.libelle)") {
+                    ajouterTout(statut)
+                    dismiss()
+                }
+            }
+            Button("Quitter sans les ajouter", role: .destructive) { dismiss() }
+            Button("Rester ici", role: .cancel) {}
+        }
     }
 
     // MARK: - Repli sans caméra (simulateur, autorisation refusée)
@@ -124,11 +155,19 @@ struct ScannerSheet: View {
                             coins: 4,
                             manga: resultat.type != .livre
                         )
-                            .frame(width: 36)
+                            .frame(width: 48)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(resultat.titre)
+                            // Le titre brut disait « Solo leveling » sans dire
+                            // quel tome : la tomaison sépare la série du numéro.
+                            let (base, numero) = Tomaison.decomposer(resultat.titre)
+                            Text(base)
                                 .font(.subheadline.weight(.semibold))
-                                .lineLimit(1)
+                                .lineLimit(2)
+                            if let numero {
+                                Text("Tome \(numero)")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(Couleurs.accent)
+                            }
                             Text(resultat.auteurs.joined(separator: ", "))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -170,6 +209,17 @@ struct ScannerSheet: View {
 
     private func estAjoute(_ resultat: ResultatRecherche) -> Bool {
         ajoutes.contains(resultat.id) || ImportService.existeDeja(resultat, dans: contexte)
+    }
+
+    private var oublies: Int {
+        trouves.filter { !estAjoute($0) }.count
+    }
+
+    private func ajouterTout(_ statut: StatutLecture) {
+        for resultat in trouves where !estAjoute(resultat) {
+            ImportService.ajouter(resultat, statut: statut, dans: contexte)
+            ajoutes.insert(resultat.id)
+        }
     }
 
     private func ajouter(_ resultat: ResultatRecherche, statut: StatutLecture) {

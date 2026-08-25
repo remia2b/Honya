@@ -1,0 +1,91 @@
+# -*- coding: utf-8 -*-
+"""Le choix de la lecture, et le scanner qui ne laisse plus rien de côté."""
+from catalogue import ecrire
+
+T = {
+    "Que lisez-vous ?": {
+        "en": "What are you reading?", "es": "¿Qué estás leyendo?",
+        "es-419": "¿Qué estás leyendo?", "pt-BR": "O que você está lendo?",
+        "de": "Was liest du gerade?", "it": "Cosa stai leggendo?",
+        "nl": "Wat lees je?", "pl": "Co czytasz?", "sv": "Vad läser du?",
+        "tr": "Ne okuyorsun?", "ru": "Что вы читаете?",
+        "ja": "何を読みますか？", "ko": "무엇을 읽으시나요?", "zh-Hans": "在读什么？",
+    },
+    "Séries commencées": {
+        "en": "Series you've started", "es": "Series empezadas",
+        "es-419": "Series empezadas", "pt-BR": "Séries começadas",
+        "de": "Begonnene Reihen", "it": "Serie iniziate",
+        "nl": "Begonnen reeksen", "pl": "Rozpoczęte serie",
+        "sv": "Påbörjade serier", "tr": "Başladığın seriler",
+        "ru": "Начатые серии", "ja": "読みかけのシリーズ",
+        "ko": "읽기 시작한 시리즈", "zh-Hans": "已开始的系列",
+    },
+    "Ajoutez un livre à votre bibliothèque pour lancer une session.": {
+        "en": "Add a book to your library to start a session.",
+        "es": "Añade un libro a tu biblioteca para iniciar una sesión.",
+        "es-419": "Agrega un libro a tu biblioteca para iniciar una sesión.",
+        "pt-BR": "Adicione um livro à sua estante para iniciar uma sessão.",
+        "de": "Füge ein Buch hinzu, um eine Sitzung zu starten.",
+        "it": "Aggiungi un libro alla tua biblioteca per iniziare una sessione.",
+        "nl": "Voeg een boek toe om een sessie te starten.",
+        "pl": "Dodaj książkę do biblioteki, aby rozpocząć sesję.",
+        "sv": "Lägg till en bok i biblioteket för att starta en session.",
+        "tr": "Oturum başlatmak için kitaplığına bir kitap ekle.",
+        "ru": "Добавьте книгу в библиотеку, чтобы начать сессию.",
+        "ja": "セッションを始めるには本を追加してください。",
+        "ko": "세션을 시작하려면 책을 추가하세요.",
+        "zh-Hans": "先往书库里添一本书，才能开始计时。",
+    },
+    "Tout ajouter…": {
+        "en": "Add all…", "es": "Añadir todo…", "es-419": "Agregar todo…",
+        "pt-BR": "Adicionar tudo…", "de": "Alle hinzufügen …",
+        "it": "Aggiungi tutto…", "nl": "Alles toevoegen…",
+        "pl": "Dodaj wszystkie…", "sv": "Lägg till alla…",
+        "tr": "Hepsini ekle…", "ru": "Добавить все…",
+        "ja": "すべて追加…", "ko": "모두 추가…", "zh-Hans": "全部添加…",
+    },
+    "Quitter sans les ajouter": {
+        "en": "Leave without adding them",
+        "es": "Salir sin añadirlos", "es-419": "Salir sin agregarlos",
+        "pt-BR": "Sair sem adicionar", "de": "Ohne Hinzufügen schließen",
+        "it": "Esci senza aggiungerli", "nl": "Afsluiten zonder toevoegen",
+        "pl": "Wyjdź bez dodawania", "sv": "Avsluta utan att lägga till",
+        "tr": "Eklemeden çık", "ru": "Выйти, не добавляя",
+        "ja": "追加せずに閉じる", "ko": "추가하지 않고 닫기",
+        "zh-Hans": "不添加就退出",
+    },
+    "Rester ici": {
+        "en": "Stay here", "es": "Quedarme aquí", "es-419": "Quedarme aquí",
+        "pt-BR": "Ficar aqui", "de": "Hier bleiben", "it": "Resta qui",
+        "nl": "Hier blijven", "pl": "Zostań tutaj", "sv": "Stanna kvar",
+        "tr": "Burada kal", "ru": "Остаться", "ja": "ここに残る",
+        "ko": "여기 머무르기", "zh-Hans": "留在这里",
+    },
+    "%lld livre(s) scanné(s) ne sont pas encore dans votre bibliothèque.": {
+        "en": "%lld scanned book(s) aren't in your library yet.",
+        "es": "%lld libro(s) escaneado(s) aún no están en tu biblioteca.",
+        "es-419": "%lld libro(s) escaneado(s) aún no están en tu biblioteca.",
+        "pt-BR": "%lld livro(s) escaneado(s) ainda não estão na sua estante.",
+        "de": "%lld gescannte(s) Buch/Bücher fehlen noch in deiner Bibliothek.",
+        "it": "%lld libro/i scansionato/i non sono ancora nella tua biblioteca.",
+        "nl": "%lld gescand(e) boek(en) staan nog niet in je bibliotheek.",
+        "pl": "%lld zeskanowana(-e) książka(-i) nie trafiła(-y) jeszcze do biblioteki.",
+        "sv": "%lld skannad(e) bok/böcker finns inte i biblioteket än.",
+        "tr": "Taranan %lld kitap henüz kitaplığında değil.",
+        "ru": "%lld отсканированных книг ещё нет в библиотеке.",
+        "ja": "スキャンした%lld冊がまだ本棚にありません。",
+        "ko": "스캔한 %lld권이 아직 서재에 없어요.",
+        "zh-Hans": "已扫描的 %lld 本还没进书库。",
+    },
+    "Tout ajouter — %@": {
+        "en": "Add all — %@", "es": "Añadir todo — %@", "es-419": "Agregar todo — %@",
+        "pt-BR": "Adicionar tudo — %@", "de": "Alle hinzufügen – %@",
+        "it": "Aggiungi tutto — %@", "nl": "Alles toevoegen — %@",
+        "pl": "Dodaj wszystkie — %@", "sv": "Lägg till alla — %@",
+        "tr": "Hepsini ekle — %@", "ru": "Добавить все — %@",
+        "ja": "すべて追加 — %@", "ko": "모두 추가 — %@", "zh-Hans": "全部添加 — %@",
+    },
+}
+
+if __name__ == "__main__":
+    ecrire(T)
