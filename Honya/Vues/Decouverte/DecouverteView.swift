@@ -53,12 +53,12 @@ struct DecouverteView: View {
                     } else {
                         if !tendances.isEmpty { sectionTendances }
                         rayonSection("manga")
-                        // Les rayons personnalisés et les précommandes sont
-                        // des fonctions Honya+ : on les montre avec leur
-                        // cadenas plutôt que de les cacher — sinon l'app a
-                        // simplement l'air de ne pas savoir les faire.
-                        bandeGouts.cadenasPlus(.statistiques())
-                        sectionAVenir.cadenasPlus()
+                        // Ces deux bandes portaient un cadenas alors que rien
+                        // ne les bloque et qu'aucune n'est vendue dans la
+                        // grille : un cadenas sur ce qui fonctionne fait
+                        // douter de tous les autres.
+                        bandeGouts
+                        sectionAVenir
                         bandeGratuits
                         sectionClassements
                         BandeauPlus()
