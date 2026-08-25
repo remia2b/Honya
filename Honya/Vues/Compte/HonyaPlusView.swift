@@ -15,6 +15,8 @@ struct HonyaPlusView: View {
     @Query private var oeuvres: [Oeuvre]
 
     @State private var droits = Droits.partage
+    @State private var boutique = Boutique.partage
+    @State private var formuleChoisie: Boutique.Formule?
     @State private var toutVoir = false
     @State private var roueVisible = false
     @State private var apparu = false
@@ -55,6 +57,12 @@ struct HonyaPlusView: View {
         }
         .animation(.snappy(duration: 0.3), value: toutVoir)
         .onAppear { withAnimation(.easeOut(duration: 0.55)) { apparu = true } }
+        .task {
+            // Le catalogue a pu être chargé au lancement ; on redemande si le
+            // réseau manquait alors.
+            if boutique.articles.isEmpty { await boutique.charger() }
+            formuleChoisie = formuleParDefaut
+        }
         .task {
             guard oeuvres.isEmpty else { return }
             let top = await Decouverte.classement(gratuits: false, langue: Langues.codeAppareil)
@@ -240,36 +248,64 @@ struct HonyaPlusView: View {
 
     // MARK: - Les tarifs
 
+    /// Ce que l'on met en avant : l'annuel, remisé si la roue l'a accordé.
+    private var formuleParDefaut: Boutique.Formule {
+        boutique.formulesVisibles.contains(.annuelRemise) ? .annuelRemise : .annuel
+    }
+
+    /// En contextuel, une seule décision à prendre — donc une seule offre.
+    private var formulesAffichees: [Boutique.Formule] {
+        contextuel ? [formuleParDefaut] : boutique.formulesVisibles
+    }
+
     private var offres: some View {
         VStack(spacing: 9) {
-            if contextuel {
-                tarif("Honya+ annuel", "7 jours offerts, puis 2,50 €/mois",
-                      "29,99 €", choisi: true)
-            } else {
-                tarif("Mensuel", "sans engagement", "4,99 €", choisi: false)
-                tarif("Annuel", "2,50 € par mois", "29,99 €",
-                      choisi: true, ruban: "7 jours offerts")
-                tarif("À vie", "une seule fois", "69,99 €", choisi: false)
+            ForEach(formulesAffichees) { formule in
+                Button { formuleChoisie = formule } label: { tarif(formule) }
+                    .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 24)
         .padding(.top, 16)
     }
 
-    private func tarif(
-        _ nom: LocalizedStringKey, _ detail: LocalizedStringKey,
-        _ prix: String, choisi: Bool, ruban: LocalizedStringKey? = nil
-    ) -> some View {
-        HStack {
+    /// La mensualité d'un abonnement annuel, calculée depuis le prix réel et
+    /// jamais recopiée : dans une autre monnaie, un montant recopié serait faux.
+    private func detail(_ formule: Boutique.Formule) -> String {
+        if let article = boutique.articles[formule],
+           let abonnement = article.subscription,
+           abonnement.subscriptionPeriod.unit == .year {
+            let parMois = (article.price / 12).formatted(article.priceFormatStyle)
+            return String(localized: "\(parMois) par mois")
+        }
+        return formule.detail
+    }
+
+    /// Le ruban ne promet des jours offerts que si l'App Store en propose
+    /// vraiment : une promesse d'essai non tenue fait refuser l'application.
+    private func ruban(_ formule: Boutique.Formule) -> String? {
+        guard let article = boutique.articles[formule] else {
+            return formule == .annuel ? String(localized: "7 jours offerts") : nil
+        }
+        guard let offre = article.subscription?.introductoryOffer,
+              offre.paymentMode == .freeTrial else { return nil }
+        let jours = offre.period.value * (offre.period.unit == .week ? 7 : 1)
+        return String(localized: "\(jours) jours offerts")
+    }
+
+    private func tarif(_ formule: Boutique.Formule) -> some View {
+        let choisi = formuleChoisie == formule
+        return HStack {
             VStack(alignment: .leading, spacing: 1) {
-                Text(nom).font(.system(size: 16, weight: .semibold))
-                Text(detail).font(.system(size: 12.5)).foregroundStyle(.secondary)
+                Text(formule.nom).font(.system(size: 16, weight: .semibold))
+                Text(detail(formule)).font(.system(size: 12.5)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 8)
-            Text(prix).font(.system(size: 19, weight: .semibold, design: .serif))
+            Text(boutique.prix(formule)).font(.system(size: 19, weight: .semibold, design: .serif))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 11)
+        .contentShape(Rectangle())
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(choisi ? Couleurs.accent.opacity(0.07) : .clear)
@@ -282,7 +318,7 @@ struct HonyaPlusView: View {
                 )
         )
         .overlay(alignment: .topLeading) {
-            if let ruban {
+            if let ruban = ruban(formule) {
                 Text(ruban)
                     .font(.system(size: 10.5, weight: .bold))
                     .foregroundStyle(.white)
@@ -292,25 +328,53 @@ struct HonyaPlusView: View {
                     .offset(x: 14, y: -9)
             }
         }
+        .animation(.snappy(duration: 0.18), value: choisi)
     }
 
     // MARK: - Le bas
 
+    /// L'intitulé dit exactement ce qui va être débité : « essayer
+    /// gratuitement » sur une formule sans essai est un motif de refus.
+    private var intituleAchat: String {
+        guard let formule = formuleChoisie else { return String(localized: "Continuer") }
+        if ruban(formule) != nil { return String(localized: "Commencer l'essai gratuit") }
+        return String(localized: "Continuer pour \(boutique.prix(formule))")
+    }
+
+    private var mentionAchat: String {
+        guard let formule = formuleChoisie else { return "" }
+        if formule == .vie { return String(localized: "Paiement unique, sans renouvellement.") }
+        return ruban(formule) != nil
+            ? String(localized: "Puis \(boutique.prix(formule)). Résiliable à tout moment.")
+            : String(localized: "Renouvelé automatiquement. Résiliable à tout moment.")
+    }
+
     private var bouton: some View {
         VStack(spacing: 0) {
             Button {
-                // Pendant TestFlight : déblocage local, sans achat.
-                droits.activerEssai()
-                dismiss()
+                Task { await acheter() }
             } label: {
-                Text("Essayer 7 jours gratuitement")
-                    .font(.system(size: 17, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .foregroundStyle(.white)
-                    .background(Couleurs.accent, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+                HStack(spacing: 8) {
+                    if boutique.achatEnCours != nil { ProgressView().tint(.white) }
+                    Text(intituleAchat)
+                        .font(.system(size: 17, weight: .semibold))
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .foregroundStyle(.white)
+                .background(Couleurs.accent, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
             }
             .buttonStyle(.plain)
+            .disabled(boutique.achatEnCours != nil || formuleChoisie == nil)
+            .opacity(boutique.achatEnCours != nil ? 0.6 : 1)
+
+            if let souci = boutique.souci {
+                Text(souci)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 9)
+            }
 
             if contextuel {
                 Button("Voir toutes les offres") { toutVoir = true }
@@ -318,15 +382,40 @@ struct HonyaPlusView: View {
                     .padding(.top, 13)
             }
 
-            Text("Puis 29,99 €/an. Résiliable à tout moment.")
+            Text(mentionAchat)
                 .font(.system(size: 11.5))
                 .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
                 .padding(.top, 11)
+
+            // Obligatoire : l'App Store refuse une application qui vend un
+            // abonnement sans permettre de le retrouver sur un autre appareil.
+            Button("Restaurer mes achats") {
+                Task {
+                    await boutique.restaurer()
+                    if boutique.abonne { dismiss() }
+                }
+            }
+            .font(.system(size: 12.5))
+            .tint(.secondary)
+            .padding(.top, 7)
         }
         .padding(.horizontal, 24)
         .padding(.top, 14)
         .padding(.bottom, 14)
         .background(.thinMaterial)
+    }
+
+    private func acheter() async {
+        guard let formule = formuleChoisie else { return }
+        // Tant que les articles n'existent pas côté Apple, la version de test
+        // débloque localement plutôt que de laisser un bouton sans effet.
+        guard boutique.articles[formule] != nil else {
+            droits.activerEssai()
+            dismiss()
+            return
+        }
+        if await boutique.acheter(formule) { dismiss() }
     }
 
     private var fermer: some View {

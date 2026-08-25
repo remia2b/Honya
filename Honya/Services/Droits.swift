@@ -3,25 +3,46 @@ import Observation
 
 /// Ce que ce compte a le droit d'utiliser.
 ///
-/// Aujourd'hui, un simple drapeau : l'écran Honya+ l'active pour la période
-/// TestFlight, le temps que les abonnements existent. En v0.27, StoreKit 2
-/// remplira `plus` depuis les vrais achats — les vues, elles, ne changeront
-/// pas, elles ne connaissent que cette classe.
+/// Les vues ne connaissent que cette classe et son unique drapeau. Elles
+/// ignorent d'où il vient — un achat App Store, ou le déblocage local des
+/// versions de test — et c'est voulu : le jour où la source change, aucune vue
+/// ne bouge.
 @Observable
 @MainActor
 final class Droits {
     static let partage = Droits()
 
-    private(set) var plus: Bool
+    /// Honya+ est-il ouvert.
+    var plus: Bool { achat || essai }
+
+    /// Ce qu'Apple reconnaît. Jamais enregistré sur l'appareil : un abonnement
+    /// expire, se résilie, se rembourse. On le redemande à chaque lancement.
+    private(set) var achat = false
+
+    /// Le déblocage des versions de test, en attendant que les articles
+    /// existent dans App Store Connect. Il disparaîtra à la sortie publique.
+    private(set) var essai: Bool
 
     private init() {
-        plus = UserDefaults.standard.bool(forKey: "honyaPlus")
+        essai = UserDefaults.standard.bool(forKey: Self.cleEssai)
     }
 
-    /// L'essai TestFlight : un déblocage local, clairement nommé, que la
-    /// version App Store remplacera par les achats.
+    private static let cleEssai = "honyaPlus"
+
+    /// Appelé par la boutique, et par elle seule.
+    func appliquer(plus actif: Bool) {
+        achat = actif
+    }
+
+    /// Le déblocage local des versions de test, clairement nommé.
     func activerEssai() {
-        plus = true
-        UserDefaults.standard.set(true, forKey: "honyaPlus")
+        essai = true
+        UserDefaults.standard.set(true, forKey: Self.cleEssai)
+    }
+
+    /// Utile pour revoir les écrans d'abonnement une fois l'essai activé.
+    func annulerEssai() {
+        essai = false
+        UserDefaults.standard.set(false, forKey: Self.cleEssai)
     }
 }

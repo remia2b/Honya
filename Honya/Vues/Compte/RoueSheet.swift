@@ -30,7 +30,9 @@ struct RoueSheet: View {
     /// n'est plus une offre.
     @MainActor
     static var disponible: Bool {
-        !UserDefaults.standard.bool(forKey: "roueUtilisee") && !Droits.partage.plus
+        !UserDefaults.standard.bool(forKey: "roueUtilisee")
+            && !Droits.partage.plus
+            && !Boutique.partage.remiseGagnee
     }
 
     // MARK: - Les secteurs
@@ -41,7 +43,17 @@ struct RoueSheet: View {
         let teinte: Color
     }
 
-    private static let secteurs: [Secteur] = [
+    /// Le secteur gagnant porte la remise réelle, jamais un chiffre écrit
+    /// en dur : la roue, l'écran de gain et l'écran d'abonnement doivent
+    /// annoncer le même pourcentage, sinon la promesse ne tient pas.
+    private var secteurs: [Secteur] {
+        var jeu = Self.secteursDeBase
+        jeu[0] = Secteur(libelle: "−\(Boutique.partage.pourcentageRemise) %",
+                         gagnant: true, teinte: jeu[0].teinte)
+        return jeu
+    }
+
+    private static let secteursDeBase: [Secteur] = [
         .init(libelle: "−40 %", gagnant: true,  teinte: Color(red: 0.85, green: 0.36, blue: 0.06)),
         .init(libelle: "Rien",  gagnant: false, teinte: Color(red: 0.42, green: 0.36, blue: 0.30)),
         .init(libelle: "−15 %", gagnant: true,  teinte: Color(red: 0.93, green: 0.62, blue: 0.16)),
@@ -52,7 +64,7 @@ struct RoueSheet: View {
         .init(libelle: "Rien",  gagnant: false, teinte: Color(red: 0.50, green: 0.43, blue: 0.36)),
     ]
 
-    private static let part = 360.0 / Double(secteurs.count)
+    private static let part = 360.0 / Double(secteursDeBase.count)
 
     private static func milieu(_ index: Int) -> Double {
         Double(index) * part + part / 2
@@ -184,7 +196,7 @@ struct RoueSheet: View {
             }
 
             ZStack {
-                ForEach(Array(Self.secteurs.enumerated()), id: \.offset) { index, secteur in
+                ForEach(Array(secteurs.enumerated()), id: \.offset) { index, secteur in
                     Part(index: index, part: Self.part)
                         .fill(secteur.teinte)
                         .overlay(
@@ -274,11 +286,11 @@ struct RoueSheet: View {
 
     private var gain: some View {
         VStack(spacing: 0) {
-            Text(verbatim: "−40 %")
+            Text(verbatim: "−\(Boutique.partage.pourcentageRemise) %")
                 .font(.system(size: 68, weight: .semibold, design: .serif))
                 .foregroundStyle(Color(red: 1, green: 0.90, blue: 0.78))
 
-            Text("La première année à 17,99 €")
+            Text("La première année à \(Boutique.partage.prix(.annuelRemise))")
                 .font(.system(size: 26, weight: .semibold, design: .serif))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
@@ -314,11 +326,11 @@ struct RoueSheet: View {
             }
             Spacer(minLength: 12)
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(verbatim: "29,99 €")
+                Text(verbatim: Boutique.partage.prix(.annuel))
                     .font(.system(size: 15))
                     .strikethrough()
                     .opacity(0.55)
-                Text(verbatim: "17,99 €")
+                Text(verbatim: Boutique.partage.prix(.annuelRemise))
                     .font(.system(size: 24, weight: .semibold, design: .serif))
             }
         }
@@ -409,10 +421,12 @@ struct RoueSheet: View {
     private var actionGain: some View {
         VStack(spacing: 0) {
             Button {
-                Droits.partage.activerEssai()
+                // La roue n'ouvre pas Honya+ : elle débloque le tarif réduit,
+                // que l'écran d'abonnement affichera à la place de l'annuel.
+                Boutique.partage.accorderLaRemise()
                 fermer()
             } label: {
-                Text("Profiter des 17,99 €")
+                Text("Profiter de ma remise")
                     .font(.system(size: 17, weight: .semibold))
                     .frame(maxWidth: .infinity)
                     .frame(height: 54)
