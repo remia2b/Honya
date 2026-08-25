@@ -33,6 +33,15 @@ struct BienvenueView: View {
 
     private enum Champ { case email, motDePasse }
 
+    /// Le clavier est-il ouvert — sans dire sur quel champ.
+    ///
+    /// C'est la distinction qui compte. Animer sur `champActif` déclenchait une
+    /// transition à CHAQUE passage d'un champ à l'autre, alors que rien ne
+    /// change à l'écran à ce moment-là : la seule chose qui bougeait était le
+    /// décalage imposé par le clavier, qui se retrouvait animé deux fois — par
+    /// iOS avec sa courbe, et par nous avec la nôtre. D'où le saut.
+    private var enSaisie: Bool { champActif != nil }
+
     enum Mode: String, CaseIterable, Identifiable {
         case inscription = "Créer un compte"
         case connexion = "Se connecter"
@@ -89,12 +98,11 @@ struct BienvenueView: View {
                 voile
                     .ignoresSafeArea()
                     .ignoresSafeArea(.keyboard)
+                    .animation(.snappy(duration: 0.28), value: enSaisie)
             }
 
             ecranAccueil
         }
-        .animation(.snappy(duration: 0.3), value: parEmail)
-        .animation(.snappy(duration: 0.28), value: champActif)
         .task { await chargerLeMur() }
         .onAppear {
             withAnimation(.easeOut(duration: 0.7)) { apparu = true }
@@ -189,7 +197,7 @@ struct BienvenueView: View {
         // de l'écran : la pénombre doit remonter avec lui, sinon les
         // couvertures percent derrière les champs.
         return LinearGradient(
-            stops: champActif == nil
+            stops: !enSaisie
                 ? [
                     .init(color: fond.opacity(0), location: 0),
                     .init(color: fond.opacity(0), location: 0.40),
@@ -210,41 +218,40 @@ struct BienvenueView: View {
     // MARK: - L'accueil
 
     private var ecranAccueil: some View {
-        // Un défilement ancré en bas plutôt qu'une pile qui se redimensionne :
-        // c'est le mécanisme natif d'évitement du clavier. La barre « Mots de
-        // passe » d'iOS apparaît sur le champ de mot de passe et CHANGE la
-        // hauteur du clavier — avec une pile, tout l'écran sautait à chaque
-        // passage d'un champ à l'autre.
-        ScrollView {
-            VStack(spacing: 0) {
-                if champActif == nil {
+        // Une pile ordinaire, décalée par l'évitement automatique du clavier
+        // (SwiftUI, iOS 14+). Rien à écrire pour cela : il suffit de ne pas
+        // l'empêcher de travailler. `.ignoresSafeArea(.keyboard)` ne se pose
+        // donc QUE sur le décor, jamais ici ni sur la racine — posé trop haut,
+        // il désactive l'évitement pour tout ce qu'il couvre.
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+
+            if !enSaisie {
                     // Le titre s'efface pendant la saisie : sur un écran
                     // réduit par le clavier, il finissait par chevaucher les
                     // couvertures et le formulaire.
-                    VStack(spacing: 10) {
-                        Text("Honya")
-                            .font(.system(size: 46, weight: .semibold, design: .serif))
-                        Text("Rangez vos livres, suivez vos lectures.")
-                            .font(.system(size: 17))
-                            .foregroundStyle(.primary.opacity(0.85))
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(.horizontal, 26)
-                    .padding(.bottom, parEmail ? 20 : 28)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                VStack(spacing: 10) {
+                    Text("Honya")
+                        .font(.system(size: 46, weight: .semibold, design: .serif))
+                    Text("Rangez vos livres, suivez vos lectures.")
+                        .font(.system(size: 17))
+                        .foregroundStyle(.primary.opacity(0.85))
+                        .multilineTextAlignment(.center)
                 }
-
-                if parEmail {
-                    formulaireEnBas
-                } else {
-                    entrees
-                }
+                .padding(.horizontal, 26)
+                .padding(.bottom, parEmail ? 20 : 28)
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .frame(maxWidth: .infinity)
+
+            if parEmail {
+                formulaireEnBas
+            } else {
+                entrees
+            }
         }
-        .scrollBounceBehavior(.basedOnSize)
-        .scrollDismissesKeyboard(.interactively)
-        .defaultScrollAnchor(.bottom)
+        .frame(maxWidth: .infinity)
+        .animation(.snappy(duration: 0.28), value: enSaisie)
+        .animation(.snappy(duration: 0.3), value: parEmail)
         .opacity(apparu ? 1 : 0)
         .offset(y: apparu ? 0 : 14)
         .animation(.easeOut(duration: 0.6).delay(0.15), value: apparu)
