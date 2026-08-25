@@ -12,6 +12,9 @@ import SwiftUI
 struct BienvenueView: View {
     /// Ouvre directement le formulaire, pour les aperçus et les captures.
     var surLEmail = false
+    /// Ouvre le mot de passe oublié : « demande » à l'étape du courrier,
+    /// « code » à l'étape de saisie.
+    var surLOubli: String?
 
     @Environment(\.colorScheme) private var apparence
     @Environment(\.accessibilityReduceMotion) private var mouvementReduit
@@ -114,6 +117,14 @@ struct BienvenueView: View {
         .onAppear {
             withAnimation(.easeOut(duration: 0.7)) { apparu = true }
             if surLEmail { parEmail = true }
+            if let surLOubli {
+                parEmail = true
+                oubli = true
+                if surLOubli == "code" {
+                    email = "remi@exemple.fr"
+                    codeEnvoye = true
+                }
+            }
         }
     }
 

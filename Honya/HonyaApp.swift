@@ -67,6 +67,12 @@ struct HonyaApp: App {
             HonyaPlusView(verrou: .statistiques(couvertures: Apercu.couvertures))
         case "email":
             BienvenueView(surLEmail: true)
+        case "oubli":
+            BienvenueView(surLOubli: "demande")
+        case "oubliCode":
+            BienvenueView(surLOubli: "code")
+        case "bienvenue":
+            BienvenueView()
         case "reglages":
             ReglagesView()
         case "decouverte":
