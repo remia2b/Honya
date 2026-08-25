@@ -50,10 +50,17 @@ struct DecouverteView: View {
                     } else {
                         if !tendances.isEmpty { sectionTendances }
                         rayonSection("manga")
-                        bandeGouts
-                        sectionAVenir
+                        // Les rayons personnalisés et les précommandes sont
+                        // des fonctions Honya+ : on les montre avec leur
+                        // cadenas plutôt que de les cacher — sinon l'app a
+                        // simplement l'air de ne pas savoir les faire.
+                        bandeGouts.cadenasPlus(.statistiques())
+                        sectionAVenir.cadenasPlus()
                         bandeGratuits
                         sectionClassements
+                        BandeauPlus()
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
                         rayonSection("polar")
                         rayonSection("romance")
                         rayonSection("sf")

@@ -10,10 +10,55 @@ struct ReglagesView: View {
     @State private var confirmerEffacement = false
     @State private var confirmerSuppressionCompte = false
     @State private var compte = Compte.partage
+    @State private var plusVisible = false
+    @State private var droits = Droits.partage
 
     // MARK: - Compte
 
     @ViewBuilder
+    /// Honya+ en tête des réglages : jusqu'ici l'abonnement ne s'atteignait
+    /// qu'en butant sur un verrou, ce qui laissait croire l'app entièrement
+    /// gratuite à qui ne butait sur rien.
+    private var sectionAbonnement: some View {
+        Section {
+            Button {
+                plusVisible = true
+            } label: {
+                HStack(spacing: 14) {
+                    Image(systemName: droits.plus ? "checkmark.seal.fill" : "books.vertical.fill")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 40, height: 40)
+                        .background(
+                            LinearGradient(
+                                colors: [Couleurs.accent, Couleurs.accent.opacity(0.75)],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            ),
+                            in: RoundedRectangle(cornerRadius: 11, style: .continuous)
+                        )
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(verbatim: "Honya+")
+                            .font(.system(size: 17, weight: .semibold, design: .serif))
+                            .foregroundStyle(.primary)
+                        Text(droits.plus
+                             ? "Votre abonnement est actif."
+                             : "Rayons complets, alertes, historique entier.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                    if !droits.plus {
+                        Image(systemName: "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
     private var sectionCompte: some View {
         Section {
             if compte.etat == .connecte {
@@ -57,6 +102,7 @@ struct ReglagesView: View {
     var body: some View {
         NavigationStack {
             Form {
+                sectionAbonnement
                 sectionCompte
 
                 if let objectif = objectifs.first {
@@ -97,6 +143,7 @@ struct ReglagesView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+            .ecranHonyaPlus($plusVisible)
             .confirmationDialog(
                 "Supprimer votre compte et toutes vos données ?",
                 isPresented: $confirmerSuppressionCompte,

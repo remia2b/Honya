@@ -83,6 +83,10 @@ struct AccueilView: View {
 
                         bandeObjectif
 
+                        BandeauPlus()
+                            .padding(.horizontal, 20)
+                            .padding(.top, 6)
+
                         if !aSuivre.isEmpty {
                             BandeSection {
                                 TitreSection(
