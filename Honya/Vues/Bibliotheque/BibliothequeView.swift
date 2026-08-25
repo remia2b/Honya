@@ -9,6 +9,7 @@ enum FiltreBibli: String, CaseIterable, Identifiable {
     case aLire = "À lire"
     case lus = "Lus"
     case wishlist = "À acheter"
+    case abandonnes = "Abandonnés"
     case series = "Séries"
 
     var id: String { rawValue }
@@ -22,6 +23,7 @@ enum FiltreBibli: String, CaseIterable, Identifiable {
         case .aLire: return String(localized: "À lire")
         case .lus: return String(localized: "Lus")
         case .wishlist: return String(localized: "À acheter")
+        case .abandonnes: return String(localized: "Abandonnés")
         case .series: return String(localized: "Séries")
         }
     }
@@ -190,6 +192,8 @@ struct BibliothequeView: View {
             + series.filter { $0.statut == .lu }.count
         case .wishlist: return exemplaires.filter { $0.statut == .wishlist }.count
             + series.filter { $0.statut == .wishlist }.count
+        case .abandonnes: return exemplaires.filter { $0.statut == .abandonne }.count
+            + series.filter { $0.statut == .abandonne }.count
         case .series: return series.count
         }
     }
@@ -213,6 +217,9 @@ struct BibliothequeView: View {
         case .wishlist:
             resultat = exemplaires.filter { $0.statut == .wishlist }.map(ElementBibli.livre)
                 + series.filter { $0.statut == .wishlist }.map(ElementBibli.serie)
+        case .abandonnes:
+            resultat = exemplaires.filter { $0.statut == .abandonne }.map(ElementBibli.livre)
+                + series.filter { $0.statut == .abandonne }.map(ElementBibli.serie)
         case .series:
             resultat = series.map(ElementBibli.serie)
         }
@@ -255,6 +262,7 @@ struct BibliothequeView: View {
 
     private var legende: String {
         let pretes = exemplaires.filter { $0.preteA != nil }.count
+            + series.flatMap(\.tomes).filter { $0.preteA != nil }.count
         var morceaux = [
             String(localized: "\(exemplaires.count) livres"),
             String(localized: "\(series.count) séries"),
@@ -563,6 +571,25 @@ private struct MenuSerie: ViewModifier {
                     } label: {
                         Label("Toute la série lue", systemImage: "checkmark.seal")
                     }
+                }
+                Menu {
+                    ForEach(StatutLecture.allCases) { statut in
+                        Button {
+                            serie.statutChoisi = statut
+                        } label: {
+                            Label(statut.libelle, systemImage: statut.symbole)
+                        }
+                    }
+                    if serie.statutChoisi != nil {
+                        Divider()
+                        Button {
+                            serie.statutChoisi = nil
+                        } label: {
+                            Label("Laisser Honya décider", systemImage: "wand.and.stars")
+                        }
+                    }
+                } label: {
+                    Label("Statut", systemImage: "bookmark")
                 }
                 Divider()
                 Button(role: .destructive) {

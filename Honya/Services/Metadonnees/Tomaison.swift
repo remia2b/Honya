@@ -9,13 +9,21 @@ import Foundation
 enum Tomaison {
 
     /// Motifs explicites : Vol., Volume, T, Tome, #, n° … suivis d'un numéro.
+    ///
+    /// Le séparateur avant le marqueur est OBLIGATOIRE. Quand il était
+    /// facultatif, le « t » de n'importe quel mot faisait marqueur : « Blue
+    /// Giant 3 » devenait la série « Blue Gian », tome 3, et « Blast 3 »
+    /// la série « Blas ».
     private static let motifExplicite =
-        #"[,\s\-–—:]*(?:vol(?:ume)?\.?|t(?:ome)?\.?\s*|n[°o]\.?\s*|#)\s*(\d{1,4})\s*(?:\((?:[^)]*)\))?\s*$"#
+        #"[,\s\-–—:]+(?:vol(?:ume)?|tome|t|n[°o]|#)\.?\s*(\d{1,4})\s*(?:\((?:[^)]*)\))?\s*$"#
 
     /// Motif implicite : un simple numéro en fin de titre (« Kagurabachi 3 »).
-    /// Volontairement prudent : petits numéros seulement, pour ne pas découper
-    /// « Fahrenheit 451 » ou « 1984 ».
-    private static let motifImplicite = #"\s+(\d{1,2})\s*$"#
+    ///
+    /// Prudent, mais pas au point d'ignorer les longues séries : à deux
+    /// chiffres, « One Piece 105 » n'affichait aucun numéro de tome. Trois
+    /// chiffres et un plafond à 400 couvrent les plus longues sans découper
+    /// « Fahrenheit 451 » ni « Blade Runner 2049 ».
+    private static let motifImplicite = #"\s+(\d{1,3})\s*$"#
 
     /// « Série (Tome 3) », « Série (Vol. 3) » — le numéro entre parenthèses.
     private static let motifParenthese =
@@ -30,7 +38,7 @@ enum Tomaison {
         if let resultat = extraire(propre, motif: motifExplicite, maxNumero: 4000) {
             return resultat
         }
-        if let resultat = extraire(propre, motif: motifImplicite, maxNumero: 60) {
+        if let resultat = extraire(propre, motif: motifImplicite, maxNumero: 400) {
             return resultat
         }
         return (propre, nil)

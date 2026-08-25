@@ -506,9 +506,19 @@ enum CollectionAuto: String, CaseIterable, Identifiable {
         switch self {
         case .seriesIncompletes:
             return toutes.filter { !$0.tomes.isEmpty && $0.nbPossedes < $0.tomes.count }
+        case .pretes:
+            // Un tome se prête autant qu'un livre. Sans cette ligne,
+            // l'étagère « Prêtés » restait vide alors que la fiche du tome
+            // promettait de l'y retrouver.
+            return toutes.filter { serie in serie.tomes.contains { $0.preteA != nil } }
         default:
             return []
         }
+    }
+
+    /// Les tomes prêtés d'une série, pour l'affichage du détail.
+    static func tomesPretes(_ toutes: [Serie]) -> [Tome] {
+        toutes.flatMap { $0.tomes }.filter { $0.preteA != nil }
     }
 }
 

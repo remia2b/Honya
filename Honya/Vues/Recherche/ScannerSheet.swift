@@ -77,7 +77,7 @@ struct ScannerSheet: View {
                         // Partir en laissant des livres reconnus mais non
                         // ajoutés était la meilleure façon de croire qu'ils
                         // étaient rangés : on le dit.
-                        if trouves.contains(where: { !estAjoute($0) }) {
+                        if trouves.contains(where: { !estAjoute($0) }) || enRecherche > 0 {
                             oublisVisibles = true
                         } else {
                             dismiss()
@@ -87,6 +87,11 @@ struct ScannerSheet: View {
                 }
             }
         }
+        // Tirer la feuille vers le bas est le geste le plus naturel de
+        // l'iPhone — et il emportait silencieusement toute la pile scannée.
+        // Tant qu'un livre reconnu n'est pas rangé, seul « Terminé » ferme,
+        // et lui prévient.
+        .interactiveDismissDisabled(trouves.contains { !estAjoute($0) })
         .sensoryFeedback(.impact(weight: .light), trigger: scannes.count)
         .confirmationDialog(
             "\(oublies) livre(s) scanné(s) ne sont pas encore dans votre bibliothèque.",

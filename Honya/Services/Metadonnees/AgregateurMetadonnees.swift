@@ -119,22 +119,39 @@ struct AgregateurMetadonnees: Sendable {
 
     // MARK: ISBN (le scanner passe par ici)
 
+    /// Le premier qui répond donne la fiche — mais la cascade continue tant
+    /// qu'il manque une couverture.
+    ///
+    /// Google répond souvent le premier et sans image : la fiche du scan
+    /// s'affichait alors avec un rectangle générique, alors qu'Apple Books
+    /// avait la couverture. On garde le premier résultat, et on lui emprunte
+    /// l'image du suivant.
     func parISBN(_ isbn: String) async -> ResultatRecherche? {
-        if let resultat = (try? await google.parISBN(isbn)) ?? nil {
-            return complete(resultat, isbn: isbn)
-        }
         let langueLecteur = ISBNUtil.langueProbable(isbn) ?? Langues.codeAppareil
-        if let resultat = await appleBooks.parISBN(
-            isbn,
-            pays: Langues.storefront(pourLangue: langueLecteur),
-            langue: langueLecteur
-        ) {
-            return complete(resultat, isbn: isbn)
+        var meilleur: ResultatRecherche?
+
+        for source in 0..<3 {
+            let trouve: ResultatRecherche?
+            switch source {
+            case 0: trouve = (try? await google.parISBN(isbn)) ?? nil
+            case 1: trouve = await appleBooks.parISBN(
+                isbn,
+                pays: Langues.storefront(pourLangue: langueLecteur),
+                langue: langueLecteur
+            )
+            default: trouve = (try? await openLibrary.parISBN(isbn)) ?? nil
+            }
+            guard let trouve else { continue }
+
+            if meilleur == nil {
+                meilleur = trouve
+            } else if meilleur?.couvertureURL == nil, trouve.couvertureURL != nil {
+                meilleur?.couvertureURL = trouve.couvertureURL
+            }
+            if meilleur?.couvertureURL != nil { break }
         }
-        if let resultat = (try? await openLibrary.parISBN(isbn)) ?? nil {
-            return complete(resultat, isbn: isbn)
-        }
-        return nil
+
+        return meilleur.map { complete($0, isbn: isbn) }
     }
 
     private func complete(_ resultat: ResultatRecherche, isbn: String) -> ResultatRecherche {

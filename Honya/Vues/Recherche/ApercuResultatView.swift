@@ -181,17 +181,38 @@ struct ApercuResultatView: View {
                 .padding(.vertical, 11)
                 .background(.white.opacity(0.18), in: Capsule())
         } else if resultat.estSerie {
-            Button {
-                ajouter(.aLire)
+            Menu {
+                Button { ajouter(.aLire) } label: {
+                    Label("Je la possède · à lire", systemImage: "books.vertical.fill")
+                }
+                Button { ajouter(.enCours) } label: {
+                    Label("Je suis en train de la lire", systemImage: "book.fill")
+                }
+                Button { ajouter(.lu) } label: {
+                    Label("Je l'ai lue", systemImage: "checkmark.circle.fill")
+                }
+                Button { ajouter(.wishlist) } label: {
+                    Label("À acheter", systemImage: "cart.fill")
+                }
+                Button { ajouter(.abandonne) } label: {
+                    Label("Je l'ai abandonnée", systemImage: "xmark.circle")
+                }
             } label: {
-                Text("Ajouter cette série")
-                    .font(.subheadline.weight(.heavy))
-                    .frame(maxWidth: 300)
-                    .padding(.vertical, 12)
+                HStack(spacing: 8) {
+                    Image(systemName: "plus")
+                        .font(.subheadline.weight(.heavy))
+                    Text("Ajouter cette série")
+                        .font(.subheadline.weight(.heavy))
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.system(size: 11, weight: .bold))
+                        .opacity(0.55)
+                }
+                .frame(maxWidth: 300)
+                .padding(.vertical, 12)
+                .foregroundStyle(teinte)
+                .background(.white, in: Capsule())
+                .badgeCadenas(!Droits.partage.plus && tomesRanges >= Limites.tomes)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(teinte)
-            .background(.white, in: Capsule())
         } else {
             // Un seul bouton, et l'état se choisit au moment d'ajouter :
             // fini le livre rangé « à lire » qu'on a en fait déjà fini.

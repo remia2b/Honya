@@ -35,6 +35,16 @@ struct ChoixLectureSheet: View {
         series.filter { $0.statut == .enCours }
     }
 
+    /// Les séries posées mais pas encore commencées.
+    ///
+    /// Sans elles, une bibliothèque faite uniquement de séries scannées —
+    /// tous les tomes possédés, aucun lu — donnait une feuille vide et le
+    /// message « ajoutez un livre », alors que l'accueil affichait justement
+    /// ces séries en « En ce moment ».
+    private var seriesALire: [Serie] {
+        series.filter { $0.statut != .enCours && $0.prochainALire != nil }
+    }
+
     var body: some View {
         NavigationStack {
             List {
@@ -48,12 +58,14 @@ struct ChoixLectureSheet: View {
                         ForEach(seriesEnCours) { ligneSerie($0) }
                     }
                 }
-                if !aLire.isEmpty {
+                if !aLire.isEmpty || !seriesALire.isEmpty {
                     Section("À lire") {
                         ForEach(aLire) { ligneLivre($0) }
+                        ForEach(seriesALire) { ligneSerie($0) }
                     }
                 }
-                if enCours.isEmpty && seriesEnCours.isEmpty && aLire.isEmpty {
+                if enCours.isEmpty && seriesEnCours.isEmpty
+                    && aLire.isEmpty && seriesALire.isEmpty {
                     Text("Ajoutez un livre à votre bibliothèque pour lancer une session.")
                         .font(.callout)
                         .foregroundStyle(.secondary)

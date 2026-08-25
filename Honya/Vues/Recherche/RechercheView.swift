@@ -457,8 +457,22 @@ private struct RangeeResultat: View {
                     .foregroundStyle(Couleurs.lu)
                     .accessibilityLabel("Déjà dans la bibliothèque")
             } else if resultat.estSerie {
-                Button {
-                    surAjout(.aLire)
+                Menu {
+                    Button { surAjout(.aLire) } label: {
+                        Label("Je la possède · à lire", systemImage: "books.vertical.fill")
+                    }
+                    Button { surAjout(.enCours) } label: {
+                        Label("Je suis en train de la lire", systemImage: "book.fill")
+                    }
+                    Button { surAjout(.lu) } label: {
+                        Label("Je l'ai lue", systemImage: "checkmark.circle.fill")
+                    }
+                    Button { surAjout(.wishlist) } label: {
+                        Label("À acheter", systemImage: "cart.fill")
+                    }
+                    Button { surAjout(.abandonne) } label: {
+                        Label("Je l'ai abandonnée", systemImage: "xmark.circle")
+                    }
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.title2)

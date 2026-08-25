@@ -83,7 +83,14 @@ enum ImportService {
         let objectif = Objectif.courant(dans: contexte)
 
         if resultat.estSerie {
-            return .serie(ajouterSerie(resultat, contexte: contexte, objectif: objectif))
+            // Une série déjà rangée sous un autre identifiant — retrouvée par
+            // son nom — ne doit pas se dédoubler : on rend celle qui existe.
+            let series = (try? contexte.fetch(FetchDescriptor<Serie>())) ?? []
+            if let existante = serieCorrespondante(resultat.titre, dans: series) {
+                return .serie(existante)
+            }
+            return .serie(ajouterSerie(resultat, statut: statut,
+                                       contexte: contexte, objectif: objectif))
         }
 
         // Un tome rejoint sa série : « Kagurabachi T3 » va dans Kagurabachi,
@@ -204,10 +211,16 @@ enum ImportService {
 
     private static func ajouterSerie(
         _ resultat: ResultatRecherche,
+        statut: StatutLecture,
         contexte: ModelContext,
         objectif: Objectif
     ) -> Serie {
         let serie = Serie(nom: resultat.titre, type: resultat.type)
+        // Le statut choisi à l'ajout prime sur le calcul : une série qu'on
+        // déclare lue ne doit pas repasser « à acheter » sous prétexte
+        // qu'aucun tome n'est encore coché. On peut toujours revenir au
+        // calcul depuis la fiche.
+        serie.statutChoisi = statut
         serie.noms = resultat.titresParLangue
         serie.nomRomaji = resultat.romaji
         serie.auteur = resultat.auteurs.first
