@@ -84,11 +84,7 @@ struct BienvenueView: View {
                 voile.ignoresSafeArea()
             }
 
-            if parEmail {
-                ecranEmail
-            } else {
-                ecranAccueil
-            }
+            ecranAccueil
         }
         .animation(.snappy(duration: 0.3), value: parEmail)
         .task { await chargerLeMur() }
@@ -181,26 +177,14 @@ struct BienvenueView: View {
     /// devenir opaque : les couvertures restent en fantôme derrière.
     private var voile: some View {
         let fond = Color(uiColor: .systemBackground)
-        // Le formulaire a besoin de plus de calme que les boutons d'accueil :
-        // la pénombre monte alors plus haut, sans jamais tout effacer.
         return LinearGradient(
-            stops: parEmail
-                ? [
-                    // Le formulaire se lit ou ne se lit pas : ici le mur n'est
-                    // plus qu'une texture, jamais un motif qui concurrence les
-                    // champs.
-                    .init(color: fond.opacity(0.86), location: 0),
-                    .init(color: fond.opacity(0.94), location: 0.22),
-                    .init(color: fond.opacity(0.97), location: 0.45),
-                    .init(color: fond.opacity(0.98), location: 1),
-                  ]
-                : [
-                    .init(color: fond.opacity(0), location: 0),
-                    .init(color: fond.opacity(0), location: 0.40),
-                    .init(color: fond.opacity(0.78), location: 0.56),
-                    .init(color: fond.opacity(0.90), location: 0.74),
-                    .init(color: fond.opacity(0.93), location: 1),
-                  ],
+            stops: [
+                .init(color: fond.opacity(0), location: 0),
+                .init(color: fond.opacity(0), location: 0.40),
+                .init(color: fond.opacity(0.78), location: 0.56),
+                .init(color: fond.opacity(0.90), location: 0.74),
+                .init(color: fond.opacity(0.93), location: 1),
+            ],
             startPoint: .top, endPoint: .bottom
         )
     }
@@ -222,9 +206,13 @@ struct BienvenueView: View {
                     .multilineTextAlignment(.center)
             }
             .padding(.horizontal, 26)
-            .padding(.bottom, 28)
+            .padding(.bottom, parEmail ? 20 : 28)
 
-            entrees
+            if parEmail {
+                formulaireEnBas
+            } else {
+                entrees
+            }
         }
         .opacity(apparu ? 1 : 0)
         .offset(y: apparu ? 0 : 14)
@@ -268,87 +256,22 @@ struct BienvenueView: View {
 
     // MARK: - L'entrée par e-mail
 
-    private var ecranEmail: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                HStack {
-                    Button {
-                        champActif = nil
-                        erreur = nil
-                        information = nil
-                        parEmail = false
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 17, weight: .semibold))
-                            .frame(width: 36, height: 36)
-                            .background(.regularMaterial, in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    Spacer()
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 18)
-
-                VStack(spacing: 8) {
-                    Text("Honya")
-                        .font(.system(size: 34, weight: .semibold, design: .serif))
-                    Text(sousTitreEmail)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.horizontal, 32)
-
-                Picker("", selection: $mode) {
-                    ForEach(Mode.allCases) { cas in
-                        Text(cas.libelle).tag(cas)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 28)
-                .padding(.top, 24)
-                .onChange(of: mode) { _, _ in
-                    erreur = nil
-                    information = nil
-                }
-
-                formulaire
-                    .padding(.horizontal, 28)
-                    .padding(.top, 18)
-
-                if let information {
-                    message(information, couleur: Couleurs.lu)
-                        .padding(.horizontal, 28)
-                        .padding(.top, 14)
-                }
-                if let erreur {
-                    message(erreur, couleur: .red)
-                        .padding(.horizontal, 28)
-                        .padding(.top, 14)
-                }
-
-                Text("Vos lectures restent sur votre appareil. Vous pouvez supprimer votre compte à tout moment depuis les réglages.")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 36)
-                    .padding(.top, 26)
-                    .padding(.bottom, 30)
-            }
-            .padding(.top, 14)
-        }
-        .scrollBounceBehavior(.basedOnSize)
-        .scrollDismissesKeyboard(.interactively)
-    }
-
-    private var sousTitreEmail: String {
-        mode == .inscription
-            ? String(localized: "Créez votre compte avec une adresse e-mail.")
-            : String(localized: "Content de vous revoir.")
-    }
-
-    private var formulaire: some View {
+    /// Le formulaire prend la place des deux boutons, en bas, sans rien
+    /// changer d'autre : même mur, même voile, même titre. Changer d'écran
+    /// pour trois champs cassait la continuité de la page d'accueil.
+    private var formulaireEnBas: some View {
         VStack(spacing: 12) {
+            Picker("", selection: $mode) {
+                ForEach(Mode.allCases) { cas in
+                    Text(cas.libelle).tag(cas)
+                }
+            }
+            .pickerStyle(.segmented)
+            .onChange(of: mode) { _, _ in
+                erreur = nil
+                information = nil
+            }
+
             champ("Adresse e-mail", systemImage: "envelope", texte: $email, champ: .email)
             champ(
                 mode == .inscription ? "Mot de passe (6 caractères min.)" : "Mot de passe",
@@ -358,42 +281,55 @@ struct BienvenueView: View {
                 secret: true
             )
 
-            // Toujours visible, pas seulement en mode connexion : on cherche
-            // un mot de passe oublié précisément quand on ne sait plus si le
-            // compte existe.
-            Button {
-                Task { await envoyerReinitialisation() }
-            } label: {
-                Label("Mot de passe oublié ?", systemImage: "key.horizontal")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        .regularMaterial,
-                        in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    )
-            }
-            .buttonStyle(.plain)
-            .disabled(email.trimmingCharacters(in: .whitespaces).isEmpty)
-            .opacity(email.trimmingCharacters(in: .whitespaces).isEmpty ? 0.45 : 1)
-
             Button {
                 Task { await valider() }
             } label: {
                 HStack(spacing: 8) {
                     if enCours { ProgressView().tint(.white) }
                     Text(mode == .inscription ? "Créer mon compte" : "Se connecter")
-                        .font(.headline)
+                        .font(.system(size: 17, weight: .semibold))
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 15)
+                .frame(height: 50)
                 .foregroundStyle(.white)
-                .background(Couleurs.accent, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background(Couleurs.accent, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
             }
             .buttonStyle(.plain)
             .disabled(enCours || email.isEmpty || motDePasse.count < 6)
             .opacity(enCours || email.isEmpty || motDePasse.count < 6 ? 0.55 : 1)
+
+            if let information {
+                message(information, couleur: Couleurs.lu)
+            }
+            if let erreur {
+                message(erreur, couleur: .red)
+            }
+
+            HStack(spacing: 18) {
+                Button("Retour") {
+                    champActif = nil
+                    erreur = nil
+                    information = nil
+                    parEmail = false
+                }
+                Spacer(minLength: 0)
+                Button("Mot de passe oublié ?") {
+                    Task { await envoyerReinitialisation() }
+                }
+                .disabled(email.trimmingCharacters(in: .whitespaces).isEmpty)
+            }
+            .font(.system(size: 14, weight: .semibold))
+            .tint(.primary.opacity(0.75))
+            .padding(.top, 2)
         }
+        .padding(.horizontal, 24)
+        .padding(.bottom, 30)
+    }
+
+    private var sousTitreEmail: String {
+        mode == .inscription
+            ? String(localized: "Créez votre compte avec une adresse e-mail.")
+            : String(localized: "Content de vous revoir.")
     }
 
     private func champ(
