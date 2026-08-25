@@ -37,6 +37,7 @@ func journalClavier(_ message: String) {
     let temps = Date().timeIntervalSinceReferenceDate
     let ligne = String(format: "[%.3f] %@", temps, message) + "\n"
     print(ligne, terminator: "")
+    JournalDistant.deposer(ligne)
     if let documents = FileManager.default.urls(
         for: .documentDirectory, in: .userDomainMask
     ).first {
@@ -58,6 +59,57 @@ func journalClavier(_ message: String) {
 var journalClavierURL: URL? {
     FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         .first?.appendingPathComponent("journal-clavier.log")
+}
+
+/// Dépose le journal sur le serveur, par paquets — diagnostic TEMPORAIRE.
+///
+/// Impossible de brancher un débogueur sur l'iPhone de Rémi : les lignes
+/// partent donc dans une table dont l'anonyme ne peut qu'ÉCRIRE, et que
+/// seule la console du projet sait lire. Aucune donnée personnelle : des
+/// noms d'événements clavier et des horodatages. À retirer avec le reste
+/// du diagnostic.
+@MainActor
+private enum JournalDistant {
+    static var tampon: [String] = []
+    static var envoiPrevu = false
+
+    static func deposer(_ ligne: String) {
+        tampon.append(ligne)
+        guard !envoiPrevu else { return }
+        envoiPrevu = true
+        Task {
+            // Quatre secondes de calme : un paquet par salve d'événements,
+            // pas une requête par ligne.
+            try? await Task.sleep(for: .seconds(4))
+            envoiPrevu = false
+            await envoyer()
+        }
+    }
+
+    private static func envoyer() async {
+        guard !tampon.isEmpty,
+              !Secrets.supabaseURL.isEmpty,
+              !Secrets.supabaseCleAnon.isEmpty,
+              let url = URL(string: Secrets.supabaseURL + "/rest/v1/journal_clavier")
+        else { return }
+        let contenu = tampon.joined()
+        tampon.removeAll()
+
+        var requete = URLRequest(url: url)
+        requete.httpMethod = "POST"
+        requete.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        requete.setValue(Secrets.supabaseCleAnon, forHTTPHeaderField: "apikey")
+        requete.setValue(
+            "Bearer " + Secrets.supabaseCleAnon, forHTTPHeaderField: "Authorization"
+        )
+        let appareil = UIDevice.current.model + " iOS " + UIDevice.current.systemVersion
+        requete.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "appareil": appareil,
+            "contenu": contenu,
+        ])
+        requete.timeoutInterval = 15
+        _ = try? await URLSession.shared.data(for: requete)
+    }
 }
 
 /// La saisie vue comme une session : ouverte au premier champ touché,
