@@ -14,7 +14,9 @@ struct GoogleBooksProvider: MetadataProvider {
         var composants = URLComponents(string: "https://www.googleapis.com/books/v1/volumes")!
         var parametres = [
             URLQueryItem(name: "q", value: requete),
-            URLQueryItem(name: "maxResults", value: "20"),
+            // Le maximum accepté par Google. Cette source ne sert qu'en secours,
+            // mais elle sert alors pour des séries entières.
+            URLQueryItem(name: "maxResults", value: "40"),
             URLQueryItem(name: "printType", value: "books"),
         ]
         if let langue {

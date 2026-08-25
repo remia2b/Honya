@@ -193,6 +193,7 @@ struct ScannerSheet: View {
                                 Button("Je suis en train de le lire") { ajouter(resultat, statut: .enCours) }
                                 Button("Je l'ai lu") { ajouter(resultat, statut: .lu) }
                                 Button("À acheter") { ajouter(resultat, statut: .wishlist) }
+                                Button("Je l'ai abandonné") { ajouter(resultat, statut: .abandonne) }
                             } label: {
                                 Image(systemName: "plus.circle.fill")
                                     .font(.title3)

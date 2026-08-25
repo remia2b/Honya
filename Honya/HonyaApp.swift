@@ -103,7 +103,14 @@ struct HonyaApp: App {
             }
             .animation(.easeInOut(duration: 0.35), value: compte.etat)
             .preferredColorScheme(apparence.schema)
-            .task { await compte.verifierSession() }
+            .task {
+                await compte.verifierSession()
+                // Toucher la boutique la met en route : elle charge le
+                // catalogue et ouvre la veille des transactions. Sans cela,
+                // un renouvellement ou un achat fait ailleurs ne serait vu
+                // qu'à l'ouverture de l'écran d'abonnement.
+                await Boutique.partage.relireLesDroits()
+            }
         }
         .modelContainer(conteneur)
     }
