@@ -73,13 +73,12 @@ struct BienvenueView: View {
         ZStack {
             Color(uiColor: .systemBackground).ignoresSafeArea()
 
-            if !parEmail && !vignettes.isEmpty {
-                // Un mur de cases vides est pire que pas de mur : tant qu'on
-                // n'a rien à montrer, l'écran reste net.
+            if !vignettes.isEmpty {
+                // Le mur reste derrière l'écran e-mail : c'est la même page,
+                // pas un formulaire posé sur du vide. Un mur de cases vides,
+                // en revanche, est pire que pas de mur.
                 mur.ignoresSafeArea()
-                    .transition(.opacity)
                 voile.ignoresSafeArea()
-                    .transition(.opacity)
             }
 
             if parEmail {
@@ -178,14 +177,23 @@ struct BienvenueView: View {
     /// devenir opaque : les couvertures restent en fantôme derrière.
     private var voile: some View {
         let fond = Color(uiColor: .systemBackground)
+        // Le formulaire a besoin de plus de calme que les boutons d'accueil :
+        // la pénombre monte alors plus haut, sans jamais tout effacer.
         return LinearGradient(
-            stops: [
-                .init(color: fond.opacity(0), location: 0),
-                .init(color: fond.opacity(0), location: 0.40),
-                .init(color: fond.opacity(0.78), location: 0.56),
-                .init(color: fond.opacity(0.90), location: 0.74),
-                .init(color: fond.opacity(0.93), location: 1),
-            ],
+            stops: parEmail
+                ? [
+                    .init(color: fond.opacity(0.55), location: 0),
+                    .init(color: fond.opacity(0.82), location: 0.22),
+                    .init(color: fond.opacity(0.94), location: 0.45),
+                    .init(color: fond.opacity(0.96), location: 1),
+                  ]
+                : [
+                    .init(color: fond.opacity(0), location: 0),
+                    .init(color: fond.opacity(0), location: 0.40),
+                    .init(color: fond.opacity(0.78), location: 0.56),
+                    .init(color: fond.opacity(0.90), location: 0.74),
+                    .init(color: fond.opacity(0.93), location: 1),
+                  ],
             startPoint: .top, endPoint: .bottom
         )
     }
@@ -246,12 +254,6 @@ struct BienvenueView: View {
             }
             .buttonStyle(.plain)
 
-            Button("Continuer sans compte") {
-                compte.continuerSansCompte()
-            }
-            .font(.system(size: 15))
-            .tint(.secondary)
-            .padding(.top, 4)
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 34)
@@ -272,7 +274,7 @@ struct BienvenueView: View {
                         Image(systemName: "chevron.left")
                             .font(.system(size: 17, weight: .semibold))
                             .frame(width: 36, height: 36)
-                            .background(Color.primary.opacity(0.06), in: Circle())
+                            .background(.regularMaterial, in: Circle())
                     }
                     .buttonStyle(.plain)
                     Spacer()
@@ -402,8 +404,10 @@ struct BienvenueView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 14)
+        // Un matériau plutôt qu'une teinte : le formulaire est posé sur le
+        // mur de couvertures, une couleur unie y ferait tache.
         .background(
-            Color(uiColor: .secondarySystemBackground),
+            .regularMaterial,
             in: RoundedRectangle(cornerRadius: 14, style: .continuous)
         )
     }

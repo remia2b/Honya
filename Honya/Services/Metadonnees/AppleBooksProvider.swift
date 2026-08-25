@@ -15,7 +15,10 @@ struct AppleBooksProvider: Sendable {
         _ requete: String,
         pays: String,
         langue: String,
-        limite: Int = 50
+        // 200 est le maximum d'iTunes, et il en faut : sur une longue série,
+        // cinquante résultats partent en éditions étrangères et hors-séries
+        // avant qu'on ait vu tous les tomes. Même requête, même coût.
+        limite: Int = 200
     ) async throws -> [ResultatRecherche] {
         var composants = URLComponents(string: "https://itunes.apple.com/search")!
         composants.queryItems = [
