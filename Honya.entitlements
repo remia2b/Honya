@@ -6,5 +6,15 @@
 	<array>
 		<string>Default</string>
 	</array>
+	<!-- Password AutoFill : l'app est du meme monde que honya.app. Sans
+	     cette association, iOS re-negocie AutoFill a chaque changement de
+	     champ et reconstruit le clavier - le clignotement du journal.
+	     Le www est l'hote qui sert le fichier d'association ; l'apex y
+	     redirige. -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>webcredentials:www.honya.app</string>
+		<string>webcredentials:honya.app</string>
+	</array>
 </dict>
 </plist>
