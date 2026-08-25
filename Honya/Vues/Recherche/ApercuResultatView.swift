@@ -7,6 +7,8 @@ struct ApercuResultatView: View {
     @Query private var exemplaires: [Exemplaire]
     @Query private var tousLesTomes: [Tome]
     @State private var plusVisible = false
+    @State private var dejaPresent: CibleSession?
+    @State private var verifie = false
 
     let resultat: ResultatRecherche
     let langue: String
@@ -23,6 +25,32 @@ struct ApercuResultatView: View {
     }
 
     var body: some View {
+        // Un titre déjà rangé n'a pas à repasser par la page d'ajout : on
+        // emmène directement à sa fiche, d'où qu'on vienne — découverte,
+        // recherche ou classements.
+        //
+        // La vérification est figée à l'arrivée : la refaire à chaque image
+        // ferait basculer l'écran juste après un ajout, en écrasant la
+        // confirmation que le lecteur vient de déclencher.
+        Group {
+            if let deja = dejaPresent {
+                switch deja {
+                case .oeuvre(let oeuvre): FicheOeuvreView(oeuvre: oeuvre)
+                case .serie(let serie): FicheSerieView(serie: serie)
+                }
+            } else {
+                apercu
+            }
+        }
+        .onAppear {
+            if !verifie {
+                verifie = true
+                dejaPresent = ImportService.trouver(resultat, dans: contexte)
+            }
+        }
+    }
+
+    private var apercu: some View {
         ScrollView {
             VStack(spacing: 16) {
                 CouvertureView(

@@ -32,6 +32,39 @@ enum ImportService {
         }
     }
 
+    /// Ce que la bibliothèque possède déjà pour ce résultat, s'il y a lieu.
+    ///
+    /// Plus permissif que `existeDeja` : une série présente compte même si le
+    /// tome visé n'est pas encore possédé. On cherche ici où EMMENER le
+    /// lecteur, pas s'il faut lui proposer d'ajouter.
+    static func trouver(
+        _ resultat: ResultatRecherche, dans contexte: ModelContext
+    ) -> CibleSession? {
+        let series = (try? contexte.fetch(FetchDescriptor<Serie>())) ?? []
+
+        if resultat.estSerie,
+           let serie = series.first(where: {
+               $0.idAniList != nil && $0.idAniList == resultat.idAniList
+           }) {
+            return .serie(serie)
+        }
+
+        let (base, _) = Tomaison.decomposer(resultat.titre)
+        if let serie = serieCorrespondante(base, dans: series) {
+            return .serie(serie)
+        }
+
+        let oeuvres = (try? contexte.fetch(FetchDescriptor<Oeuvre>())) ?? []
+        if let oeuvre = oeuvres.first(where: { oeuvre in
+            oeuvre.idExterne == resultat.id
+                || (oeuvre.titreOriginal.caseInsensitiveCompare(resultat.titre) == .orderedSame
+                    && oeuvre.auteurPrincipal == (resultat.auteurs.first ?? oeuvre.auteurPrincipal))
+        }) {
+            return .oeuvre(oeuvre)
+        }
+        return nil
+    }
+
     private static func serieCorrespondante(_ nom: String, dans series: [Serie]) -> Serie? {
         series.first { serie in
             Tomaison.memeSerie(serie.nom, nom)
