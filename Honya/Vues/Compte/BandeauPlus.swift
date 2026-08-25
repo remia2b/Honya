@@ -94,7 +94,59 @@ struct CadenasPlus: View {
     }
 }
 
+/// Un cadenas purement décoratif, posé sur une commande qui reste
+/// tappable — c'est elle qui ouvre Honya+, pas le cadenas.
+///
+/// `CadenasPlus` est lui-même un bouton : posé sur une commande, il lui
+/// volerait le doigt. Celui-ci ne se laisse pas toucher.
+struct BadgeCadenas: View {
+    var actif: Bool
+
+    var body: some View {
+        if actif {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(.white)
+                .padding(3)
+                .background(Couleurs.accent, in: Circle())
+                .allowsHitTesting(false)
+        }
+    }
+}
+
+/// Un intitulé de menu qui annonce qu'il mène à Honya+.
+///
+/// Dans un menu, aucune pastille ne peut se poser par-dessus : le cadenas se
+/// glisse donc dans le texte. On ne retire jamais l'entrée — une fonction
+/// cachée donne l'impression que l'application ne sait pas la faire.
+struct LabelPlus: View {
+    var titre: LocalizedStringKey
+    var symbole: String
+
+    @State private var droits = Droits.partage
+
+    var body: some View {
+        Label {
+            HStack(spacing: 5) {
+                Text(titre)
+                if !droits.plus {
+                    Image(systemName: "lock.fill").font(.caption2)
+                }
+            }
+        } icon: {
+            Image(systemName: symbole)
+        }
+    }
+}
+
 extension View {
+    /// Pose un cadenas décoratif sur une commande verrouillée.
+    func badgeCadenas(_ actif: Bool) -> some View {
+        overlay(alignment: .topTrailing) {
+            BadgeCadenas(actif: actif).offset(x: 6, y: -5)
+        }
+    }
+
     /// Pose un cadenas en haut à droite d'une fonction réservée.
     func cadenasPlus(_ verrou: Verrou? = nil, compact: Bool = false) -> some View {
         overlay(alignment: .topTrailing) {

@@ -142,6 +142,8 @@ struct CollectionsView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { demanderEtagere() } label: { Image(systemName: "plus") }
                     .accessibilityLabel("Nouvelle collection")
+                    .badgeCadenas(!Droits.partage.plus
+                                  && collections.count >= Limites.etageres)
             }
         }
         .ecranHonyaPlus($plusVisible, verrou: .etagere(

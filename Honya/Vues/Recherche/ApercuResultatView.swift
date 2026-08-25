@@ -230,6 +230,7 @@ struct ApercuResultatView: View {
                 .padding(.vertical, 12)
                 .foregroundStyle(teinte)
                 .background(.white, in: Capsule())
+                .badgeCadenas(!Droits.partage.plus && tomesRanges >= Limites.tomes)
             }
         }
     }

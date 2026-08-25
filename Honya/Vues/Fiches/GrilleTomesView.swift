@@ -258,7 +258,7 @@ private struct FeuilleTome: View {
                                 plusVisible = true
                             }
                         } label: {
-                            Label("Prêter ce tome…", systemImage: "person.badge.plus")
+                            LabelPlus(titre: "Prêter ce tome…", symbole: "person.badge.plus")
                         }
                     }
                 }

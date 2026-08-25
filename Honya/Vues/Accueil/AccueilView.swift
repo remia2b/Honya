@@ -66,6 +66,13 @@ struct AccueilView: View {
 
                     if bibliothequeVide {
                         etatVide
+                        // Une bibliothèque vide, c'est justement le lecteur
+                        // qui n'a encore rien vu de Honya+ et croit l'app
+                        // entièrement gratuite. Le bandeau doit l'atteindre
+                        // lui aussi.
+                        BandeauPlus()
+                            .padding(.horizontal, 20)
+                            .padding(.top, 26)
                     } else {
                         if let courant = enCeMoment, let oeuvre = courant.oeuvre {
                             bandeEnCours(exemplaire: courant, oeuvre: oeuvre)

@@ -61,41 +61,27 @@ struct ReglagesView: View {
 
     private var sectionCompte: some View {
         Section {
-            if compte.etat == .connecte {
-                LabeledContent {
-                    Text(compte.nomAffiche)
-                        .foregroundStyle(.secondary)
-                } label: {
-                    Label(compte.libelleMethode, systemImage: "person.crop.circle.fill")
-                }
-                Button {
-                    compte.seDeconnecter()
-                    dismiss()
-                } label: {
-                    Label("Se déconnecter", systemImage: "rectangle.portrait.and.arrow.right")
-                }
-                Button(role: .destructive) {
-                    confirmerSuppressionCompte = true
-                } label: {
-                    Label("Supprimer mon compte", systemImage: "person.crop.circle.badge.xmark")
-                }
-            } else {
-                Label("Aucun compte", systemImage: "person.crop.circle")
-                Button {
-                    // On revient à la bienvenue SANS rien effacer : la
-                    // bibliothèque déjà constituée reste intacte.
-                    compte.revoirLaBienvenue()
-                    dismiss()
-                } label: {
-                    Label("Créer un compte ou se connecter", systemImage: "apple.logo")
-                }
+            LabeledContent {
+                Text(compte.nomAffiche)
+                    .foregroundStyle(.secondary)
+            } label: {
+                Label(compte.libelleMethode, systemImage: "person.crop.circle.fill")
+            }
+            Button {
+                compte.seDeconnecter()
+                dismiss()
+            } label: {
+                Label("Se déconnecter", systemImage: "rectangle.portrait.and.arrow.right")
+            }
+            Button(role: .destructive) {
+                confirmerSuppressionCompte = true
+            } label: {
+                Label("Supprimer mon compte", systemImage: "person.crop.circle.badge.xmark")
             }
         } header: {
             Text("Compte")
         } footer: {
-            Text(compte.etat == .connecte
-                 ? "Supprimer votre compte efface aussi toute votre bibliothèque sur cet appareil. Pour retirer Honya de votre identifiant Apple, allez dans Réglages > votre nom > Connexion avec Apple."
-                 : "Vous utilisez Honya sans compte : tout reste sur cet appareil.")
+            Text("Se déconnecter garde votre bibliothèque sur cet appareil. Supprimer votre compte l'efface. Pour retirer Honya de votre identifiant Apple, allez dans Réglages > votre nom > Connexion avec Apple.")
         }
     }
 

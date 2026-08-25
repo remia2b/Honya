@@ -12,10 +12,8 @@ final class Compte {
     static let partage = Compte()
 
     enum Etat: Equatable {
-        /// Premier lancement : l'écran de bienvenue décide.
+        /// Aucun compte : l'écran de bienvenue, et rien d'autre.
         case indetermine
-        /// Le lecteur a choisi de rester sans compte.
-        case invite
         case connecte
     }
 
@@ -48,10 +46,14 @@ final class Compte {
         nom = defaults.string(forKey: Cle.nom)
         email = defaults.string(forKey: Cle.email)
         methode = Methode(rawValue: defaults.string(forKey: Cle.methode) ?? "") ?? .apple
+        // Un « invite » enregistré par une version précédente retombe ici
+        // sur .indetermine : sans cela, un appareil qui avait choisi de se
+        // passer de compte ne reverrait jamais l'écran de bienvenue.
         switch defaults.string(forKey: Cle.etat) {
         case "connecte" where identifiant != nil: etat = .connecte
-        case "invite": etat = .invite
-        default: etat = .indetermine
+        default:
+            etat = .indetermine
+            defaults.removeObject(forKey: Cle.etat)
         }
     }
 
@@ -156,23 +158,13 @@ final class Compte {
         etat = .connecte
     }
 
-    func continuerSansCompte() {
-        defaults.set("invite", forKey: Cle.etat)
-        etat = .invite
-    }
-
     func seDeconnecter() {
         if let jeton = Trousseau.lire(Cle.jetonAcces) {
             Task { await SupabaseAuth.deconnecter(jeton: jeton) }
         }
         oublier()
-        defaults.set("invite", forKey: Cle.etat)
-        etat = .invite
-    }
-
-    /// Rouvre l'écran de bienvenue sans rien effacer : le lecteur sans compte
-    /// qui veut finalement s'en créer un garde évidemment sa bibliothèque.
-    func revoirLaBienvenue() {
+        // Retour à la bienvenue, pas à un mode invité : la bibliothèque reste
+        // sur l'appareil, mais l'application redemande un compte.
         defaults.removeObject(forKey: Cle.etat)
         etat = .indetermine
     }

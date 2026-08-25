@@ -422,6 +422,7 @@ private struct ContenuFicheOeuvre: View {
                         .font(.caption.weight(.bold))
                         .buttonStyle(.bordered)
                         .tint(.white)
+                        .badgeCadenas(!Droits.partage.plus)
                 }
             }
             .font(.caption)
@@ -486,7 +487,7 @@ private struct ContenuFicheOeuvre: View {
                     )
                 }
                 Button { demanderPret() } label: {
-                    Label("Prêter…", systemImage: "person.badge.plus")
+                    LabelPlus(titre: "Prêter…", symbole: "person.badge.plus")
                 }
                 MenuEtageres(cible: .oeuvre(oeuvre), creationVisible: $etagereVisible)
                 Divider()
@@ -648,6 +649,8 @@ struct ListeCitationsView: View {
                             plusVisible = true
                         }
                     } label: { Image(systemName: "plus") }
+                        .badgeCadenas(!Droits.partage.plus
+                                      && totalCitations >= Limites.citations)
                 }
             }
         }

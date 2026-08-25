@@ -92,7 +92,7 @@ struct HonyaApp: App {
                 case .indetermine:
                     BienvenueView()
                         .transition(.opacity)
-                case .invite, .connecte:
+                case .connecte:
                     if onboardingTermine {
                         RacineView()
                     } else {

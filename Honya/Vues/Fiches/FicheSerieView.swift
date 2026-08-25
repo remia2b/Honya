@@ -285,6 +285,7 @@ struct FicheSerieView: View {
                     .buttonStyle(.bordered)
                     .clipShape(Circle())
                     .accessibilityLabel("Rappel de sortie")
+                    .badgeCadenas(alerteVerrouillee)
                 }
                 Button("Modifier") { sortieVisible = true }
                     .font(.caption.weight(.bold))
@@ -356,13 +357,20 @@ struct FicheSerieView: View {
         .buttonStyle(.plain)
     }
 
+    /// Une alerte de plus est-elle hors d'atteinte ? La série déjà suivie
+    /// garde sa cloche libre : on ne verrouille que ce qui bloquerait.
+    private var alerteVerrouillee: Bool {
+        guard !Droits.partage.plus, !serie.rappelActive else { return false }
+        return series.filter(\.rappelActive).count >= Limites.alertesSortie
+    }
+
     /// Quand le rayon automatique a été refusé, la fiche le dit clairement et
     /// propose de l'ouvrir — plutôt que de laisser croire à un catalogue vide.
     private var invitationRayon: some View {
         Button { plusVisible = true } label: {
             HStack(spacing: 13) {
-                Image(systemName: "books.vertical.fill")
-                    .font(.system(size: 17, weight: .semibold))
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(Couleurs.accent)
                     .frame(width: 34, height: 34)
                     .background(Couleurs.accent.opacity(0.14), in: Circle())

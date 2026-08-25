@@ -47,6 +47,9 @@ struct DecouverteView: View {
 
                     if toutEstVide {
                         etalEnInstallation
+                        BandeauPlus()
+                            .padding(.horizontal, 20)
+                            .padding(.top, 26)
                     } else {
                         if !tendances.isEmpty { sectionTendances }
                         rayonSection("manga")
