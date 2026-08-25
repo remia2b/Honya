@@ -141,6 +141,24 @@ private struct CaseTome: View {
                         )
                 }
             }
+            .overlay(alignment: .bottomLeading) {
+                // Un tome absent de l'étagère se signale d'un regard.
+                if tome.preteA != nil {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(4)
+                        .background(Couleurs.wishlist, in: Circle())
+                        .offset(x: -5, y: 5)
+                } else if tome.abandonne {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(4)
+                        .background(Couleurs.abandonne, in: Circle())
+                        .offset(x: -5, y: 5)
+                }
+            }
             .overlay(alignment: .topTrailing) {
                 if tome.lu {
                     Image(systemName: "checkmark.circle.fill")
@@ -178,6 +196,8 @@ private struct FeuilleTome: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var contexte
+    @State private var pretVisible = false
+    @State private var plusVisible = false
 
     var body: some View {
         NavigationStack {
@@ -210,6 +230,40 @@ private struct FeuilleTome: View {
                 }
 
                 Section {
+                    Toggle(isOn: Binding(
+                        get: { tome.abandonne },
+                        set: { tome.abandonne = $0 }
+                    )) {
+                        Label("Abandonné", systemImage: "xmark.circle")
+                    }
+                    .tint(Couleurs.abandonne)
+
+                    if let preteA = tome.preteA {
+                        HStack {
+                            Label("Prêté à \(preteA)", systemImage: "person.fill")
+                            Spacer(minLength: 8)
+                            Button("Rendu") {
+                                tome.preteA = nil
+                                tome.preteLe = nil
+                            }
+                            .buttonStyle(.bordered)
+                            .font(.caption.weight(.bold))
+                        }
+                    } else {
+                        Button {
+                            // Prêter est un geste Honya+ ; rendre ne l'est jamais.
+                            if Droits.partage.plus {
+                                pretVisible = true
+                            } else {
+                                plusVisible = true
+                            }
+                        } label: {
+                            Label("Prêter ce tome…", systemImage: "person.badge.plus")
+                        }
+                    }
+                }
+
+                Section {
                     Button {
                         appliquerJusquIci()
                         dismiss()
@@ -231,6 +285,13 @@ private struct FeuilleTome: View {
                     Button("OK") { dismiss() }.fontWeight(.bold)
                 }
             }
+            .sheet(isPresented: $pretVisible) {
+                PreterSheet(cible: .tome(tome), titre: tome.titre ?? "Tome \(tome.numero)")
+            }
+            .ecranHonyaPlus($plusVisible, verrou: .pret(
+                titre: tome.titre ?? "Tome \(tome.numero)",
+                couvertures: [tome.couvertureURL].compactMap { $0 }
+            ))
         }
     }
 

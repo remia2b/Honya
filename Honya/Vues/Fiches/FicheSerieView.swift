@@ -33,6 +33,7 @@ struct FicheSerieView: View {
                     cibleSession = .serie(serie)
                 }
                 .frame(maxWidth: 280)
+                menuStatut
                 carteTomes
                 if serie.rayonRefuse && !Droits.partage.plus {
                     invitationRayon
@@ -309,6 +310,50 @@ struct FicheSerieView: View {
                 await NotificationsService.planifierRappelSortie(pour: serie, langue: langue)
             }
         }
+    }
+
+    /// Le statut de la série se CHOISIT — il était seulement calculé, si bien
+    /// qu'« abandonné » n'existait nulle part pour une série.
+    private var menuStatut: some View {
+        Menu {
+            ForEach(StatutLecture.allCases) { statut in
+                Button {
+                    serie.statutChoisi = statut
+                } label: {
+                    Label(statut.libelle, systemImage: statut.symbole)
+                }
+            }
+            if serie.statutChoisi != nil {
+                Divider()
+                Button("Laisser Honya décider", systemImage: "wand.and.stars") {
+                    serie.statutChoisi = nil
+                }
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: serie.statut.symbole)
+                    .foregroundStyle(serie.statut.couleur)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(serie.statut.libelle)
+                        .font(.subheadline.weight(.semibold))
+                    Text(serie.statutChoisi == nil
+                         ? "Calculé d'après vos tomes"
+                         : "Choisi par vous")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(uiColor: .secondarySystemBackground))
+            )
+        }
+        .buttonStyle(.plain)
     }
 
     /// Quand le rayon automatique a été refusé, la fiche le dit clairement et

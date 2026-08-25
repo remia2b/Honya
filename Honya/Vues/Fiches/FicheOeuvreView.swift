@@ -108,7 +108,7 @@ private struct ContenuFicheOeuvre: View {
             MiseAJourPageSheet(exemplaire: exemplaire, oeuvre: oeuvre, surTermine: marquerLu)
         }
         .sheet(isPresented: $pretVisible) {
-            PreterSheet(exemplaire: exemplaire, titre: oeuvre.titre(langue))
+            PreterSheet(cible: .exemplaire(exemplaire), titre: oeuvre.titre(langue))
         }
         .ecranHonyaPlus($plusVisible, verrou: .pret(
             titre: oeuvre.titre(langue),

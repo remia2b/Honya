@@ -262,6 +262,16 @@ final class Serie {
 
     var couvertureAffichee: String? { couvertureLocaleURL ?? couvertureURL }
 
+    /// Statut CHOISI par le lecteur, qui prime sur celui déduit des tomes.
+    /// Sans lui, « abandonné » n'existait nulle part pour une série : le
+    /// calcul ne peut pas deviner qu'on a décidé d'arrêter.
+    var statutManuelRaw: String?
+
+    var statutChoisi: StatutLecture? {
+        get { statutManuelRaw.flatMap(StatutLecture.init(rawValue:)) }
+        set { statutManuelRaw = newValue?.rawValue }
+    }
+
     /// Vrai dès que Honya a posé le rayon entier de cette série. Sert de
     /// compteur : le gratuit en remplit trois, pas davantage.
     var rayonComplet: Bool = false
@@ -287,6 +297,9 @@ final class Serie {
     /// Statut équivalent à celui d'un livre, déduit de l'état des tomes.
     /// C'est lui qui fait vivre les filtres de la bibliothèque pour les séries.
     var statut: StatutLecture {
+        // Un choix explicite prime toujours sur le calcul : on peut décider
+        // d'abandonner une série même si tous ses tomes sont possédés.
+        if let statutChoisi { return statutChoisi }
         if estTerminee { return .lu }
         if nbLus > 0 || chapitresLus > 0 { return .enCours }
         if nbPossedes > 0 { return .aLire }
@@ -321,6 +334,13 @@ final class Serie {
 
 @Model
 final class Tome {
+    /// À qui ce tome est prêté, et depuis quand. Un tome se prête comme un
+    /// livre seul : c'est le même geste, il manquait sur les séries.
+    var preteA: String?
+    var preteLe: Date?
+    /// Un tome qu'on a commencé puis laissé tomber.
+    var abandonne: Bool = false
+
     var numero: Int = 1
     var possede: Bool = false
     var lu: Bool = false

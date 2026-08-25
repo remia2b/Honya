@@ -5,22 +5,46 @@ import SwiftUI
 ///
 /// Les personnes à qui l'on a déjà prêté reviennent en suggestion — on prête
 /// presque toujours aux mêmes, autant leur éviter le clavier.
+/// Ce qu'on prête : un livre seul ou le tome d'une série. Le geste est le
+/// même, l'écran aussi — seul le porteur du nom change.
+enum CiblePret {
+    case exemplaire(Exemplaire)
+    case tome(Tome)
+
+    func confier(a personne: String) {
+        switch self {
+        case .exemplaire(let e): e.preteA = personne; e.preteLe = .now
+        case .tome(let t): t.preteA = personne; t.preteLe = .now
+        }
+    }
+}
+
 struct PreterSheet: View {
-    let exemplaire: Exemplaire
+    let cible: CiblePret
     let titre: String
 
     @Environment(\.dismiss) private var dismiss
     @Query private var exemplaires: [Exemplaire]
+    @Query private var tomes: [Tome]
     @State private var nom = ""
     @FocusState private var clavier: Bool
 
     /// Les emprunteurs connus, du plus récent au plus ancien, sans doublon.
     private var habitues: [String] {
         var vus = Set<String>()
-        return exemplaires
-            .filter { $0.preteA != nil }
-            .sorted { ($0.preteLe ?? .distantPast) > ($1.preteLe ?? .distantPast) }
-            .compactMap { $0.preteA }
+        // Livres seuls ET tomes : on prête aux mêmes personnes, quel que
+        // soit le format de ce qu'on leur confie.
+        let depuisLivres = exemplaires.compactMap { e -> (String, Date)? in
+            guard let nom = e.preteA else { return nil }
+            return (nom, e.preteLe ?? .distantPast)
+        }
+        let depuisTomes = tomes.compactMap { t -> (String, Date)? in
+            guard let nom = t.preteA else { return nil }
+            return (nom, t.preteLe ?? .distantPast)
+        }
+        return (depuisLivres + depuisTomes)
+            .sorted { $0.1 > $1.1 }
+            .map(\.0)
             .filter { vus.insert($0).inserted }
     }
 
@@ -108,8 +132,7 @@ struct PreterSheet: View {
     private func preter() {
         let propre = nom.trimmingCharacters(in: .whitespaces)
         guard !propre.isEmpty else { return }
-        exemplaire.preteA = propre
-        exemplaire.preteLe = .now
+        cible.confier(a: propre)
         dismiss()
     }
 }
