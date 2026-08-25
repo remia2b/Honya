@@ -351,13 +351,24 @@ struct BienvenueView: View {
                 secret: true
             )
 
-            if mode == .connexion {
-                Button("Mot de passe oublié ?") {
-                    Task { await envoyerReinitialisation() }
-                }
-                .font(.caption.weight(.semibold))
-                .frame(maxWidth: .infinity, alignment: .trailing)
+            // Toujours visible, pas seulement en mode connexion : on cherche
+            // un mot de passe oublié précisément quand on ne sait plus si le
+            // compte existe.
+            Button {
+                Task { await envoyerReinitialisation() }
+            } label: {
+                Label("Mot de passe oublié ?", systemImage: "key.horizontal")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(
+                        .regularMaterial,
+                        in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    )
             }
+            .buttonStyle(.plain)
+            .disabled(email.trimmingCharacters(in: .whitespaces).isEmpty)
+            .opacity(email.trimmingCharacters(in: .whitespaces).isEmpty ? 0.45 : 1)
 
             Button {
                 Task { await valider() }

@@ -479,6 +479,9 @@ private struct RangeeResultat: View {
                     Button { surAjout(.wishlist) } label: {
                         Label("À acheter", systemImage: "cart.fill")
                     }
+                    Button { surAjout(.abandonne) } label: {
+                        Label("Je l'ai abandonné", systemImage: "xmark.circle")
+                    }
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.title2)
