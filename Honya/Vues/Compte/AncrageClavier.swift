@@ -28,12 +28,29 @@ import UIKit
 //    plutôt que de le laisser flotter au milieu de l'écran.
 
 #if DEBUG
-/// Trace du banc d'essai : simctl capture la console, chaque événement
-/// clavier y laisse une ligne horodatée.
+/// Trace du banc d'essai. La console d'un simulateur sans terminal ne
+/// remonte pas : le journal s'écrit dans Documents, que la CI récupère
+/// avec `simctl get_app_container` une fois le banc déroulé.
 @MainActor
 func journalClavier(_ message: String) {
     let temps = Date().timeIntervalSinceReferenceDate
-    print(String(format: "[clavier %.3f] %@", temps, message))
+    let ligne = String(format: "[%.3f] %@
+", temps, message)
+    print(ligne, terminator: "")
+    if let documents = FileManager.default.urls(
+        for: .documentDirectory, in: .userDomainMask
+    ).first {
+        let fichier = documents.appendingPathComponent("journal-clavier.log")
+        if let donnees = ligne.data(using: .utf8) {
+            if let poignee = try? FileHandle(forWritingTo: fichier) {
+                _ = try? poignee.seekToEnd()
+                try? poignee.write(contentsOf: donnees)
+                try? poignee.close()
+            } else {
+                try? donnees.write(to: fichier)
+            }
+        }
+    }
 }
 #else
 @MainActor
