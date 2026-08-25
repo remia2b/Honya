@@ -134,6 +134,17 @@ final class Compte {
         try await SupabaseAuth.reinitialiserMotDePasse(email: adresse)
     }
 
+    /// Le chemin complet du mot de passe oublié : le code vaut preuve, le
+    /// nouveau mot de passe est posé, et le lecteur entre dans la foulée —
+    /// lui redemander de se connecter juste après serait absurde.
+    func reinitialiser(email adresse: String, code: String, nouveau: String) async throws {
+        let session = try await SupabaseAuth.verifierCodeRecuperation(
+            email: adresse, code: code
+        )
+        try await SupabaseAuth.changerMotDePasse(nouveau, jeton: session.access_token)
+        adopter(session, adresse: adresse)
+    }
+
     private func adopter(_ session: SupabaseAuth.Session, adresse: String) {
         identifiant = session.user?.id ?? adresse
         email = session.user?.email ?? adresse

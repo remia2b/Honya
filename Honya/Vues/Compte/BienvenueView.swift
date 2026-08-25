@@ -31,7 +31,14 @@ struct BienvenueView: View {
     @State private var information: String?
     @FocusState private var champActif: Champ?
 
-    private enum Champ { case email, motDePasse }
+    /// Le mot de passe oublié occupe la même plaque que la connexion : c'est
+    /// la même page, on ne change pas d'écran pour trois champs.
+    @State private var oubli = false
+    @State private var codeEnvoye = false
+    @State private var code = ""
+    @State private var nouveauMotDePasse = ""
+
+    private enum Champ { case email, motDePasse, code, nouveau }
 
     /// Le clavier est-il ouvert — sans dire sur quel champ.
     ///
@@ -299,6 +306,40 @@ struct BienvenueView: View {
     /// pour trois champs cassait la continuité de la page d'accueil.
     private var formulaireEnBas: some View {
         VStack(spacing: 12) {
+            if oubli {
+                contenuOubli
+            } else {
+                contenuConnexion
+            }
+
+            if let information {
+                message(information, couleur: Couleurs.lu)
+            }
+            if let erreur {
+                message(erreur, couleur: .red)
+            }
+
+            liens
+        }
+        .padding(20)
+        // Une plaque sous tout le bloc : sans elle, sélecteur, champs et
+        // mentions flottaient chacun sur des couvertures différentes.
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(Color(uiColor: .systemBackground).opacity(0.55))
+                )
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 26)
+        .animation(.snappy(duration: 0.25), value: oubli)
+        .animation(.snappy(duration: 0.25), value: codeEnvoye)
+    }
+
+    private var contenuConnexion: some View {
+        Group {
             Picker("", selection: $mode) {
                 ForEach(Mode.allCases) { cas in
                     Text(cas.libelle).tag(cas)
@@ -319,60 +360,114 @@ struct BienvenueView: View {
                 secret: true
             )
 
-            Button {
-                Task { await valider() }
-            } label: {
-                HStack(spacing: 8) {
-                    if enCours { ProgressView().tint(.white) }
-                    Text(mode == .inscription ? "Créer mon compte" : "Se connecter")
-                        .font(.system(size: 17, weight: .semibold))
+            bouton(
+                titre: mode == .inscription ? "Créer mon compte" : "Se connecter",
+                actif: !email.isEmpty && motDePasse.count >= 6
+            ) {
+                await valider()
+            }
+        }
+    }
+
+    /// Le mot de passe oublié se termine ici, par un code à recopier.
+    ///
+    /// Pas de lien à suivre : un lien suppose que Honya sache se faire rouvrir
+    /// depuis Safari, et sort le lecteur de l'écran où il était. Le code se
+    /// recopie sans quitter l'application.
+    private var contenuOubli: some View {
+        Group {
+            VStack(spacing: 4) {
+                Text("Réinitialiser le mot de passe")
+                    .font(.system(size: 16, weight: .semibold))
+                Text(codeEnvoye
+                     ? "Recopiez le code reçu, puis choisissez votre nouveau mot de passe."
+                     : "Un code part vers votre adresse, à recopier ici même.")
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.bottom, 2)
+
+            champ("Adresse e-mail", systemImage: "envelope", texte: $email, champ: .email)
+
+            if codeEnvoye {
+                champ("Code reçu par courrier", systemImage: "number",
+                      texte: $code, champ: .code, clavier: .numberPad)
+                champ("Nouveau mot de passe (6 caractères min.)", systemImage: "lock.rotation",
+                      texte: $nouveauMotDePasse, champ: .nouveau, secret: true)
+
+                bouton(
+                    titre: "Valider et me connecter",
+                    actif: code.count >= 4 && nouveauMotDePasse.count >= 6
+                ) {
+                    await terminerReinitialisation()
                 }
-                .frame(maxWidth: .infinity)
-                .frame(height: 50)
-                .foregroundStyle(.white)
-                .background(Couleurs.accent, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            } else {
+                bouton(
+                    titre: "Envoyer le code",
+                    actif: !email.trimmingCharacters(in: .whitespaces).isEmpty
+                ) {
+                    await envoyerReinitialisation()
+                }
             }
-            .buttonStyle(.plain)
-            .disabled(enCours || email.isEmpty || motDePasse.count < 6)
-            .opacity(enCours || email.isEmpty || motDePasse.count < 6 ? 0.55 : 1)
+        }
+    }
 
-            if let information {
-                message(information, couleur: Couleurs.lu)
+    private func bouton(
+        titre: LocalizedStringKey, actif: Bool, action: @escaping () async -> Void
+    ) -> some View {
+        Button {
+            Task { await action() }
+        } label: {
+            HStack(spacing: 8) {
+                if enCours { ProgressView().tint(.white) }
+                Text(titre)
+                    .font(.system(size: 17, weight: .semibold))
             }
-            if let erreur {
-                message(erreur, couleur: .red)
-            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 50)
+            .foregroundStyle(.white)
+            .background(Couleurs.accent, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .disabled(enCours || !actif)
+        .opacity(enCours || !actif ? 0.55 : 1)
+    }
 
-            HStack(spacing: 18) {
-                Button("Retour") {
-                    champActif = nil
-                    erreur = nil
-                    information = nil
+    private var liens: some View {
+        HStack(spacing: 18) {
+            Button("Retour") {
+                champActif = nil
+                erreur = nil
+                information = nil
+                if oubli {
+                    oubli = false
+                    codeEnvoye = false
+                    code = ""
+                    nouveauMotDePasse = ""
+                } else {
                     parEmail = false
                 }
-                Spacer(minLength: 0)
-                Button("Mot de passe oublié ?") {
-                    Task { await envoyerReinitialisation() }
-                }
-                .disabled(email.trimmingCharacters(in: .whitespaces).isEmpty)
             }
-            .font(.system(size: 14, weight: .semibold))
-            .tint(.primary.opacity(0.75))
-            .padding(.top, 2)
+            Spacer(minLength: 0)
+            if oubli {
+                if codeEnvoye {
+                    Button("Renvoyer le code") {
+                        Task { await envoyerReinitialisation() }
+                    }
+                    .disabled(enCours)
+                }
+            } else {
+                Button("Mot de passe oublié ?") {
+                    erreur = nil
+                    information = nil
+                    oubli = true
+                }
+            }
         }
-        .padding(20)
-        // Une plaque sous tout le bloc : sans elle, sélecteur, champs et
-        // mentions flottaient chacun sur des couvertures différentes.
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .fill(Color(uiColor: .systemBackground).opacity(0.55))
-                )
-        )
-        .padding(.horizontal, 16)
-        .padding(.bottom, 26)
+        .font(.system(size: 14, weight: .semibold))
+        .tint(.primary.opacity(0.75))
+        .padding(.top, 2)
     }
 
     private var sousTitreEmail: String {
@@ -386,7 +481,8 @@ struct BienvenueView: View {
         systemImage: String,
         texte: Binding<String>,
         champ cible: Champ,
-        secret: Bool = false
+        secret: Bool = false,
+        clavier: UIKeyboardType? = nil
     ) -> some View {
         HStack(spacing: 10) {
             Image(systemName: systemImage)
@@ -395,6 +491,10 @@ struct BienvenueView: View {
             Group {
                 if secret {
                     SecureField(invite, text: texte)
+                } else if let clavier {
+                    TextField(invite, text: texte)
+                        .keyboardType(clavier)
+                        .textContentType(.oneTimeCode)
                 } else {
                     TextField(invite, text: texte)
                         .keyboardType(.emailAddress)
@@ -567,14 +667,32 @@ struct BienvenueView: View {
 
     private func envoyerReinitialisation() async {
         let adresse = email.trimmingCharacters(in: .whitespaces)
-        guard !adresse.isEmpty else {
-            erreur = String(localized: "Saisissez d'abord votre adresse e-mail.")
-            return
-        }
+        guard !adresse.isEmpty else { return }
+        champActif = nil
         erreur = nil
+        enCours = true
+        defer { enCours = false }
         do {
             try await compte.envoyerReinitialisation(email: adresse)
+            codeEnvoye = true
             information = String(localized: "Un courrier vient de partir vers \(adresse).")
+        } catch {
+            erreur = error.localizedDescription
+        }
+    }
+
+    private func terminerReinitialisation() async {
+        champActif = nil
+        erreur = nil
+        information = nil
+        enCours = true
+        defer { enCours = false }
+        do {
+            try await compte.reinitialiser(
+                email: email.trimmingCharacters(in: .whitespaces),
+                code: code.trimmingCharacters(in: .whitespaces),
+                nouveau: nouveauMotDePasse
+            )
         } catch {
             erreur = error.localizedDescription
         }

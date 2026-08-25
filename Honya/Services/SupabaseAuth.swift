@@ -81,6 +81,31 @@ enum SupabaseAuth {
         )
     }
 
+    /// Échange le code reçu par courrier contre une session.
+    ///
+    /// On passe par un code et non par un lien : un lien suppose que
+    /// l'application sache se faire rouvrir depuis Safari — schéma d'URL ou
+    /// domaine associé — et renvoie le lecteur hors de l'écran où il était.
+    /// Un code se recopie sans quitter Honya.
+    static func verifierCodeRecuperation(
+        email: String, code: String
+    ) async throws -> Session {
+        try await appeler(
+            "/auth/v1/verify",
+            corps: ["type": "recovery", "email": email, "token": code]
+        )
+    }
+
+    /// Pose le nouveau mot de passe sur le compte de la session en cours.
+    static func changerMotDePasse(_ nouveau: String, jeton: String) async throws {
+        _ = try await brut(
+            chemin: "/auth/v1/user",
+            methode: "PUT",
+            corps: ["password": nouveau],
+            jeton: jeton
+        )
+    }
+
     // MARK: - Déconnexion et suppression
 
     static func deconnecter(jeton: String) async {
