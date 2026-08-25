@@ -322,8 +322,19 @@ struct BienvenueView: View {
             .tint(.primary.opacity(0.75))
             .padding(.top, 2)
         }
-        .padding(.horizontal, 24)
-        .padding(.bottom, 30)
+        .padding(20)
+        // Une plaque sous tout le bloc : sans elle, sélecteur, champs et
+        // mentions flottaient chacun sur des couvertures différentes.
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .fill(Color(uiColor: .systemBackground).opacity(0.55))
+                )
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 26)
     }
 
     private var sousTitreEmail: String {
@@ -358,11 +369,16 @@ struct BienvenueView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 14)
-        // Un matériau plutôt qu'une teinte : le formulaire est posé sur le
-        // mur de couvertures, une couleur unie y ferait tache.
+        // Sur un mur de couvertures, un matériau seul se noyait : il lui faut
+        // un fond opaque dessous et un contour net pour que le champ se lise
+        // comme un champ.
         .background(
-            .regularMaterial,
-            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(uiColor: .secondarySystemBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.16), lineWidth: 1)
         )
     }
 

@@ -7,7 +7,7 @@ struct ApercuResultatView: View {
     @Query private var exemplaires: [Exemplaire]
     @Query private var tousLesTomes: [Tome]
     @State private var plusVisible = false
-    @State private var dejaPresent: CibleSession?
+    @State private var cibleExistante: CibleSession?
     @State private var verifie = false
 
     let resultat: ResultatRecherche
@@ -33,7 +33,7 @@ struct ApercuResultatView: View {
         // ferait basculer l'écran juste après un ajout, en écrasant la
         // confirmation que le lecteur vient de déclencher.
         Group {
-            if let deja = dejaPresent {
+            if let deja = cibleExistante {
                 switch deja {
                 case .oeuvre(let oeuvre): FicheOeuvreView(oeuvre: oeuvre)
                 case .serie(let serie): FicheSerieView(serie: serie)
@@ -45,7 +45,7 @@ struct ApercuResultatView: View {
         .onAppear {
             if !verifie {
                 verifie = true
-                dejaPresent = ImportService.trouver(resultat, dans: contexte)
+                cibleExistante = ImportService.trouver(resultat, dans: contexte)
             }
         }
     }
