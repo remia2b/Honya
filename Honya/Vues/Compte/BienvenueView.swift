@@ -10,6 +10,9 @@ import SwiftUI
 /// aléatoire des livres en tendance dans le pays du lecteur, rien de plus.
 /// Sans réseau, l'écran reste net — titre et boutons, pas de mur.
 struct BienvenueView: View {
+    /// Ouvre directement le formulaire, pour les aperçus et les captures.
+    var surLEmail = false
+
     @Environment(\.colorScheme) private var apparence
     @Environment(\.accessibilityReduceMotion) private var mouvementReduit
 
@@ -91,6 +94,7 @@ struct BienvenueView: View {
         .task { await chargerLeMur() }
         .onAppear {
             withAnimation(.easeOut(duration: 0.7)) { apparu = true }
+            if surLEmail { parEmail = true }
         }
     }
 

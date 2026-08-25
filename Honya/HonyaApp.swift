@@ -65,6 +65,12 @@ struct HonyaApp: App {
             HonyaPlusView(verrou: .bibliotheque(couvertures: Apercu.couvertures))
         case "verrouStats":
             HonyaPlusView(verrou: .statistiques(couvertures: Apercu.couvertures))
+        case "email":
+            BienvenueView(surLEmail: true)
+        case "reglages":
+            ReglagesView()
+        case "decouverte":
+            DecouverteView()
         case "roue":
             RoueSheet()
         case "perdu":
