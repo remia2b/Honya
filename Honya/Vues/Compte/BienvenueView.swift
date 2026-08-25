@@ -186,10 +186,13 @@ struct BienvenueView: View {
         return LinearGradient(
             stops: parEmail
                 ? [
-                    .init(color: fond.opacity(0.55), location: 0),
-                    .init(color: fond.opacity(0.82), location: 0.22),
-                    .init(color: fond.opacity(0.94), location: 0.45),
-                    .init(color: fond.opacity(0.96), location: 1),
+                    // Le formulaire se lit ou ne se lit pas : ici le mur n'est
+                    // plus qu'une texture, jamais un motif qui concurrence les
+                    // champs.
+                    .init(color: fond.opacity(0.86), location: 0),
+                    .init(color: fond.opacity(0.94), location: 0.22),
+                    .init(color: fond.opacity(0.97), location: 0.45),
+                    .init(color: fond.opacity(0.98), location: 1),
                   ]
                 : [
                     .init(color: fond.opacity(0), location: 0),
