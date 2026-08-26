@@ -54,18 +54,39 @@ enum Langues {
 
     /// Storefront Apple Books du lecteur : la région de l'iPhone d'abord,
     /// sinon le pays le plus naturel pour sa langue de lecture.
+    private static let boutiqueParLangue: [String: String] = [
+        "fr": "FR", "en": "US", "ja": "JP", "es": "ES", "de": "DE",
+        "it": "IT", "pt": "BR", "nl": "NL", "sv": "SE", "da": "DK",
+        "no": "NO", "fi": "FI", "pl": "PL", "cs": "CZ", "hu": "HU",
+        "ro": "RO", "el": "GR", "tr": "TR", "ru": "RU", "uk": "UA",
+        "ar": "SA", "he": "IL", "hi": "IN", "th": "TH", "vi": "VN",
+        "id": "ID", "ko": "KR", "zh": "CN", "ca": "ES", "eu": "ES",
+    ]
+
+    /// La boutique du LECTEUR : son propre pays d'abord, pour ses propres
+    /// recherches. Un francophone installé au Canada doit voir la boutique
+    /// canadienne, pas la française.
     static func storefront(pourLangue langue: String) -> String {
         if let region = Locale.current.region?.identifier, region.count == 2 {
             return region
         }
-        let parDefaut: [String: String] = [
-            "fr": "FR", "en": "US", "ja": "JP", "es": "ES", "de": "DE",
-            "it": "IT", "pt": "BR", "nl": "NL", "sv": "SE", "da": "DK",
-            "no": "NO", "fi": "FI", "pl": "PL", "cs": "CZ", "hu": "HU",
-            "ro": "RO", "el": "GR", "tr": "TR", "ru": "RU", "uk": "UA",
-            "ar": "SA", "he": "IL", "hi": "IN", "th": "TH", "vi": "VN",
-            "id": "ID", "ko": "KR", "zh": "CN", "ca": "ES", "eu": "ES",
-        ]
-        return parDefaut[langue] ?? "US"
+        return boutiqueParLangue[langue] ?? "US"
+    }
+
+    /// La boutique de l'ÉDITION, dictée par le groupe d'enregistrement de
+    /// l'ISBN.
+    ///
+    /// Pour un code-barres, c'est le code qui commande, jamais le réglage du
+    /// téléphone : il dit dans quel pays l'édition a paru, et seule cette
+    /// boutique-là la vend. On interrogeait la boutique du lecteur pour tout
+    /// ISBN — donc la boutique américaine pour un manga publié par Kazé en
+    /// France, qui ne l'a évidemment jamais eu. Le livre était déclaré
+    /// introuvable alors qu'Apple l'avait, à une lettre de pays près.
+    static func storefrontEdition(_ isbn: String) -> String {
+        if let langue = ISBNUtil.langueProbable(isbn),
+           let pays = boutiqueParLangue[langue] {
+            return pays
+        }
+        return storefront(pourLangue: codeAppareil)
     }
 }

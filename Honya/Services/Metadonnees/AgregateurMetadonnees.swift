@@ -133,7 +133,8 @@ struct AgregateurMetadonnees: Sendable {
     /// suite au lieu d'attendre son image.
     func parISBN(_ isbn: String) async -> ResultatRecherche? {
         let langueLecteur = ISBNUtil.langueProbable(isbn) ?? Langues.codeAppareil
-        let pays = Langues.storefront(pourLangue: langueLecteur)
+        // La boutique du PAYS DE L'ÉDITION, pas celle du téléphone.
+        let pays = Langues.storefrontEdition(isbn)
 
         async let deGoogle = (try? google.parISBN(isbn)) ?? nil
         async let dApple = appleBooks.parISBN(isbn, pays: pays, langue: langueLecteur)

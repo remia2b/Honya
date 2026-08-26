@@ -197,21 +197,34 @@ struct BibliothequeNationaleProvider {
     // MARK: - Aides
 
     private func chargerTexte(_ url: URL) async -> String? {
-        var requete = URLRequest(url: url)
-        requete.timeoutInterval = 12
-        guard let (donnees, reponse) = try? await Reseau.catalogues.data(for: requete),
-              (reponse as? HTTPURLResponse)?.statusCode == 200
-        else { return nil }
+        guard let donnees = await charger(url) else { return nil }
         return String(data: donnees, encoding: .utf8)
     }
 
     private func chargerJSON(_ url: URL) async -> [String: Any]? {
-        var requete = URLRequest(url: url)
-        requete.timeoutInterval = 12
-        guard let (donnees, reponse) = try? await Reseau.catalogues.data(for: requete),
-              (reponse as? HTTPURLResponse)?.statusCode == 200
-        else { return nil }
+        guard let donnees = await charger(url) else { return nil }
         return (try? JSONSerialization.jsonObject(with: donnees)) as? [String: Any]
+    }
+
+    /// Deux essais, jamais un seul.
+    ///
+    /// C'est le dernier recours de toute la chaîne : quand il échoue, le livre
+    /// est déclaré introuvable et le lecteur repart en croyant qu'aucun
+    /// catalogue au monde ne le connaît. Or une seconde d'indisponibilité
+    /// suffisait à le condamner — constaté sur une notice qui est revenue
+    /// intacte à l'essai suivant. Une bibliothèque nationale mérite qu'on
+    /// frappe deux fois.
+    private func charger(_ url: URL) async -> Data? {
+        for essai in 0..<2 {
+            if essai > 0 { try? await Task.sleep(for: .milliseconds(400)) }
+            var requete = URLRequest(url: url)
+            requete.timeoutInterval = 12
+            guard let (donnees, reponse) = try? await Reseau.catalogues.data(for: requete),
+                  (reponse as? HTTPURLResponse)?.statusCode == 200
+            else { continue }
+            return donnees
+        }
+        return nil
     }
 
     private func balise(_ nom: String, dans xml: String) -> String? {

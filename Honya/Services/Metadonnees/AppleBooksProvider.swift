@@ -36,10 +36,26 @@ struct AppleBooksProvider: Sendable {
     }
 
     /// Recherche par ISBN dans le catalogue du pays (les ebooks seulement).
+    ///
+    /// Deux portes, car elles ne mènent pas au même index : `lookup` interroge
+    /// la table des identifiants, la recherche interroge le catalogue. Des
+    /// éditions absentes de la première se trouvent dans la seconde. Un
+    /// code-barres inconnu n'y ramène rien — vérifié — donc la seconde porte
+    /// n'invente jamais de livre.
     func parISBN(_ isbn: String, pays: String, langue: String) async -> ResultatRecherche? {
+        let propre = ISBNUtil.normaliser(isbn)
+        if let trouve = await parIdentifiant(propre, pays: pays, langue: langue) {
+            return trouve
+        }
+        return (try? await rechercher(propre, pays: pays, langue: langue, limite: 3))?.first
+    }
+
+    private func parIdentifiant(
+        _ isbn: String, pays: String, langue: String
+    ) async -> ResultatRecherche? {
         var composants = URLComponents(string: "https://itunes.apple.com/lookup")!
         composants.queryItems = [
-            URLQueryItem(name: "isbn", value: ISBNUtil.normaliser(isbn)),
+            URLQueryItem(name: "isbn", value: isbn),
             URLQueryItem(name: "country", value: pays),
         ]
         guard let url = composants.url else { return nil }

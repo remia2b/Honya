@@ -12,7 +12,10 @@ enum Reseau {
     static let catalogues: URLSession = {
         let reglages = URLSessionConfiguration.default
         reglages.timeoutIntervalForRequest = 6
-        reglages.timeoutIntervalForResource = 10
+        // Le plafond total : il doit rester au-dessus du délai que les
+        // bibliothèques nationales s'accordent, sinon il les coupe en plein
+        // vol sans que leur propre réglage serve à rien.
+        reglages.timeoutIntervalForResource = 20
         // Sans réseau, on le dit tout de suite au lieu d'attendre qu'il
         // revienne : le lecteur préfère « introuvable » à un écran qui tourne.
         reglages.waitsForConnectivity = false
