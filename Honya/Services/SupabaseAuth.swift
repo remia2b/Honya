@@ -44,12 +44,29 @@ enum SupabaseAuth {
 
     /// Inscription par adresse e-mail. Si le projet demande la confirmation
     /// par courrier, aucune session n'est renvoyée : on le dit clairement.
+    /// Où atterrit le lecteur après avoir confirmé son adresse.
+    ///
+    /// Dit explicitement à chaque envoi plutôt que laissé au réglage du
+    /// projet : sans lui, GoTrue retombe sur son « Site URL » par défaut —
+    /// localhost:3000 — et le lien du courrier ouvre une page morte alors
+    /// que la confirmation, elle, a réussi.
+    private static var retourConfirmation: String {
+        // Le site parle deux langues ; on renvoie le lecteur dans la sienne.
+        let langue = Langues.codeAppareil.hasPrefix("fr") ? "fr" : "en"
+        return "https://www.honya.app/" + langue + "/confirme/"
+    }
+
     static func inscrire(email: String, motDePasse: String) async throws -> Session? {
         let reponse: Session = try await appeler(
-            "/auth/v1/signup",
+            "/auth/v1/signup?redirect_to=" + chiffrer(retourConfirmation),
             corps: ["email": email, "password": motDePasse]
         )
         return reponse.access_token.isEmpty ? nil : reponse
+    }
+
+    /// Une adresse glissée dans une requête doit être échappée.
+    private static func chiffrer(_ texte: String) -> String {
+        texte.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? texte
     }
 
     static func connecter(email: String, motDePasse: String) async throws -> Session {
@@ -117,7 +134,7 @@ enum SupabaseAuth {
     /// sans ce renvoi, le compte reste créé mais inutilisable à jamais.
     static func renvoyerConfirmation(email: String) async throws {
         _ = try await brut(
-            chemin: "/auth/v1/resend",
+            chemin: "/auth/v1/resend?redirect_to=" + chiffrer(retourConfirmation),
             methode: "POST",
             corps: ["type": "signup", "email": email],
             jeton: nil
