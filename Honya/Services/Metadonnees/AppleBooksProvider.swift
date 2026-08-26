@@ -110,14 +110,38 @@ struct AppleBooksProvider: Sendable {
 /// 3,2 s entre deux requêtes, pour ne jamais être rationné.
 actor FileAttenteApple {
     static let partage = FileAttenteApple()
-    private var prochainDepart = Date.distantPast
+
+    /// Vingt appels par minute — mais pas un toutes les trois secondes.
+    ///
+    /// L'espacement rigide faisait payer trois secondes pleines au lecteur qui
+    /// scanne UN livre : la fiche partait aussitôt, puis la recherche de
+    /// couverture attendait son tour derrière elle. Or iTunes accepte très
+    /// bien une rafale tant que la moyenne tient. Le seau de jetons rend la
+    /// première poignée d'appels immédiate et ne fait patienter que celui qui
+    /// balaye une étagère entière — exactement l'inverse de ce qu'on avait.
+    private static let capacite = 8.0
+    private static let parSeconde = 20.0 / 60.0
+
+    private var jetons = capacite
+    private var derniereMesure = Date()
 
     func attendre() async {
-        let depart = max(prochainDepart, Date())
-        prochainDepart = depart.addingTimeInterval(3.2)
-        let attente = depart.timeIntervalSinceNow
-        if attente > 0 {
-            try? await Task.sleep(for: .seconds(attente))
+        while true {
+            recharger()
+            if jetons >= 1 {
+                jetons -= 1
+                return
+            }
+            // Le temps qu'il manque pour qu'un jeton retombe dans le seau.
+            let manque = (1 - jetons) / Self.parSeconde
+            try? await Task.sleep(for: .seconds(min(manque, 3)))
         }
+    }
+
+    private func recharger() {
+        let maintenant = Date()
+        let ecoule = maintenant.timeIntervalSince(derniereMesure)
+        jetons = min(Self.capacite, jetons + ecoule * Self.parSeconde)
+        derniereMesure = maintenant
     }
 }

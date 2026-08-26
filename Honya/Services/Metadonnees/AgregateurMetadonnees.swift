@@ -169,6 +169,21 @@ struct AgregateurMetadonnees: Sendable {
     /// le livre à l'écran d'abord, et l'image le rejoint quand elle arrive.
     func couvertureDeSecours(pour fiche: ResultatRecherche) async -> String? {
         guard fiche.couvertureURL == nil else { return nil }
+
+        // La bibliothèque nationale d'abord : elle répond sur l'ISBN exact,
+        // donc sur L'ÉDITION qu'on tient en main — la vraie couverture, celle
+        // du tirage posé sur la table. L'emprunt par titre, lui, ne donne que
+        // l'image d'une autre édition, plus grande approximation.
+        //
+        // On y revient même quand un catalogue commercial a répondu : Google
+        // donne souvent le titre sans l'image, et refermer la cascade là
+        // laissait la couverture vide alors qu'elle était à portée.
+        if let isbn = fiche.isbn,
+           let notice = await bibliotheques.parISBN(isbn),
+           let image = notice.couvertureURL {
+            return image
+        }
+
         let langue = fiche.langue ?? Langues.codeAppareil
         return await couvertureParTitre(fiche, langue: langue)
     }

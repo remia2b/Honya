@@ -15,8 +15,9 @@ import Foundation
 ///   Suède      LIBRIS   JSON
 ///   Pologne    BN       JSON
 ///
-/// Aucune ne fournit d'image : l'agrégateur emprunte ensuite la couverture
-/// d'une autre édition par une recherche de titre.
+/// Seule la BnF sert aussi les couvertures, par l'identifiant ark de la
+/// notice. Pour les autres, l'agrégateur emprunte ensuite l'image d'une autre
+/// édition par une recherche de titre.
 struct BibliothequeNationaleProvider {
 
     func parISBN(_ isbn: String) async -> ResultatRecherche? {
@@ -142,14 +143,34 @@ struct BibliothequeNationaleProvider {
             date: balise("dc:date", dans: xml),
             langue: balise("dc:language", dans: xml).map(codeLangue),
             isbn: isbn,
-            source: source
+            source: source,
+            couverture: source == "BnF" ? couvertureBnF(xml) : nil
         )
+    }
+
+    /// La couverture de la BnF, tirée de l'identifiant ark de la notice.
+    ///
+    /// C'est souvent la SEULE image d'une édition française que Google, Apple
+    /// et Open Library ignorent — et c'est elle qui tient la promesse : un
+    /// livre trouvé montre sa couverture. Vérifié sur pièce, en haute
+    /// définition, sans clé.
+    ///
+    /// Quand la notice n'a pas d'image, le service répond une erreur et non un
+    /// visuel de remplacement : aucun risque d'afficher la couverture d'un
+    /// autre livre, le chargement échoue simplement.
+    private func couvertureBnF(_ xml: String) -> String? {
+        guard let plage = xml.range(
+            of: "ark:/12148/cb[0-9a-z]+", options: .regularExpression
+        ) else { return nil }
+        return "https://catalogue.bnf.fr/couverture"
+            + "?&appName=NE&idArk=" + xml[plage] + "&couverture=1"
     }
 
     /// La fiche commune, avec le nettoyage du catalogage.
     private func fiche(
         titre titreBrut: String, auteur auteurBrut: String?,
-        date: String?, langue: String?, isbn: String, source: String
+        date: String?, langue: String?, isbn: String, source: String,
+        couverture: String? = nil
     ) -> ResultatRecherche? {
         // « Titre. 1 / mention de responsabilité » : la barre oblique du
         // catalogage porte les contributeurs, seul le titre nous regarde ;
@@ -166,6 +187,7 @@ struct BibliothequeNationaleProvider {
             titre: titre,
             auteurs: [auteurBrut.map(nettoyerAuteur)].compactMap { $0 }.filter { !$0.isEmpty },
             annee: date.flatMap { Int($0.filter(\.isNumber).prefix(4)) },
+            couvertureURL: couverture,
             isbn: isbn,
             langue: langue,
             source: source
