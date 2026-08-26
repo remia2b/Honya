@@ -164,7 +164,16 @@ final class Compte {
         soucisDeConfirmation = nil
         do {
             let session = try await SupabaseAuth.confirmerAvecJeton(jeton, type: type)
-            adopter(session, adresse: session.user?.email ?? email ?? "")
+            // On ne connecte PAS. Confirmer une adresse et ouvrir une session
+            // sont deux gestes distincts : les confondre ferait entrer dans le
+            // compte quiconque met la main sur le courrier — sur un téléphone
+            // prêté, une boîte partagée, un message transféré. Le lecteur
+            // revient donc à l'écran de connexion, son adresse déjà inscrite,
+            // et donne son mot de passe.
+            if let adresse = session.user?.email, !adresse.isEmpty {
+                email = adresse
+                defaults.set(adresse, forKey: Cle.email)
+            }
             adresseVientDEtreConfirmee = true
             return true
         } catch {

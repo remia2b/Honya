@@ -148,6 +148,9 @@ struct BienvenueView: View {
                 parEmail = true
                 marche = .adresse
                 mode = .connexion
+                // L'adresse revient du serveur : il ne reste que le mot de
+                // passe à donner.
+                if let adresse = compte.email, !adresse.isEmpty { email = adresse }
                 erreur = nil
                 information = nil
                 confirmationAttendue = false
