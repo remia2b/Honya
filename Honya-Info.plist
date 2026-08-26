@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- Hors du dossier « Honya/ » a dessein : ce dossier est synchronise, et
+     tout ce qui s'y trouve part aussi dans les ressources de l'app — le
+     fichier se serait retrouve copie deux fois, et la compilation echoue
+     sur « Multiple commands produce Info.plist ». -->
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
