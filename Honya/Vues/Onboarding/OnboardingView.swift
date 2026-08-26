@@ -120,7 +120,7 @@ struct OnboardingView: View {
         }
         .padding(.horizontal, 28)
         .padding(.top, 26)
-        .frame(height: 250, alignment: .top)
+        .frame(height: 236, alignment: .top)
     }
 
     /// La plaque sous les choix : une carte posée sur la lueur, pas un aplat.
@@ -186,8 +186,9 @@ struct OnboardingView: View {
                     }
                 }
             }
-
-            Spacer(minLength: 0)
+            // Centrée dans ce qui reste sous l'en-tête : collée en haut,
+            // elle laissait la moitié basse de l'écran vide.
+            .frame(maxHeight: .infinity)
         }
     }
 
@@ -252,8 +253,7 @@ struct OnboardingView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-
-            Spacer(minLength: 0)
+            .frame(maxHeight: .infinity)
         }
     }
 
