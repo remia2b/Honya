@@ -130,7 +130,15 @@ final class Compte {
     /// aux lettres, il doit savoir en revenant que c'est allé au bout.
     private(set) var adresseVientDEtreConfirmee = false
 
-    func accuserConfirmation() { adresseVientDEtreConfirmee = false }
+    /// Et si le lien n'a pas abouti, on le dit aussi. Revenir de sa boîte aux
+    /// lettres devant un écran qui n'a pas bougé est la pire des réponses :
+    /// on ne sait pas si l'on doit recommencer, attendre, ou s'inquiéter.
+    private(set) var soucisDeConfirmation: String?
+
+    func accuserConfirmation() {
+        adresseVientDEtreConfirmee = false
+        soucisDeConfirmation = nil
+    }
 
     /// Confirme l'adresse depuis le lien du courrier, et connecte.
     ///
@@ -153,14 +161,17 @@ final class Compte {
         }
 
         let type = elements.first(where: { $0.name == "type" })?.value ?? "signup"
+        soucisDeConfirmation = nil
         do {
             let session = try await SupabaseAuth.confirmerAvecJeton(jeton, type: type)
             adopter(session, adresse: session.user?.email ?? email ?? "")
             adresseVientDEtreConfirmee = true
             return true
         } catch {
-            // Un jeton périmé ou déjà utilisé : rien à annoncer de plus que
-            // l'écran de connexion, qui dira lui-même ce qui cloche.
+            // Un lien périmé, déjà utilisé, ou un réseau absent. Dans tous les
+            // cas le lecteur doit savoir quoi faire — et il peut toujours
+            // refaire partir un courrier.
+            soucisDeConfirmation = error.localizedDescription
             return false
         }
     }

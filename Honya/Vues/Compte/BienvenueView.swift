@@ -153,6 +153,18 @@ struct BienvenueView: View {
                 confirmationAttendue = false
             }
         }
+        .onChange(of: compte.soucisDeConfirmation) { _, souci in
+            // Le lien n'a pas abouti : on ouvre quand même la plaque et on
+            // dit pourquoi. Le courrier peut toujours repartir.
+            guard let souci else { return }
+            withAnimation(.snappy(duration: 0.3)) {
+                parEmail = true
+                marche = .adresse
+                erreur = souci
+                information = nil
+                confirmationAttendue = true
+            }
+        }
         .onChange(of: vieApplication) { _, etat in
             switch etat {
             case .background:

@@ -141,10 +141,19 @@ struct HonyaApp: App {
             }
             .animation(.easeInOut(duration: 0.35), value: compte.etat)
             .preferredColorScheme(apparence.schema)
+            // Le lien de confirmation venu du courrier, accueilli a la
+            // racine : il peut arriver que l'application soit deja ouverte,
+            // sur n'importe quel ecran.
+            //
+            // Les DEUX portes, car elles ne s'ouvrent pas dans les memes cas :
+            // onOpenURL recoit le schema « honya:// », onContinueUserActivity
+            // recoit les liens universels — et selon que l'application dormait
+            // ou tournait deja, c'est l'une ou l'autre qui sonne.
             .onOpenURL { url in
-                // Le lien de confirmation venu du courrier. On le traite ici,
-                // a la racine : il peut arriver que l'application soit deja
-                // ouverte, sur n'importe quel ecran.
+                Task { await compte.confirmerDepuisLien(url) }
+            }
+            .onContinueUserActivity(NSUserActivityTypeBrowsingWeb) { activite in
+                guard let url = activite.webpageURL else { return }
                 Task { await compte.confirmerDepuisLien(url) }
             }
             .task {
