@@ -9,6 +9,9 @@ struct ScannerSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var trouves: [ResultatRecherche] = []
+    /// Les codes lus qu'aucun catalogue ne connaît : on les montre plutôt que
+    /// de laisser l'écran muet, et leur crédit de scan est rendu.
+    @State private var introuvables: [String] = []
     @State private var scannes: Set<String> = []
     @State private var enRecherche = 0
     @State private var isbnManuel = ""
@@ -207,6 +210,30 @@ struct ScannerSheet: View {
                 // langue a ses propres règles de pluriel.
                 Text(trouves.isEmpty ? "En attente" : "\(trouves.count) livres reconnus")
             }
+
+            if !introuvables.isEmpty {
+                Section {
+                    ForEach(introuvables, id: \.self) { isbn in
+                        HStack(spacing: 12) {
+                            Image(systemName: "questionmark.circle")
+                                .font(.title3)
+                                .foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Introuvable dans les catalogues")
+                                    .font(.subheadline.weight(.semibold))
+                                Text(verbatim: isbn)
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                    }
+                } footer: {
+                    // Les éditions de clubs — France Loisirs et compagnie —
+                    // manquent souvent aux catalogues. La recherche par titre
+                    // reste le chemin ; et le scan n'a rien coûté.
+                    Text("Certaines éditions n'y figurent pas — cherchez le titre à la main. Ces scans n'ont pas été décomptés.")
+                }
+            }
         }
         .listStyle(.insetGrouped)
     }
@@ -247,7 +274,17 @@ struct ScannerSheet: View {
         enRecherche += 1
         Task { @MainActor in
             defer { enRecherche -= 1 }
-            guard let resultat = await AgregateurMetadonnees.partage.parISBN(propre) else { return }
+            guard let resultat = await AgregateurMetadonnees.partage.parISBN(propre) else {
+                // Aucun catalogue ne connaît ce code — les éditions de clubs
+                // comme France Loisirs n'y figurent souvent pas. Le dire vaut
+                // mieux qu'un écran qui reste muet, et le crédit du scan est
+                // rendu : on ne fait pas payer une recherche sans résultat.
+                if !introuvables.contains(propre) {
+                    introuvables.insert(propre, at: 0)
+                }
+                compteur.rembourser()
+                return
+            }
             guard !trouves.contains(where: { $0.id == resultat.id }) else { return }
             trouves.insert(resultat, at: 0)
         }

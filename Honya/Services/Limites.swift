@@ -50,6 +50,16 @@ final class CompteurScans {
         utilises += 1
         UserDefaults.standard.set(utilises, forKey: "scansUtilises")
     }
+
+    /// Rend le crédit d'un scan dont aucun catalogue n'a voulu.
+    ///
+    /// On ne fait pas payer une recherche qui n'a rien donné : le plafond
+    /// mesure le service rendu, pas les tentatives.
+    func rembourser() {
+        guard !Droits.partage.plus, utilises > 0 else { return }
+        utilises -= 1
+        UserDefaults.standard.set(utilises, forKey: "scansUtilises")
+    }
 }
 
 // MARK: - Présenter Honya+ depuis n'importe quel verrou

@@ -57,11 +57,22 @@ enum SupabaseAuth {
     }
 
     static func inscrire(email: String, motDePasse: String) async throws -> Session? {
-        let reponse: Session = try await appeler(
-            "/auth/v1/signup?redirect_to=" + chiffrer(retourConfirmation),
-            corps: ["email": email, "password": motDePasse]
+        let donnees = try await brut(
+            chemin: "/auth/v1/signup?redirect_to=" + chiffrer(retourConfirmation),
+            methode: "POST",
+            corps: ["email": email, "password": motDePasse],
+            jeton: nil
         )
-        return reponse.access_token.isEmpty ? nil : reponse
+        // Deux réponses possibles, toutes deux des succès : la session
+        // complète quand le projet n'exige pas de confirmation, ou le seul
+        // utilisateur créé quand un courrier de confirmation part — sans
+        // access_token. Exiger la session dans ce second cas faisait
+        // afficher « Réponse inattendue du serveur » à une inscription qui
+        // avait parfaitement réussi, le courrier déjà en route.
+        guard let session = try? JSONDecoder().decode(Session.self, from: donnees),
+              !session.access_token.isEmpty
+        else { return nil }
+        return session
     }
 
     /// Une adresse glissée dans une requête doit être échappée.

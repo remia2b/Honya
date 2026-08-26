@@ -47872,6 +47872,182 @@
           }
         }
       }
+    },
+    "Introuvable dans les catalogues": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not in any catalog"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No está en los catálogos"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No está en los catálogos"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não está nos catálogos"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In keinem Katalog zu finden"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Introvabile nei cataloghi"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Niet in de catalogi"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nie ma go w katalogach"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finns inte i katalogerna"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kataloglarda bulunamadı"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нет ни в одном каталоге"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カタログに見つかりません"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "어느 카탈로그에도 없어요"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "各目录中都找不到"
+          }
+        }
+      }
+    },
+    "Certaines éditions n'y figurent pas — cherchez le titre à la main. Ces scans n'ont pas été décomptés.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Some editions just aren't listed — search the title by hand. These scans weren't counted."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Algunas ediciones no aparecen: busca el título a mano. Estos escaneos no se descontaron."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Algunas ediciones no aparecen: busca el título a mano. Estos escaneos no se descontaron."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Algumas edições simplesmente não constam — busque o título à mão. Esses escaneamentos não foram descontados."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manche Ausgaben sind schlicht nicht gelistet — such den Titel von Hand. Diese Scans wurden nicht gezählt."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alcune edizioni semplicemente non ci sono: cerca il titolo a mano. Queste scansioni non sono state contate."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sommige uitgaven staan er gewoon niet in — zoek de titel met de hand. Deze scans zijn niet meegeteld."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Niektórych wydań po prostu tam nie ma — poszukaj tytułu ręcznie. Te skany nie zostały policzone."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vissa utgåvor finns helt enkelt inte med — sök titeln för hand. De här skanningarna räknades inte."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bazı basımlar kataloglarda yok — başlığı elle ara. Bu taramalar sayılmadı."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Некоторых изданий там просто нет — поищите название вручную. Эти сканы не были засчитаны."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "カタログに載っていない版もあります。タイトルで検索してください。このスキャンは回数に数えていません。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "목록에 없는 판본도 있어요. 제목으로 직접 검색해 보세요. 이 스캔은 횟수에서 빼지 않았어요."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "有些版本目录里就是没有——请手动搜索书名。这些扫描没有计入次数。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
