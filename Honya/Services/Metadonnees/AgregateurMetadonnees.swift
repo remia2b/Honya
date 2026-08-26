@@ -24,7 +24,7 @@ struct AgregateurMetadonnees: Sendable {
     private let google = GoogleBooksProvider()
     private let openLibrary = OpenLibraryProvider()
     private let aniList = AniListProvider()
-    private let bnf = BnFProvider()
+    private let bibliotheques = BibliothequeNationaleProvider()
 
     // MARK: Recherche texte
 
@@ -152,12 +152,12 @@ struct AgregateurMetadonnees: Sendable {
             if meilleur?.couvertureURL != nil { break }
         }
 
-        // Le filet : la BnF. Le dépôt légal étant obligatoire, tout ce qui
-        // paraît en France y figure — y compris ce que Google, Apple et
-        // OpenLibrary ignorent. Un lecteur qui scanne un livre acheté en
-        // librairie française DOIT le trouver.
+        // Le filet : la bibliothèque nationale du pays de l'ISBN. Le dépôt
+        // légal y fait entrer tout ce qui paraît — y compris ce que Google,
+        // Apple et OpenLibrary ignorent. Un lecteur qui scanne un livre
+        // acheté en librairie DOIT le trouver.
         if meilleur == nil {
-            meilleur = await bnf.parISBN(isbn)
+            meilleur = await bibliotheques.parISBN(isbn)
         }
 
         // Pas de couverture ? On emprunte celle d'une autre édition, par une

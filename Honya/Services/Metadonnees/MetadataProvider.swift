@@ -66,6 +66,16 @@ enum ISBNUtil {
         let n = normaliser(brut)
         guard n.count == 13 else { return nil }
         let corps = String(n.dropFirst(3))
+        // Les groupes 979 ont leur propre registre : 979-10 est français,
+        // pas anglophone — le confondre faussait la langue de tout ce que
+        // la France publie sous le nouveau préfixe.
+        if n.hasPrefix("979") {
+            if corps.hasPrefix("10") { return "fr" }
+            if corps.hasPrefix("11") { return "ko" }
+            if corps.hasPrefix("12") { return "it" }
+            if corps.hasPrefix("8") { return "en" }
+            return nil
+        }
         switch corps.first {
         case "0", "1": return "en"
         case "2": return "fr"
@@ -77,6 +87,12 @@ enum ISBNUtil {
             if corps.hasPrefix("88") { return "it" }
             if corps.hasPrefix("84") { return "es" }
             if corps.hasPrefix("85") { return "pt" }
+            if corps.hasPrefix("83") { return "pl" }
+            if corps.hasPrefix("89") { return "ko" }
+            return nil
+        case "9":
+            if corps.hasPrefix("91") { return "sv" }
+            if corps.hasPrefix("90") || corps.hasPrefix("94") { return "nl" }
             return nil
         default: return nil
         }
