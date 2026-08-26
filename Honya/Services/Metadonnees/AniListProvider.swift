@@ -16,7 +16,7 @@ struct AniListProvider: MetadataProvider {
         demande.setValue("application/json", forHTTPHeaderField: "Accept")
         demande.httpBody = try JSONSerialization.data(withJSONObject: corps)
 
-        let (donnees, _) = try await URLSession.shared.data(for: demande)
+        let (donnees, _) = try await Reseau.catalogues.data(for: demande)
         let reponse = try JSONDecoder().decode(Reponse.self, from: donnees)
         return (reponse.data?.Page?.media ?? []).map { $0.enResultat() }
     }

@@ -120,55 +120,57 @@ struct AgregateurMetadonnees: Sendable {
 
     // MARK: ISBN (le scanner passe par ici)
 
-    /// Le premier qui répond donne la fiche — mais la cascade continue tant
-    /// qu'il manque une couverture.
+    /// La fiche du code scanné, aussi vite que le réseau le permet.
     ///
-    /// Google répond souvent le premier et sans image : la fiche du scan
-    /// s'affichait alors avec un rectangle générique, alors qu'Apple Books
-    /// avait la couverture. On garde le premier résultat, et on lui emprunte
-    /// l'image du suivant.
+    /// Les trois catalogues sont interrogés EN MÊME TEMPS. En file indienne,
+    /// le plus lent imposait son temps à tous : on attendait Google, puis
+    /// Apple, puis Open Library, chacun jusqu'à soixante secondes. Ensemble,
+    /// l'attente n'est plus que celle du plus lent des trois — et ils sont
+    /// coupés à six secondes.
+    ///
+    /// Ce qui manque encore — la couverture d'une édition rare — se cherche
+    /// après, par `couvertureDeSecours`, pour que le livre s'affiche tout de
+    /// suite au lieu d'attendre son image.
     func parISBN(_ isbn: String) async -> ResultatRecherche? {
         let langueLecteur = ISBNUtil.langueProbable(isbn) ?? Langues.codeAppareil
-        var meilleur: ResultatRecherche?
+        let pays = Langues.storefront(pourLangue: langueLecteur)
 
-        for source in 0..<3 {
-            let trouve: ResultatRecherche?
-            switch source {
-            case 0: trouve = (try? await google.parISBN(isbn)) ?? nil
-            case 1: trouve = await appleBooks.parISBN(
-                isbn,
-                pays: Langues.storefront(pourLangue: langueLecteur),
-                langue: langueLecteur
-            )
-            default: trouve = (try? await openLibrary.parISBN(isbn)) ?? nil
-            }
-            guard let trouve else { continue }
+        async let deGoogle = (try? google.parISBN(isbn)) ?? nil
+        async let dApple = appleBooks.parISBN(isbn, pays: pays, langue: langueLecteur)
+        async let dOpenLibrary = (try? openLibrary.parISBN(isbn)) ?? nil
+        let reponses = [await deGoogle, await dApple, await dOpenLibrary]
 
-            if meilleur == nil {
-                meilleur = trouve
-            } else if meilleur?.couvertureURL == nil, trouve.couvertureURL != nil {
-                meilleur?.couvertureURL = trouve.couvertureURL
-            }
-            if meilleur?.couvertureURL != nil { break }
+        // La première fiche donne le texte ; n'importe laquelle peut donner
+        // l'image. Google répond souvent le premier et sans couverture, alors
+        // qu'Apple Books l'avait : la fiche s'affichait avec un rectangle
+        // générique pour rien.
+        var meilleur = reponses.compactMap { $0 }.first
+        if meilleur?.couvertureURL == nil,
+           let image = reponses.compactMap({ $0?.couvertureURL }).first {
+            meilleur?.couvertureURL = image
         }
 
         // Le filet : la bibliothèque nationale du pays de l'ISBN. Le dépôt
         // légal y fait entrer tout ce qui paraît — y compris ce que Google,
-        // Apple et OpenLibrary ignorent. Un lecteur qui scanne un livre
-        // acheté en librairie DOIT le trouver.
+        // Apple et Open Library ignorent. Un lecteur qui scanne un livre
+        // acheté en librairie DOIT le trouver. On n'y va que si les trois
+        // catalogues ont fait chou blanc : c'est le chemin lent.
         if meilleur == nil {
             meilleur = await bibliotheques.parISBN(isbn)
         }
 
-        // Pas de couverture ? On emprunte celle d'une autre édition, par une
-        // recherche de titre : la couverture de l'édition courante vaut mieux
-        // qu'un rectangle vide, et c'est ce que fait un libraire qui montre
-        // « le » livre sans avoir le tirage exact en main.
-        if let fiche = meilleur, fiche.couvertureURL == nil {
-            meilleur?.couvertureURL = await couvertureParTitre(fiche, langue: langueLecteur)
-        }
-
         return meilleur.map { complete($0, isbn: isbn) }
+    }
+
+    /// La couverture manquante, empruntée à une autre édition du même tome.
+    ///
+    /// Tenue à l'écart de `parISBN` à dessein : elle passe par une recherche
+    /// de titre, bien plus longue que la fiche elle-même. Le scanner pose donc
+    /// le livre à l'écran d'abord, et l'image le rejoint quand elle arrive.
+    func couvertureDeSecours(pour fiche: ResultatRecherche) async -> String? {
+        guard fiche.couvertureURL == nil else { return nil }
+        let langue = fiche.langue ?? Langues.codeAppareil
+        return await couvertureParTitre(fiche, langue: langue)
     }
 
     /// La couverture d'une autre édition du même titre — même tome si la

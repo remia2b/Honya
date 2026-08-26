@@ -177,7 +177,7 @@ struct BibliothequeNationaleProvider {
     private func chargerTexte(_ url: URL) async -> String? {
         var requete = URLRequest(url: url)
         requete.timeoutInterval = 12
-        guard let (donnees, reponse) = try? await URLSession.shared.data(for: requete),
+        guard let (donnees, reponse) = try? await Reseau.catalogues.data(for: requete),
               (reponse as? HTTPURLResponse)?.statusCode == 200
         else { return nil }
         return String(data: donnees, encoding: .utf8)
@@ -186,7 +186,7 @@ struct BibliothequeNationaleProvider {
     private func chargerJSON(_ url: URL) async -> [String: Any]? {
         var requete = URLRequest(url: url)
         requete.timeoutInterval = 12
-        guard let (donnees, reponse) = try? await URLSession.shared.data(for: requete),
+        guard let (donnees, reponse) = try? await Reseau.catalogues.data(for: requete),
               (reponse as? HTTPURLResponse)?.statusCode == 200
         else { return nil }
         return (try? JSONSerialization.jsonObject(with: donnees)) as? [String: Any]

@@ -30,7 +30,7 @@ struct AppleBooksProvider: Sendable {
         guard let url = composants.url else { return [] }
 
         await FileAttenteApple.partage.attendre()
-        let (donnees, _) = try await URLSession.shared.data(from: url)
+        let (donnees, _) = try await Reseau.catalogues.data(from: url)
         let reponse = try JSONDecoder().decode(Reponse.self, from: donnees)
         return (reponse.results ?? []).compactMap { $0.enResultat(langue: langue) }
     }
@@ -45,7 +45,7 @@ struct AppleBooksProvider: Sendable {
         guard let url = composants.url else { return nil }
 
         await FileAttenteApple.partage.attendre()
-        guard let (donnees, _) = try? await URLSession.shared.data(from: url),
+        guard let (donnees, _) = try? await Reseau.catalogues.data(from: url),
               let reponse = try? JSONDecoder().decode(Reponse.self, from: donnees)
         else { return nil }
         return (reponse.results ?? []).first?.enResultat(langue: langue)

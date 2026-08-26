@@ -20,7 +20,7 @@ struct OpenLibraryProvider: MetadataProvider {
         composants.queryItems = parametres
         guard let url = composants.url else { return [] }
 
-        let (donnees, _) = try await URLSession.shared.data(from: url)
+        let (donnees, _) = try await Reseau.catalogues.data(from: url)
         let reponse = try JSONDecoder().decode(ReponseRecherche.self, from: donnees)
         return (reponse.docs ?? []).compactMap { $0.enResultat() }
     }
@@ -28,7 +28,7 @@ struct OpenLibraryProvider: MetadataProvider {
     func parISBN(_ isbn: String) async throws -> ResultatRecherche? {
         let propre = ISBNUtil.normaliser(isbn)
         guard let url = URL(string: "https://openlibrary.org/isbn/\(propre).json") else { return nil }
-        let (donnees, reponseHTTP) = try await URLSession.shared.data(from: url)
+        let (donnees, reponseHTTP) = try await Reseau.catalogues.data(from: url)
         guard (reponseHTTP as? HTTPURLResponse)?.statusCode == 200 else { return nil }
         let edition = try JSONDecoder().decode(Edition.self, from: donnees)
         guard let titre = edition.title else { return nil }

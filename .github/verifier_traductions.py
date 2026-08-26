@@ -36,6 +36,19 @@ def suspect(cle):
     return len(lettres) > 12
 
 
+def textes(unite):
+    """Les textes d'une localisation — un seul, ou un par forme de pluriel.
+
+    « 1 livres reconnus » se lisait dans toutes les langues : le catalogue
+    ne portait qu'une forme. Une entrée pluralisée en porte plusieurs, sous
+    `variations.plural`, et n'est complète que si toutes le sont.
+    """
+    if "stringUnit" in unite:
+        return [unite["stringUnit"].get("value", "")]
+    formes = unite.get("variations", {}).get("plural", {})
+    return [f.get("stringUnit", {}).get("value", "") for f in formes.values()]
+
+
 def main():
     with open(CATALOGUE, encoding="utf-8") as fichier:
         catalogue = json.load(fichier)
@@ -52,14 +65,15 @@ def main():
             if not unite:
                 trous.append((langue, cle))
                 continue
-            valeur = unite.get("stringUnit", {}).get("value", "")
-            if not valeur.strip():
+            valeurs = textes(unite)
+            if not valeurs or any(not v.strip() for v in valeurs):
                 trous.append((langue, cle))
                 continue
-            if sorted(SPECIFICATEUR.findall(cle)) != sorted(SPECIFICATEUR.findall(valeur)):
-                formats.append((langue, cle, valeur))
-            if valeur == cle and suspect(cle):
-                recopiees.setdefault(langue, []).append(cle)
+            for valeur in valeurs:
+                if sorted(SPECIFICATEUR.findall(cle)) != sorted(SPECIFICATEUR.findall(valeur)):
+                    formats.append((langue, cle, valeur))
+                if valeur == cle and suspect(cle) and cle not in recopiees.get(langue, []):
+                    recopiees.setdefault(langue, []).append(cle)
 
     print(f"{len(chaines)} textes × {len(LANGUES)} langues")
 

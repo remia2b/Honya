@@ -34,7 +34,7 @@ struct GoogleBooksProvider: MetadataProvider {
         if let bundle = Bundle.main.bundleIdentifier {
             requete.setValue(bundle, forHTTPHeaderField: "X-Ios-Bundle-Identifier")
         }
-        let (donnees, _) = try await URLSession.shared.data(for: requete)
+        let (donnees, _) = try await Reseau.catalogues.data(for: requete)
         let reponse = try JSONDecoder().decode(ReponseVolumes.self, from: donnees)
         return (reponse.items ?? []).compactMap { $0.enResultat() }
     }

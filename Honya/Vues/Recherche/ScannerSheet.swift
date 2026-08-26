@@ -19,6 +19,9 @@ struct ScannerSheet: View {
     @State private var plusVisible = false
     @State private var compteur = CompteurScans.partage
     @State private var oublisVisibles = false
+    /// Les fiches dont la couverture se cherche encore. Le livre est déjà
+    /// à l'écran ; seule son image manque.
+    @State private var chasseCouverture: Set<String> = []
 
     private var scannerDisponible: Bool {
         DataScannerViewController.isSupported && DataScannerViewController.isAvailable
@@ -156,58 +159,13 @@ struct ScannerSheet: View {
                     }
                 }
                 ForEach(trouves) { resultat in
-                    HStack(spacing: 12) {
-                        CouvertureView(
-                            urlString: resultat.couvertureURL,
-                            titre: resultat.titre,
-                            coins: 4,
-                            manga: resultat.type != .livre
-                        )
-                            .frame(width: 48)
-                        VStack(alignment: .leading, spacing: 2) {
-                            // Le titre brut disait « Solo leveling » sans dire
-                            // quel tome : la tomaison sépare la série du numéro.
-                            let (base, numero) = Tomaison.decomposer(resultat.titre)
-                            Text(base)
-                                .font(.subheadline.weight(.semibold))
-                                .lineLimit(2)
-                            if let numero {
-                                Text("Tome \(numero)")
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(Couleurs.accent)
-                            }
-                            Text(resultat.auteurs.joined(separator: ", "))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                            if let isbn = resultat.isbn {
-                                Text(isbn)
-                                    .font(.system(size: 9, design: .monospaced))
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                        Spacer()
-                        if estAjoute(resultat) {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundStyle(Couleurs.lu)
-                        } else {
-                            Menu {
-                                Button("Je le possède · à lire") { ajouter(resultat, statut: .aLire) }
-                                Button("Je suis en train de le lire") { ajouter(resultat, statut: .enCours) }
-                                Button("Je l'ai lu") { ajouter(resultat, statut: .lu) }
-                                Button("À acheter") { ajouter(resultat, statut: .wishlist) }
-                                Button("Je l'ai abandonné") { ajouter(resultat, statut: .abandonne) }
-                            } label: {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.title3)
-                                    .foregroundStyle(Couleurs.accent)
-                            }
-                        }
-                    }
+                    ligne(resultat)
                 }
             } header: {
-                // Coller un « s » à la main ne marche qu'en français : chaque
-                // langue a ses propres règles de pluriel.
+                // Le catalogue porte les formes du pluriel — « 1 livre
+                // reconnu », « 2 livres reconnus », et les quatre formes du
+                // russe et du polonais. Coller un « s » ici ne marcherait
+                // qu'en français.
                 Text(trouves.isEmpty ? "En attente" : "\(trouves.count) livres reconnus")
             }
 
@@ -236,6 +194,105 @@ struct ScannerSheet: View {
             }
         }
         .listStyle(.insetGrouped)
+    }
+
+    /// Un livre reconnu, mis en page comme une fiche de librairie : la
+    /// couverture d'abord, le tome en évidence, l'ISBN en petit pour vérifier
+    /// d'un coup d'œil qu'on tient bien la bonne édition.
+    private func ligne(_ resultat: ResultatRecherche) -> some View {
+        // Le titre brut disait « Solo leveling » sans dire quel tome : la
+        // tomaison sépare la série du numéro.
+        let (base, numero) = Tomaison.decomposer(resultat.titre)
+        return HStack(alignment: .top, spacing: 14) {
+            couverture(resultat)
+                .frame(width: 54)
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(base)
+                    .font(.system(size: 16, weight: .semibold))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // Tome et auteur sur la même ligne : deux renseignements
+                // courts qui gaspillaient chacun leur ligne.
+                HStack(spacing: 7) {
+                    if let numero {
+                        Text("Tome \(numero)")
+                            .font(.system(size: 11, weight: .heavy))
+                            .foregroundStyle(Couleurs.accent)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2.5)
+                            .background(Couleurs.accent.opacity(0.16), in: Capsule())
+                    }
+                    if !resultat.auteurs.isEmpty {
+                        Text(resultat.auteurs.joined(separator: ", "))
+                            .font(.system(size: 13))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                }
+
+                if let isbn = resultat.isbn {
+                    Text(verbatim: isbn)
+                        .font(.system(size: 10, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
+            Spacer(minLength: 0)
+            bouton(resultat)
+        }
+        .padding(.vertical, 5)
+    }
+
+    /// La couverture, ou son attente.
+    ///
+    /// Tant que l'image se cherche encore, on ne montre PAS la couverture de
+    /// secours : afficher un dégradé inventé puis le remplacer donne
+    /// l'impression que l'application s'est trompée de livre.
+    @ViewBuilder
+    private func couverture(_ resultat: ResultatRecherche) -> some View {
+        if resultat.couvertureURL == nil, chasseCouverture.contains(resultat.id) {
+            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                .fill(.quaternary)
+                .aspectRatio(2.0 / 3.0, contentMode: .fit)
+                .overlay { ProgressView().controlSize(.small) }
+        } else {
+            CouvertureView(
+                urlString: resultat.couvertureURL,
+                titre: resultat.titre,
+                auteur: resultat.auteurs.first,
+                coins: 5,
+                manga: resultat.type != .livre,
+                // Une vignette de 54 points n'a que faire d'une image de 1200 :
+                // on demandait une affiche pour un timbre.
+                cote: 240
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func bouton(_ resultat: ResultatRecherche) -> some View {
+        if estAjoute(resultat) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 27))
+                .foregroundStyle(Couleurs.lu)
+                .transition(.scale.combined(with: .opacity))
+        } else {
+            Menu {
+                Button("Je le possède · à lire") { ajouter(resultat, statut: .aLire) }
+                Button("Je suis en train de le lire") { ajouter(resultat, statut: .enCours) }
+                Button("Je l'ai lu") { ajouter(resultat, statut: .lu) }
+                Button("À acheter") { ajouter(resultat, statut: .wishlist) }
+                Button("Je l'ai abandonné") { ajouter(resultat, statut: .abandonne) }
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(.white)
+                    .frame(width: 31, height: 31)
+                    .background(Couleurs.accent, in: Circle())
+            }
+        }
     }
 
     // MARK: - Traitement d'un code
@@ -286,7 +343,31 @@ struct ScannerSheet: View {
                 return
             }
             guard !trouves.contains(where: { $0.id == resultat.id }) else { return }
-            trouves.insert(resultat, at: 0)
+            withAnimation(.snappy(duration: 0.25)) {
+                trouves.insert(resultat, at: 0)
+            }
+            chercherLaCouverture(resultat)
+        }
+    }
+
+    /// La couverture manquante part se chercher SANS retenir le livre.
+    ///
+    /// Elle passe par une recherche de titre chez tous les catalogues : le
+    /// chemin le plus long de la chaîne, et il bloquait jusqu'ici l'affichage
+    /// d'un livre déjà identifié. Le lecteur voit maintenant son titre tout de
+    /// suite, et l'image se pose ensuite.
+    private func chercherLaCouverture(_ resultat: ResultatRecherche) {
+        guard resultat.couvertureURL == nil else { return }
+        chasseCouverture.insert(resultat.id)
+        Task { @MainActor in
+            defer { chasseCouverture.remove(resultat.id) }
+            guard let url = await AgregateurMetadonnees.partage
+                .couvertureDeSecours(pour: resultat),
+                  let rang = trouves.firstIndex(where: { $0.id == resultat.id })
+            else { return }
+            withAnimation(.snappy(duration: 0.3)) {
+                trouves[rang].couvertureURL = url
+            }
         }
     }
 }
