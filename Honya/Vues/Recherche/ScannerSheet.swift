@@ -5,6 +5,11 @@ import VisionKit
 /// Scanner d'ISBN en rafale : on balaye une étagère entière,
 /// chaque code-barres reconnu part chercher ses métadonnées.
 struct ScannerSheet: View {
+    /// Des codes joués d'avance, pour la CI qui photographie cet écran sans
+    /// caméra. Le trajet est celui du vrai scan — catalogues compris — donc
+    /// la capture montre aussi ce que la recherche met réellement de temps.
+    var apercuISBN: [String] = []
+
     @Environment(\.modelContext) private var contexte
     @Environment(\.dismiss) private var dismiss
 
@@ -97,6 +102,9 @@ struct ScannerSheet: View {
         // l'iPhone — et il emportait silencieusement toute la pile scannée.
         // Tant qu'un livre reconnu n'est pas rangé, seul « Terminé » ferme,
         // et lui prévient.
+        .task {
+            for code in apercuISBN { traiter(code) }
+        }
         .interactiveDismissDisabled(trouves.contains { !estAjoute($0) })
         .sensoryFeedback(.impact(weight: .light), trigger: scannes.count)
         .confirmationDialog(

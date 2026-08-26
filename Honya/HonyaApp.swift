@@ -65,6 +65,13 @@ struct HonyaApp: App {
             HonyaPlusView(verrou: .bibliotheque(couvertures: Apercu.couvertures))
         case "verrouStats":
             HonyaPlusView(verrou: .statistiques(couvertures: Apercu.couvertures))
+        case "scanner":
+            // Deux livres que les catalogues connaissent, et un code au
+            // format valide qu'aucun ne connaîtra jamais : les trois états
+            // de la liste sur une seule photo.
+            ScannerSheet(apercuISBN: [
+                "9782820350480", "9782382881903", "9782999999992",
+            ])
         case "email":
             BienvenueView(surLEmail: true)
         case "clavierTest":

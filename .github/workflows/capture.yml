@@ -59,7 +59,7 @@ jobs:
               fi
               # Seuls les écrans à couvertures attendent le réseau.
               case "$ecran" in
-                accueil|honyaPlus) sleep 15 ;;
+                accueil|honyaPlus|scanner) sleep 15 ;;
                 *) sleep 6 ;;
               esac
               xcrun simctl io "$UDID" screenshot "/tmp/captures/$theme-$ecran.png"
