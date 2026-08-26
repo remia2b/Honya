@@ -9,6 +9,9 @@ struct ScannerSheet: View {
     /// caméra. Le trajet est celui du vrai scan — catalogues compris — donc
     /// la capture montre aussi ce que la recherche met réellement de temps.
     var apercuISBN: [String] = []
+    /// Ce que le lecteur part chercher a la main quand aucun catalogue ne
+    /// connait son code-barres. La feuille se referme sur cette recherche.
+    var surRechercheManuelle: (String) -> Void = { _ in }
 
     @Environment(\.modelContext) private var contexte
     @Environment(\.dismiss) private var dismiss
@@ -27,6 +30,8 @@ struct ScannerSheet: View {
     /// Les fiches dont la couverture se cherche encore. Le livre est déjà
     /// à l'écran ; seule son image manque.
     @State private var chasseCouverture: Set<String> = []
+    /// La recherche a emporter en refermant la feuille.
+    @State private var rechercheVoulue = ""
 
     private var scannerDisponible: Bool {
         DataScannerViewController.isSupported && DataScannerViewController.isAvailable
@@ -34,12 +39,16 @@ struct ScannerSheet: View {
 
     var body: some View {
         NavigationStack {
+            GeometryReader { cadre in
             VStack(spacing: 0) {
                 if scannerDisponible {
                     ScannerISBNRepresentable { code in
                         traiter(code)
                     }
-                    .frame(height: 300)
+                    // Attraper plusieurs codes d'un coup suppose que plusieurs
+                    // livres tiennent dans le cadre : trois cents points fixes
+                    // n'en cadraient qu'un seul a la fois.
+                    .frame(height: max(300, cadre.size.height * 0.44))
                     .overlay(alignment: .bottom) {
                         VStack(spacing: 6) {
                             Text("Visez le code-barres au dos du livre")
@@ -60,6 +69,7 @@ struct ScannerSheet: View {
                 }
 
                 listeTrouves
+            }
             }
             .ecranHonyaPlus($plusVisible, verrou: .scan(
                 couvertures: trouves.prefix(3).compactMap(\.couvertureURL)
@@ -84,16 +94,7 @@ struct ScannerSheet: View {
                     .disabled(trouves.allSatisfy(estAjoute))
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Terminé") {
-                        // Partir en laissant des livres reconnus mais non
-                        // ajoutés était la meilleure façon de croire qu'ils
-                        // étaient rangés : on le dit.
-                        if trouves.contains(where: { !estAjoute($0) }) || enRecherche > 0 {
-                            oublisVisibles = true
-                        } else {
-                            dismiss()
-                        }
-                    }
+                    Button("Terminé") { partir(vers: "") }
                     .fontWeight(.bold)
                 }
             }
@@ -115,11 +116,11 @@ struct ScannerSheet: View {
             ForEach(StatutLecture.allCases) { statut in
                 Button("Tout ajouter — \(statut.libelle)") {
                     ajouterTout(statut)
-                    dismiss()
+                    quitter()
                 }
             }
-            Button("Quitter sans les ajouter", role: .destructive) { dismiss() }
-            Button("Rester ici", role: .cancel) {}
+            Button("Quitter sans les ajouter", role: .destructive) { quitter() }
+            Button("Rester ici", role: .cancel) { rechercheVoulue = "" }
         }
     }
 
@@ -180,18 +181,7 @@ struct ScannerSheet: View {
             if !introuvables.isEmpty {
                 Section {
                     ForEach(introuvables, id: \.self) { isbn in
-                        HStack(spacing: 12) {
-                            Image(systemName: "questionmark.circle")
-                                .font(.title3)
-                                .foregroundStyle(.secondary)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Introuvable dans les catalogues")
-                                    .font(.subheadline.weight(.semibold))
-                                Text(verbatim: isbn)
-                                    .font(.system(size: 11, design: .monospaced))
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
+                        ligneIntrouvable(isbn)
                     }
                 } footer: {
                     // Les éditions de clubs — France Loisirs et compagnie —
@@ -301,6 +291,89 @@ struct ScannerSheet: View {
                     .background(Couleurs.accent, in: Circle())
             }
         }
+    }
+
+    /// Un code qu'aucun catalogue ne connait — et la porte de sortie.
+    ///
+    /// Le laisser muet revenait a dire au lecteur que son livre n'existe pas.
+    /// La ligne l'emmene maintenant a la recherche par titre, avec une piste
+    /// quand on en a une.
+    private func ligneIntrouvable(_ isbn: String) -> some View {
+        let piste = suggestion(pour: isbn)
+        return Button {
+            partir(vers: piste)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "questionmark.circle")
+                    .font(.title3)
+                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Introuvable dans les catalogues")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    if piste.isEmpty {
+                        Text("Chercher le titre")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Couleurs.accent)
+                    } else {
+                        Text("Chercher « \(piste) »")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Couleurs.accent)
+                            .lineLimit(1)
+                    }
+                    Text(verbatim: isbn)
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.tertiary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// Ce qu'il faut taper pour retrouver un livre que personne ne reference.
+    ///
+    /// Les editeurs numerotent leurs tomes a la suite : le tome 2 porte
+    /// l'ISBN du tome 1 augmente de un. Quand le lecteur vient justement de
+    /// scanner un tome voisin, on sait donc quoi proposer — « Instinct 2 » —
+    /// sans rien inventer : c'est une recherche qu'il valide lui-meme, pas
+    /// une fiche ajoutee dans son dos.
+    private func suggestion(pour isbn: String) -> String {
+        guard let inconnu = Int(isbn.prefix(12)) else { return "" }
+        for voisin in trouves {
+            guard let sonISBN = voisin.isbn, let connu = Int(sonISBN.prefix(12)) else { continue }
+            let ecart = inconnu - connu
+            // Au-dela de trois rangs ce n'est plus la meme serie mais le
+            // catalogue entier de l'editeur : on ne devine plus rien.
+            guard ecart != 0, abs(ecart) <= 3 else { continue }
+            let (base, numero) = Tomaison.decomposer(voisin.titre)
+            guard let numero else { return base }
+            let vise = numero + (ecart > 0 ? 1 : -1)
+            return vise > 0 ? "\(base) \(vise)" : base
+        }
+        return ""
+    }
+
+    /// Partir, en emportant eventuellement une recherche.
+    ///
+    /// Partir en laissant des livres reconnus mais non ranges etait la
+    /// meilleure facon de croire qu'ils l'etaient : on le dit d'abord.
+    private func partir(vers requete: String) {
+        rechercheVoulue = requete
+        if trouves.contains(where: { !estAjoute($0) }) || enRecherche > 0 {
+            oublisVisibles = true
+        } else {
+            quitter()
+        }
+    }
+
+    private func quitter() {
+        let requete = rechercheVoulue
+        dismiss()
+        if !requete.isEmpty { surRechercheManuelle(requete) }
     }
 
     // MARK: - Traitement d'un code
@@ -419,7 +492,23 @@ private struct ScannerISBNRepresentable: UIViewControllerRepresentable {
             didAdd addedItems: [RecognizedItem],
             allItems: [RecognizedItem]
         ) {
-            for item in addedItems {
+            lire(addedItems)
+        }
+
+        /// Un code-barres entre parfois dans le cadre avant d'etre dechiffre :
+        /// VisionKit l'annonce alors une premiere fois sans contenu, puis le
+        /// complete. N'ecouter que l'arrivee faisait perdre, sur une pile de
+        /// livres, tous ceux dont la lecture avait demande un instant de plus.
+        func dataScanner(
+            _ dataScanner: DataScannerViewController,
+            didUpdate updatedItems: [RecognizedItem],
+            allItems: [RecognizedItem]
+        ) {
+            lire(updatedItems)
+        }
+
+        private func lire(_ items: [RecognizedItem]) {
+            for item in items {
                 if case .barcode(let code) = item, let valeur = code.payloadStringValue {
                     surCode(valeur)
                 }

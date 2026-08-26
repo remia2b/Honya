@@ -79,7 +79,12 @@ struct RechercheView: View {
             .toolbar(.hidden, for: .navigationBar)
             .scrollDismissesKeyboard(.immediately)
             .sheet(isPresented: $scannerVisible) {
-                ScannerSheet()
+                ScannerSheet { requete in
+                    // Le scanner a rendu la main sur un code que personne ne
+                    // connait : la recherche prend le relais, deja remplie.
+                    texte = requete
+                    portee = .tout
+                }
             }
             .task(id: cleRecherche) {
                 await lancerRecherche()

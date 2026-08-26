@@ -11,7 +11,7 @@ import Foundation
 ///
 ///   France     BnF      SRU, Dublin Core
 ///   Allemagne  DNB      SRU, Dublin Core
-///   Japon      NDL      SRU, Dublin Core (échappé)
+///   Japon      openBD   JSON, puis NDL en SRU Dublin Core (échappé)
 ///   Suède      LIBRIS   JSON
 ///   Pologne    BN       JSON
 ///
@@ -32,7 +32,11 @@ struct BibliothequeNationaleProvider {
         switch corps.first {
         case "2": return await bnf(propre)
         case "3": return await dnb(propre)
-        case "4": return await ndl(propre)
+        case "4":
+            // openBD d'abord : des deux, c'est la seule qui donne une
+            // couverture — le service d'images de la NDL nous est fermé.
+            if let trouve = await openBD(propre) { return trouve }
+            return await ndl(propre)
         case "8" where corps.hasPrefix("83"): return await bnPologne(propre)
         case "9" where corps.hasPrefix("91"): return await libris(propre)
         default: return nil
@@ -65,6 +69,38 @@ struct BibliothequeNationaleProvider {
             .init(name: "maximumRecords", value: "1"),
         ]
         return await dublinCore(composants.url, isbn: isbn, source: "DNB", echappe: false)
+    }
+
+    // MARK: - Japon · openBD
+
+    /// Le registre des éditeurs japonais : titre, auteur, date ET couverture,
+    /// libre d'accès et sans clé. La NDL référence tout par dépôt légal mais
+    /// ne nous laisse pas atteindre ses vignettes ; openBD, si.
+    private func openBD(_ isbn: String) async -> ResultatRecherche? {
+        guard let url = URL(string: "https://api.openbd.jp/v1/get?isbn=\(isbn)"),
+              let donnees = await charger(url),
+              let tableau = (try? JSONSerialization.jsonObject(with: donnees)) as? [Any],
+              // Un code inconnu ramène `[null]` : la liste existe, son contenu non.
+              let premier = tableau.first as? [String: Any],
+              let resume = premier["summary"] as? [String: Any],
+              let titre = resume["title"] as? String, !titre.isEmpty
+        else { return nil }
+
+        // « 尾田,栄一郎,1975- » : virgules de catalogage, dates en queue.
+        let auteur = (resume["author"] as? String)?
+            .components(separatedBy: ",")
+            .filter { $0.first?.isNumber != true }
+            .joined()
+
+        return fiche(
+            titre: titre,
+            auteur: auteur,
+            date: resume["pubdate"] as? String,
+            langue: "ja",
+            isbn: isbn,
+            source: "openBD",
+            couverture: (resume["cover"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        )
     }
 
     // MARK: - Japon · NDL
