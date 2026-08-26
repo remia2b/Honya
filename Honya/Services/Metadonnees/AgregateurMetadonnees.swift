@@ -24,6 +24,7 @@ struct AgregateurMetadonnees: Sendable {
     private let google = GoogleBooksProvider()
     private let openLibrary = OpenLibraryProvider()
     private let aniList = AniListProvider()
+    private let bnf = BnFProvider()
 
     // MARK: Recherche texte
 
@@ -151,7 +152,43 @@ struct AgregateurMetadonnees: Sendable {
             if meilleur?.couvertureURL != nil { break }
         }
 
+        // Le filet : la BnF. Le dépôt légal étant obligatoire, tout ce qui
+        // paraît en France y figure — y compris ce que Google, Apple et
+        // OpenLibrary ignorent. Un lecteur qui scanne un livre acheté en
+        // librairie française DOIT le trouver.
+        if meilleur == nil {
+            meilleur = await bnf.parISBN(isbn)
+        }
+
+        // Pas de couverture ? On emprunte celle d'une autre édition, par une
+        // recherche de titre : la couverture de l'édition courante vaut mieux
+        // qu'un rectangle vide, et c'est ce que fait un libraire qui montre
+        // « le » livre sans avoir le tirage exact en main.
+        if let fiche = meilleur, fiche.couvertureURL == nil {
+            meilleur?.couvertureURL = await couvertureParTitre(fiche, langue: langueLecteur)
+        }
+
         return meilleur.map { complete($0, isbn: isbn) }
+    }
+
+    /// La couverture d'une autre édition du même titre — même tome si la
+    /// tomaison en donne un. On n'emprunte qu'à un résultat dont le titre
+    /// désigne la même œuvre : mieux vaut aucune image qu'une image fausse.
+    private func couvertureParTitre(
+        _ fiche: ResultatRecherche, langue: String
+    ) async -> String? {
+        let (base, numero) = Tomaison.decomposer(fiche.titre)
+        guard base.count >= 3 else { return nil }
+
+        let candidats = await rechercherLivres(base, langue: langue)
+        return candidats.first { candidat in
+            guard candidat.couvertureURL != nil else { return false }
+            let (baseCandidat, numeroCandidat) = Tomaison.decomposer(candidat.titre)
+            guard Tomaison.memeSerie(baseCandidat, base) else { return false }
+            // Un tome précis n'accepte que la couverture du même numéro.
+            if let numero { return numeroCandidat == numero }
+            return true
+        }?.couvertureURL
     }
 
     private func complete(_ resultat: ResultatRecherche, isbn: String) -> ResultatRecherche {
