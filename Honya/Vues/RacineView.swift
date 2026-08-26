@@ -107,11 +107,31 @@ struct RacineView: View {
             for serie in series {
                 serie.couvertureLocaleURL = nil
                 serie.resumeLocal = nil
+                // Le nom local aussi venait du représentant trouvé par titre :
+                // un homonyme pouvait rebaptiser toute la série. On ne garde
+                // que ce qui passe encore la vérification resserrée.
+                let reference = Tomaison.decomposer(
+                    serie.noms["en"] ?? serie.nomRomaji ?? serie.nom
+                ).base
+                for (code, nom) in serie.noms {
+                    let base = Tomaison.decomposer(nom).base
+                    if !Tomaison.memeSerie(base, reference) { serie.noms[code] = nil }
+                }
+                // Le titre d'un tome se retrouve, lui, à chaque passe : il ne
+                // coûte rien de le redemander, et il vient du même homonyme.
+                for tome in serie.tomes { tome.titre = nil }
                 ResolveurTomes.reinitialiser(serie)
             }
             for oeuvre in oeuvres {
                 oeuvre.couvertureLocaleURL = nil
                 oeuvre.resumeLocal = nil
+                let reference = Tomaison.decomposer(
+                    oeuvre.titres["en"] ?? oeuvre.titreRomaji ?? oeuvre.titreOriginal
+                ).base
+                for (code, titre) in oeuvre.titres where code != "en" {
+                    let base = Tomaison.decomposer(titre).base
+                    if !Tomaison.memeSerie(base, reference) { oeuvre.titres[code] = nil }
+                }
             }
         }
 
