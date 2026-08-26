@@ -229,6 +229,10 @@ final class Compte {
         email = session.user?.email ?? adresse
         methode = .email
         enregistrer(session)
+        // Le bandeau vert a fait son travail : la session s'ouvre. Sans cet
+        // oubli, il ressortirait à la prochaine déconnexion, à annoncer une
+        // confirmation vieille de plusieurs semaines.
+        accuserConfirmation()
         finaliserConnexion()
     }
 
