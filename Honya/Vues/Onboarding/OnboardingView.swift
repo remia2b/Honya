@@ -10,6 +10,9 @@ import SwiftData
 /// séparateurs fins, un cercle qui se remplit. Chaque étape a sa teinte :
 /// l'ambre accueille, le vert des lectures faites dit que ça avance.
 struct OnboardingView: View {
+    /// Ouvre directement une étape, pour les captures.
+    var etapeDepart = 0
+
     @Environment(\.modelContext) private var contexte
     @AppStorage("onboardingTermine") private var onboardingTermine = false
 
@@ -54,6 +57,14 @@ struct OnboardingView: View {
             }
         }
         .safeAreaInset(edge: .bottom) { basDePage }
+        .onAppear {
+            if etapeDepart != 0 {
+                etape = etapeDepart
+                // L'étape de l'objectif se montre avec le réglage libre
+                // ouvert : c'est la nouveauté à juger.
+                if etapeDepart == 1 { dureeLibre = true; minutesChoisies = 25 }
+            }
+        }
     }
 
     private var indicateurEtapes: some View {

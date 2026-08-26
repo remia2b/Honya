@@ -97,6 +97,10 @@ struct HonyaApp: App {
             BienvenueView(surLOubli: "nouveau")
         case "onboarding":
             OnboardingView()
+        case "onboarding2":
+            OnboardingView(etapeDepart: 1)
+        case "onboarding3":
+            OnboardingView(etapeDepart: 2)
         case "motdepasse":
             BienvenueView(surLOubli: "mdp")
         case "bienvenue":
