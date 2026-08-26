@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Le schema « honya:// », qui donne un chemin de retour vers
+	     l'application depuis n'importe ou — la page de confirmation du site
+	     s'en sert. Le reste des cles reste genere par Xcode
+	     (GENERATE_INFOPLIST_FILE), qui fusionne ce fichier avec elles. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>app.honya.retour</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>honya</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

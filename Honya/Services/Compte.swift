@@ -141,7 +141,16 @@ final class Compte {
               let elements = composants.queryItems,
               let jeton = elements.first(where: { $0.name == "token_hash" })?.value,
               !jeton.isEmpty
-        else { return false }
+        else {
+            // « honya:// » sans jeton : quelqu'un revient depuis la page de
+            // confirmation du site, où la vérification a déjà eu lieu. Rien
+            // à vérifier ici, mais le message vert lui est dû.
+            if url.scheme == "honya", url.host == "confirme" {
+                adresseVientDEtreConfirmee = true
+                return true
+            }
+            return false
+        }
 
         let type = elements.first(where: { $0.name == "type" })?.value ?? "signup"
         do {

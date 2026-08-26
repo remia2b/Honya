@@ -277,6 +277,7 @@
 				DEVELOPMENT_TEAM = J5MW8FRFK5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Honya/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Honya;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Honya utilise l'appareil photo pour scanner le code-barres ISBN de vos livres.";
@@ -309,6 +310,7 @@
 				DEVELOPMENT_TEAM = J5MW8FRFK5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Honya/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Honya;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Honya utilise l'appareil photo pour scanner le code-barres ISBN de vos livres.";
