@@ -71,6 +71,7 @@
  "Audio",
  "Aujourd'hui",
  "Automatiques",
+ "Autre durée",
  "BD",
  "BD & Comics",
  "Badges",
@@ -98,7 +99,6 @@
  "Classements",
  "Code reçu par courrier",
  "Collections",
- "Comme dans Apple Books : quelques minutes par jour suffisent à construire une série.",
  "Commencer l'essai gratuit",
  "Commencer une lecture",
  "Commencé le",
@@ -298,6 +298,7 @@
  "Puis %@. Résiliable à tout moment.",
  "Période",
  "Que lisez-vous ?",
+ "Quelques minutes par jour suffisent à construire une série.",
  "Quitter sans les ajouter",
  "Ranger dans une étagère",
  "Rangez vos livres, suivez vos lectures.",
@@ -493,6 +494,7 @@
  "À suivre",
  "À vie",
  "Étagère vide",
+ "Étape %lld sur 3",
  "Être prévenu pour toutes vos séries",
  "à acheter"
 ]
