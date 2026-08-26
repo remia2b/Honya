@@ -3,38 +3,178 @@
   "strings": {
     "Renvoyer le courrier de confirmation": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "Send the confirmation email again" } },
-        "es": { "stringUnit": { "state": "translated", "value": "Reenviar el correo de confirmación" } },
-        "es-419": { "stringUnit": { "state": "translated", "value": "Reenviar el correo de confirmación" } },
-        "pt-BR": { "stringUnit": { "state": "translated", "value": "Reenviar o e-mail de confirmação" } },
-        "de": { "stringUnit": { "state": "translated", "value": "Bestätigungsmail erneut senden" } },
-        "it": { "stringUnit": { "state": "translated", "value": "Invia di nuovo l'e-mail di conferma" } },
-        "nl": { "stringUnit": { "state": "translated", "value": "Bevestigingsmail opnieuw sturen" } },
-        "pl": { "stringUnit": { "state": "translated", "value": "Wyślij ponownie e-mail potwierdzający" } },
-        "sv": { "stringUnit": { "state": "translated", "value": "Skicka bekräftelsemejlet igen" } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Doğrulama e-postasını yeniden gönder" } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Отправить письмо подтверждения ещё раз" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "確認メールを再送する" } },
-        "ko": { "stringUnit": { "state": "translated", "value": "확인 메일 다시 보내기" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "重新发送确认邮件" } }
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Send the confirmation email again"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reenviar el correo de confirmación"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reenviar el correo de confirmación"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reenviar o e-mail de confirmação"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bestätigungsmail erneut senden"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invia di nuovo l'e-mail di conferma"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bevestigingsmail opnieuw sturen"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wyślij ponownie e-mail potwierdzający"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Skicka bekräftelsemejlet igen"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Doğrulama e-postasını yeniden gönder"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отправить письмо подтверждения ещё раз"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "確認メールを再送する"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인 메일 다시 보내기"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新发送确认邮件"
+          }
+        }
       }
     },
     "Un nouveau courrier de confirmation vient de partir.": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "A new confirmation email is on its way." } },
-        "es": { "stringUnit": { "state": "translated", "value": "Acabamos de enviarte otro correo de confirmación." } },
-        "es-419": { "stringUnit": { "state": "translated", "value": "Acabamos de enviarte otro correo de confirmación." } },
-        "pt-BR": { "stringUnit": { "state": "translated", "value": "Um novo e-mail de confirmação acabou de sair." } },
-        "de": { "stringUnit": { "state": "translated", "value": "Eine neue Bestätigungsmail ist unterwegs." } },
-        "it": { "stringUnit": { "state": "translated", "value": "Una nuova e-mail di conferma è appena partita." } },
-        "nl": { "stringUnit": { "state": "translated", "value": "Er is net een nieuwe bevestigingsmail verstuurd." } },
-        "pl": { "stringUnit": { "state": "translated", "value": "Nowy e-mail potwierdzający właśnie poleciał." } },
-        "sv": { "stringUnit": { "state": "translated", "value": "Ett nytt bekräftelsemejl är på väg." } },
-        "tr": { "stringUnit": { "state": "translated", "value": "Yeni bir doğrulama e-postası yola çıktı." } },
-        "ru": { "stringUnit": { "state": "translated", "value": "Новое письмо подтверждения уже в пути." } },
-        "ja": { "stringUnit": { "state": "translated", "value": "確認メールをもう一度お送りしました。" } },
-        "ko": { "stringUnit": { "state": "translated", "value": "확인 메일을 다시 보냈어요." } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "新的确认邮件已经发出。" } }
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A new confirmation email is on its way."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acabamos de enviarte otro correo de confirmación."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Acabamos de enviarte otro correo de confirmación."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Um novo e-mail de confirmação acabou de sair."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Eine neue Bestätigungsmail ist unterwegs."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Una nuova e-mail di conferma è appena partita."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Er is net een nieuwe bevestigingsmail verstuurd."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nowy e-mail potwierdzający właśnie poleciał."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ett nytt bekräftelsemejl är på väg."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yeni bir doğrulama e-postası yola çıktı."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Новое письмо подтверждения уже в пути."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "確認メールをもう一度お送りしました。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "확인 메일을 다시 보냈어요."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新的确认邮件已经发出。"
+          }
+        }
       }
     },
     "%@ : %lld minutes": {
@@ -47465,6 +47605,270 @@
           "stringUnit": {
             "state": "translated",
             "value": "请重新开始：验证码未通过校验。"
+          }
+        }
+      }
+    },
+    "Étape %lld sur 3": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Step %lld of 3"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paso %lld de 3"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Paso %lld de 3"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Etapa %lld de 3"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schritt %lld von 3"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Passo %lld di 3"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stap %lld van 3"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Krok %lld z 3"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Steg %lld av 3"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "3 adımdan %lld."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Шаг %lld из 3"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ステップ %lld / 3"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld단계 / 3"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 %lld 步，共 3 步"
+          }
+        }
+      }
+    },
+    "Autre durée": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Another length"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otra duración"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otra duración"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Outra duração"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Andere Dauer"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Altra durata"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Andere duur"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inny czas"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annan längd"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Başka bir süre"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Другая длительность"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ほかの長さ"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "다른 시간"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他时长"
+          }
+        }
+      }
+    },
+    "Quelques minutes par jour suffisent à construire une série.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A few minutes a day is enough to build a streak."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bastan unos minutos al día para construir una racha."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bastan unos minutos al día para construir una racha."
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alguns minutos por dia bastam para criar uma sequência."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ein paar Minuten am Tag genügen für eine Serie."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bastano pochi minuti al giorno per costruire una serie."
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Een paar minuten per dag is genoeg voor een reeks."
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kilka minut dziennie wystarczy, by zbudować passę."
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Några minuter om dagen räcker för en svit."
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Günde birkaç dakika bir seri kurmaya yeter."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Нескольких минут в день хватает, чтобы собрать серию."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一日数分で連続記録は続きます。"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "하루 몇 분이면 연속 기록이 쌓여요."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每天几分钟，就能连成一串。"
           }
         }
       }

@@ -1,30 +1,44 @@
 import SwiftUI
 import SwiftData
 
-/// Trois étapes, pas une de plus : ce que vous lisez, votre objectif, vos langues.
+/// Trois étapes, pas une de plus : ce que vous lisez, votre objectif, vos
+/// langues.
 ///
-/// L'écran est le tout premier de l'application : il donne le ton. D'où la
-/// lueur chaude qui monte du fond plutôt qu'un aplat, les cartes plutôt que
-/// des pastilles nues, et une mise en page qui tient la même place à chaque
-/// étape — le titre ne saute pas d'une page à l'autre.
+/// C'est le premier écran de l'application, il donne le ton. D'où le fond en
+/// auréoles qui dérivent — de la profondeur sans rien à déchiffrer derrière le
+/// texte — et les choix présentés comme dans les Réglages : une colonne, des
+/// séparateurs fins, un cercle qui se remplit. Chaque étape a sa teinte :
+/// l'ambre accueille, le vert des lectures faites dit que ça avance.
 struct OnboardingView: View {
     @Environment(\.modelContext) private var contexte
-    @Environment(\.colorScheme) private var apparence
     @AppStorage("onboardingTermine") private var onboardingTermine = false
 
     @State private var etape = 0
     @State private var typesChoisis: Set<TypeOeuvre> = [.livre, .manga]
     @State private var minutesChoisies = 20
+    @State private var dureeLibre = false
     @State private var languesChoisies: Set<String> = [Langues.codeAppareil]
-    @State private var apparu = false
 
-    private let optionsMinutes = [10, 15, 20, 30, 45]
+    /// Les durées proposées d'emblée. Au-delà, le réglage libre prend le
+    /// relais : dix minutes suffisent à certains, une heure à d'autres, et une
+    /// liste figée finit toujours par exclure quelqu'un.
+    private let dureesProposees = [10, 15, 20, 30, 45]
 
-    private var sombre: Bool { apparence == .dark }
+    private static let pasLibre = 5
+    private static let minimumLibre = 5
+    private static let maximumLibre = 240
+
+    /// La teinte de l'étape. Le vert est celui des lectures terminées : la
+    /// couleur que le lecteur reverra chaque fois qu'il tiendra sa série.
+    private var teinte: Color {
+        etape == 1 ? Couleurs.lu : Couleurs.accent
+    }
 
     var body: some View {
         ZStack {
-            fond.ignoresSafeArea()
+            FondAccueil(teinte: teinte)
+                .ignoresSafeArea()
+                .animation(.easeInOut(duration: 0.5), value: etape)
 
             VStack(spacing: 0) {
                 indicateurEtapes
@@ -39,49 +53,16 @@ struct OnboardingView: View {
                 .animation(.snappy, value: etape)
             }
         }
-        .safeAreaInset(edge: .bottom) { bouton }
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.55)) { apparu = true }
-        }
-    }
-
-    /// Une lueur chaude qui monte du haut et s'éteint : la couleur de
-    /// l'application, respirée plutôt qu'affichée. Elle se règle d'elle-même
-    /// sur le thème du système, comme tout le reste de l'écran.
-    private var fond: some View {
-        ZStack {
-            Color(uiColor: .systemBackground)
-
-            RadialGradient(
-                colors: [
-                    Couleurs.accent.opacity(sombre ? 0.26 : 0.20),
-                    Couleurs.accent.opacity(0),
-                ],
-                center: UnitPoint(x: 0.5, y: 0.02),
-                startRadius: 8,
-                endRadius: 520
-            )
-
-            // Un second voile, très bas, pour que le bas de l'écran ne soit
-            // pas un mur plat sous les cartes.
-            LinearGradient(
-                colors: [
-                    Couleurs.accent.opacity(0),
-                    Couleurs.accent.opacity(sombre ? 0.09 : 0.07),
-                ],
-                startPoint: .center,
-                endPoint: .bottom
-            )
-        }
+        .safeAreaInset(edge: .bottom) { basDePage }
     }
 
     private var indicateurEtapes: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 5) {
             ForEach(0..<3, id: \.self) { index in
                 Capsule()
-                    .fill(index <= etape ? AnyShapeStyle(Couleurs.accent)
+                    .fill(index <= etape ? AnyShapeStyle(teinte)
                                          : AnyShapeStyle(Color.primary.opacity(0.16)))
-                    .frame(width: index == etape ? 26 : 8, height: 8)
+                    .frame(width: index == etape ? 22 : 7, height: 7)
             }
         }
         .animation(.snappy, value: etape)
@@ -89,54 +70,36 @@ struct OnboardingView: View {
 
     // MARK: - L'en-tête commun
 
-    /// Le même bloc à chaque étape, à la même hauteur : rien ne saute quand
-    /// on glisse d'une page à l'autre.
     private func enTete(
-        symbole: String, titre: LocalizedStringKey, texte: LocalizedStringKey
+        rang: Int, titre: LocalizedStringKey, texte: LocalizedStringKey
     ) -> some View {
-        VStack(spacing: 14) {
-            Image(systemName: symbole)
-                .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(Couleurs.accent)
-                .frame(width: 68, height: 68)
-                .background(
-                    Circle().fill(Couleurs.accent.opacity(sombre ? 0.18 : 0.13))
-                )
-                .overlay(
-                    Circle().strokeBorder(Couleurs.accent.opacity(0.25), lineWidth: 1)
-                )
-                .scaleEffect(apparu ? 1 : 0.8)
-                .opacity(apparu ? 1 : 0)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 7) {
+                Capsule()
+                    .fill(teinte)
+                    .frame(width: 18, height: 2)
+                Text("Étape \(rang) sur 3")
+                    .font(.system(size: 11, weight: .bold))
+                    .kerning(0.8)
+                    .textCase(.uppercase)
+                    .foregroundStyle(teinte)
+            }
+            .padding(.bottom, 12)
 
             Text(titre)
                 .font(.titreEcran)
-                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
 
             Text(texte)
-                .font(.subheadline)
+                .font(.system(size: 14))
                 .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
         }
-        .padding(.horizontal, 28)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 22)
         .padding(.top, 26)
-        .frame(height: 236, alignment: .top)
-    }
-
-    /// La plaque sous les choix : une carte posée sur la lueur, pas un aplat.
-    private func carte<Contenu: View>(@ViewBuilder _ contenu: () -> Contenu) -> some View {
-        contenu()
-            .padding(18)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Color(uiColor: .secondarySystemBackground).opacity(sombre ? 0.7 : 0.85))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.07), lineWidth: 1)
-            )
-            .padding(.horizontal, 22)
+        .padding(.bottom, 22)
     }
 
     // MARK: - Étape 1 : ce que vous lisez
@@ -144,59 +107,32 @@ struct OnboardingView: View {
     private var etapeTypes: some View {
         VStack(spacing: 0) {
             enTete(
-                symbole: "books.vertical.fill",
+                rang: 1,
                 titre: "Bienvenue dans Honya",
                 texte: "Votre bibliothèque, vivante.\nQue lisez-vous ?"
             )
 
-            carte {
-                HStack(spacing: 10) {
-                    ForEach(TypeOeuvre.allCases) { type in
-                        let actif = typesChoisis.contains(type)
-                        Button {
-                            withAnimation(.snappy(duration: 0.2)) {
-                                if actif { typesChoisis.remove(type) } else { typesChoisis.insert(type) }
+            BlocChoix {
+                ForEach(Array(TypeOeuvre.allCases.enumerated()), id: \.element) { rang, type in
+                    if rang > 0 { SeparateurChoix() }
+                    LigneChoix(
+                        libelle: type.libelle,
+                        choisi: typesChoisis.contains(type),
+                        teinte: teinte
+                    ) {
+                        withAnimation(.snappy(duration: 0.2)) {
+                            if typesChoisis.contains(type) {
+                                typesChoisis.remove(type)
+                            } else {
+                                typesChoisis.insert(type)
                             }
-                        } label: {
-                            VStack(spacing: 8) {
-                                Image(systemName: symbole(type))
-                                    .font(.system(size: 22, weight: .semibold))
-                                Text(type.libelle)
-                                    .font(.subheadline.weight(.bold))
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.85)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 88)
-                            .background(
-                                actif ? AnyShapeStyle(Couleurs.accent)
-                                      : AnyShapeStyle(Color.primary.opacity(0.06)),
-                                in: RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            )
-                            .foregroundStyle(actif ? Color.white : Color.primary)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .strokeBorder(
-                                        actif ? Color.clear : Color.primary.opacity(0.08),
-                                        lineWidth: 1
-                                    )
-                            )
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
-            // Centrée dans ce qui reste sous l'en-tête : collée en haut,
-            // elle laissait la moitié basse de l'écran vide.
-            .frame(maxHeight: .infinity)
-        }
-    }
+            .padding(.horizontal, 22)
 
-    private func symbole(_ type: TypeOeuvre) -> String {
-        switch type {
-        case .livre: return "book.closed.fill"
-        case .manga: return "books.vertical.fill"
-        case .bd: return "rectangle.3.group.fill"
+            Spacer(minLength: 0)
         }
     }
 
@@ -205,56 +141,124 @@ struct OnboardingView: View {
     private var etapeObjectif: some View {
         VStack(spacing: 0) {
             enTete(
-                symbole: "flame.fill",
+                rang: 2,
                 titre: "Un petit objectif\nchaque jour",
-                texte: "Comme dans Apple Books : quelques minutes par jour suffisent à construire une série."
+                texte: "Quelques minutes par jour suffisent à construire une série."
             )
 
-            carte {
-                VStack(spacing: 14) {
-                    HStack(spacing: 8) {
-                        ForEach(optionsMinutes, id: \.self) { minutes in
-                            let actif = minutesChoisies == minutes
-                            Button {
-                                withAnimation(.snappy(duration: 0.2)) { minutesChoisies = minutes }
-                            } label: {
-                                VStack(spacing: 0) {
-                                    Text("\(minutes)")
-                                        .font(.chiffreSerif(24))
-                                        .monospacedDigit()
-                                    Text("min")
-                                        .font(.caption2.weight(.bold))
-                                        .opacity(0.8)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 68)
-                                .background(
-                                    actif ? AnyShapeStyle(Couleurs.accent)
-                                          : AnyShapeStyle(Color.primary.opacity(0.06)),
-                                    in: RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                )
-                                .foregroundStyle(actif ? Color.white : Color.primary)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                        .strokeBorder(
-                                            actif ? Color.clear : Color.primary.opacity(0.08),
-                                            lineWidth: 1
-                                        )
-                                )
+            VStack(spacing: 12) {
+                BlocChoix {
+                    ForEach(Array(dureesProposees.enumerated()), id: \.element) { rang, minutes in
+                        if rang > 0 { SeparateurChoix() }
+                        LigneChoix(
+                            libelle: String(localized: "\(minutes) min"),
+                            choisi: !dureeLibre && minutesChoisies == minutes,
+                            teinte: teinte
+                        ) {
+                            withAnimation(.snappy(duration: 0.2)) {
+                                dureeLibre = false
+                                minutesChoisies = minutes
                             }
-                            .buttonStyle(.plain)
                         }
                     }
 
-                    Text("Modifiable à tout moment dans les réglages. Un joker par semaine protège votre série.")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .multilineTextAlignment(.center)
-                        .fixedSize(horizontal: false, vertical: true)
+                    SeparateurChoix()
+
+                    LigneChoix(
+                        libelle: String(localized: "Autre durée"),
+                        choisi: dureeLibre,
+                        teinte: teinte
+                    ) {
+                        withAnimation(.snappy(duration: 0.25)) {
+                            dureeLibre = true
+                            // On repart de la valeur courante, arrondie au pas :
+                            // le réglage libre continue le choix, il ne le
+                            // recommence pas.
+                            minutesChoisies = arrondi(minutesChoisies)
+                        }
+                    }
                 }
+
+                if dureeLibre { reglageLibre }
             }
-            .frame(maxHeight: .infinity)
+            .padding(.horizontal, 22)
+
+            Text("Modifiable à tout moment dans les réglages. Un joker par semaine protège votre série.")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 22)
+                .padding(.top, 14)
+
+            Spacer(minLength: 0)
         }
+    }
+
+    /// Le réglage au pas de cinq minutes, déplié sous la liste.
+    private var reglageLibre: some View {
+        HStack(spacing: 0) {
+            boutonPas("minus", actif: minutesChoisies > Self.minimumLibre) {
+                minutesChoisies = max(Self.minimumLibre, minutesChoisies - Self.pasLibre)
+            }
+
+            Spacer(minLength: 0)
+
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(minutesChoisies)")
+                    .font(.chiffreSerif(26))
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                Text("min")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer(minLength: 0)
+
+            boutonPas("plus", actif: minutesChoisies < Self.maximumLibre) {
+                minutesChoisies = min(Self.maximumLibre, minutesChoisies + Self.pasLibre)
+            }
+        }
+        .padding(8)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(.ultraThinMaterial)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(teinte.opacity(0.5), lineWidth: 1.5)
+        )
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    private func boutonPas(
+        _ symbole: String, actif: Bool, action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            withAnimation(.snappy(duration: 0.22)) { action() }
+        } label: {
+            Image(systemName: symbole)
+                .font(.system(size: 15, weight: .bold))
+                .foregroundStyle(Color.primary)
+                .frame(width: 40, height: 40)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!actif)
+        .opacity(actif ? 1 : 0.35)
+    }
+
+    private func arrondi(_ minutes: Int) -> Int {
+        let cran = (minutes / Self.pasLibre) * Self.pasLibre
+        return min(Self.maximumLibre, max(Self.minimumLibre, cran))
     }
 
     // MARK: - Étape 3 : les langues de lecture
@@ -262,35 +266,44 @@ struct OnboardingView: View {
     private var etapeLangues: some View {
         VStack(spacing: 0) {
             enTete(
-                symbole: "globe",
+                rang: 3,
                 titre: "Vos langues\nde lecture",
                 texte: "La recherche privilégie les éditions dans vos langues, et les titres s'affichent tels qu'ils sont officiellement publiés."
             )
 
-            // La liste prend tout ce qui reste et se fond sous le bouton :
-            // enfermée dans une hauteur fixe, elle laissait un vide en bas
-            // sur les grands écrans et débordait sur les petits.
             ScrollView {
-                LazyVGrid(
-                    columns: [GridItem(.flexible(), spacing: 10),
-                              GridItem(.flexible(), spacing: 10)],
-                    spacing: 10
-                ) {
-                    ForEach(Langues.toutes) { langue in
-                        ligneLangue(langue)
+                BlocChoix {
+                    ForEach(Array(Langues.toutes.enumerated()), id: \.element.id) { rang, langue in
+                        if rang > 0 { SeparateurChoix() }
+                        LigneChoix(
+                            libelle: langue.nomNatif,
+                            choisi: languesChoisies.contains(langue.code),
+                            teinte: teinte
+                        ) {
+                            withAnimation(.snappy(duration: 0.18)) {
+                                if languesChoisies.contains(langue.code) {
+                                    // Jamais zéro langue : la recherche n'aurait
+                                    // plus de sol.
+                                    if languesChoisies.count > 1 {
+                                        languesChoisies.remove(langue.code)
+                                    }
+                                } else {
+                                    languesChoisies.insert(langue.code)
+                                }
+                            }
+                        }
                     }
                 }
                 .padding(.horizontal, 22)
-                .padding(.top, 4)
                 .padding(.bottom, 28)
             }
             .scrollIndicators(.hidden)
             .mask(
-                // Le bas s'efface au lieu d'être tranché net par le bouton.
+                // La liste se fond sous le bouton au lieu d'être tranchée net.
                 LinearGradient(
                     stops: [
                         .init(color: .black, location: 0),
-                        .init(color: .black, location: 0.88),
+                        .init(color: .black, location: 0.9),
                         .init(color: .clear, location: 1),
                     ],
                     startPoint: .top, endPoint: .bottom
@@ -299,85 +312,30 @@ struct OnboardingView: View {
         }
     }
 
-    private func ligneLangue(_ langue: LangueLecture) -> some View {
-        let actif = languesChoisies.contains(langue.code)
-        return Button {
-            withAnimation(.snappy(duration: 0.18)) {
-                if actif {
-                    // Jamais zéro langue : la recherche n'aurait plus de sol.
-                    if languesChoisies.count > 1 { languesChoisies.remove(langue.code) }
-                } else {
-                    languesChoisies.insert(langue.code)
-                }
-            }
-        } label: {
-            HStack(spacing: 6) {
-                Text(langue.nomNatif)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                Spacer(minLength: 0)
-                if actif {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 15, weight: .bold))
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 13)
-            .background(
-                actif ? AnyShapeStyle(Couleurs.accent.opacity(sombre ? 0.22 : 0.14))
-                      : AnyShapeStyle(Color(uiColor: .secondarySystemBackground).opacity(sombre ? 0.7 : 0.85)),
-                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(
-                        actif ? Couleurs.accent.opacity(0.55) : Color.primary.opacity(0.07),
-                        lineWidth: actif ? 1.5 : 1
-                    )
-            )
-            .foregroundStyle(actif ? AnyShapeStyle(Couleurs.accent) : AnyShapeStyle(Color.primary))
-        }
-        .buttonStyle(.plain)
-    }
-
     // MARK: - Le bas
 
-    private var bouton: some View {
-        Button {
+    private var basDePage: some View {
+        BoutonAccueil(
+            titre: etape < 2 ? "Continuer" : "Ouvrir ma bibliothèque",
+            teinte: teinte,
+            actif: etape != 0 || !typesChoisis.isEmpty
+        ) {
             if etape < 2 {
                 withAnimation(.snappy) { etape += 1 }
             } else {
                 terminer()
             }
-        } label: {
-            Text(etape < 2 ? "Continuer" : "Ouvrir ma bibliothèque")
-                .font(.system(size: 17, weight: .bold))
-                .frame(maxWidth: .infinity)
-                .frame(height: 54)
-                .foregroundStyle(.white)
-                .background(
-                    LinearGradient(
-                        colors: [Couleurs.accent, Couleurs.accent.opacity(0.86)],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ),
-                    in: RoundedRectangle(cornerRadius: 17, style: .continuous)
-                )
-                .shadow(color: Couleurs.accent.opacity(0.32), radius: 12, y: 5)
         }
-        .buttonStyle(.plain)
-        .disabled(etape == 0 && typesChoisis.isEmpty)
-        .opacity(etape == 0 && typesChoisis.isEmpty ? 0.5 : 1)
         .padding(.horizontal, 22)
         .padding(.top, 10)
         .padding(.bottom, 12)
         .background(
-            // Un fondu vers le fond : la liste de langues glisse dessous
-            // sans qu'une arête sépare les deux.
+            // Un fondu vers le fond : la liste glisse dessous sans qu'une arête
+            // sépare les deux.
             LinearGradient(
                 colors: [
                     Color(uiColor: .systemBackground).opacity(0),
-                    Color(uiColor: .systemBackground).opacity(0.85),
+                    Color(uiColor: .systemBackground).opacity(0.9),
                     Color(uiColor: .systemBackground),
                 ],
                 startPoint: .top, endPoint: .bottom
