@@ -4,50 +4,62 @@ import UIKit
 /// Le fond des écrans d'accueil : trois auréoles de couleur qui dérivent
 /// lentement, sous un grain fin.
 ///
-/// Le mur de couvertures a été essayé et écarté : il gênait la lecture, et
-/// il appartient déjà à l'écran de connexion — l'accueil se serait répété.
-/// Ici il n'y a rien à déchiffrer derrière le texte, seulement de la
-/// profondeur. Le grain compte autant que les auréoles : sans lui, un
-/// dégradé pur a l'air de plastique.
+/// Le mur de couvertures a été essayé et écarté : il gênait la lecture, et il
+/// appartient déjà à l'écran de connexion — l'accueil se serait répété. Ici il
+/// n'y a rien à déchiffrer derrière le texte, seulement de la profondeur. Le
+/// grain compte autant que les auréoles : sans lui, un dégradé pur a l'air de
+/// plastique.
+///
+/// Le mouvement vient d'une horloge, PAS d'une animation SwiftUI. Une
+/// animation `repeatForever` capture les changements de ses enfants : le
+/// virage de teinte d'une étape à l'autre se retrouvait étalé sur vingt
+/// secondes, et le fond restait ambre alors que l'écran était déjà vert. Avec
+/// l'horloge, la position est un simple calcul à chaque image — rien à
+/// capturer, et la couleur change quand on le lui demande.
 struct FondAccueil: View {
     /// La teinte de l'étape. L'ambre accueille, le vert dit que ça avance.
     var teinte: Color
 
     @Environment(\.colorScheme) private var apparence
     @Environment(\.accessibilityReduceMotion) private var mouvementReduit
-    @State private var derive = false
 
     private var sombre: Bool { apparence == .dark }
+
+    /// Chaque auréole a sa taille, son ancrage, sa course et sa période. Des
+    /// périodes premières entre elles : les trois ne repassent jamais par la
+    /// même figure, le fond ne se répète pas.
+    private struct Aureole {
+        let largeur: CGFloat, hauteur: CGFloat
+        let x: CGFloat, y: CGFloat
+        let courseX: CGFloat, courseY: CGFloat
+        let periode: Double
+        let opacite: Double
+    }
+
+    private static let aureoles: [Aureole] = [
+        .init(largeur: 1.05, hauteur: 0.42, x: -0.22, y: -0.10,
+              courseX: 0.16, courseY: 0.06, periode: 19, opacite: 0.85),
+        .init(largeur: 0.90, hauteur: 0.36, x: 0.28, y: 0.04,
+              courseX: -0.13, courseY: 0.10, periode: 23, opacite: 1),
+        .init(largeur: 1.10, hauteur: 0.32, x: -0.04, y: 0.26,
+              courseX: 0.09, courseY: -0.09, periode: 27, opacite: 0.6),
+    ]
 
     var body: some View {
         ZStack {
             Color(uiColor: .systemBackground)
 
-            GeometryReader { geo in
-                let l = geo.size.width
-                let h = geo.size.height
-
-                ZStack {
-                    auréole(teinte.opacity(0.85), largeur: l * 1.05, hauteur: h * 0.42)
-                        .offset(x: -l * 0.22, y: -h * 0.10)
-                        .offset(x: derive ? l * 0.16 : 0, y: derive ? h * 0.06 : 0)
-                        .scaleEffect(derive ? 1.16 : 1)
-                        .animation(rythme(19), value: derive)
-
-                    auréole(teinte, largeur: l * 0.9, hauteur: h * 0.36)
-                        .offset(x: l * 0.28, y: h * 0.04)
-                        .offset(x: derive ? -l * 0.13 : 0, y: derive ? h * 0.10 : 0)
-                        .scaleEffect(derive ? 0.92 : 1.08)
-                        .animation(rythme(23), value: derive)
-
-                    auréole(teinte.opacity(0.6), largeur: l * 1.1, hauteur: h * 0.32)
-                        .offset(x: -l * 0.04, y: h * 0.26)
-                        .offset(x: derive ? l * 0.09 : 0, y: derive ? -h * 0.09 : 0)
-                        .scaleEffect(derive ? 1.14 : 0.94)
-                        .animation(rythme(27), value: derive)
+            TimelineView(.animation(minimumInterval: 1.0 / 20.0, paused: mouvementReduit)) { contexte in
+                GeometryReader { geo in
+                    let instant = contexte.date.timeIntervalSinceReferenceDate
+                    ZStack {
+                        ForEach(Array(Self.aureoles.enumerated()), id: \.offset) { _, aureole in
+                            auréole(aureole, dans: geo.size, instant: instant)
+                        }
+                    }
+                    .blur(radius: 62)
+                    .opacity(sombre ? 0.5 : 0.55)
                 }
-                .blur(radius: 62)
-                .opacity(sombre ? 0.5 : 0.55)
             }
 
             // Le voile : le haut respire la couleur, le bas redevient net pour
@@ -68,26 +80,26 @@ struct FondAccueil: View {
                 .opacity(sombre ? 0.5 : 0.3)
                 .allowsHitTesting(false)
         }
-        .onAppear {
-            guard !mouvementReduit else { return }
-            derive = true
-        }
     }
 
     private var fond: Color { Color(uiColor: .systemBackground) }
 
-    private func auréole(_ couleur: Color, largeur: CGFloat, hauteur: CGFloat) -> some View {
-        Ellipse()
-            .fill(couleur)
-            .frame(width: largeur, height: hauteur)
-    }
+    private func auréole(
+        _ aureole: Aureole, dans taille: CGSize, instant: TimeInterval
+    ) -> some View {
+        // Une sinusoïde : la dérive va et vient sans jamais s'arrêter net.
+        let phase = sin(instant / aureole.periode * 2 * .pi)
+        let ampleur = (phase + 1) / 2
 
-    /// Des durées volontairement premières entre elles : les trois auréoles ne
-    /// repassent jamais par la même figure, le fond ne se répète pas.
-    private func rythme(_ duree: Double) -> Animation? {
-        mouvementReduit
-            ? nil
-            : .easeInOut(duration: duree).repeatForever(autoreverses: true)
+        return Ellipse()
+            .fill(teinte.opacity(aureole.opacite))
+            .frame(width: taille.width * aureole.largeur,
+                   height: taille.height * aureole.hauteur)
+            .scaleEffect(1 + 0.14 * ampleur)
+            .offset(
+                x: taille.width * (aureole.x + aureole.courseX * ampleur),
+                y: taille.height * (aureole.y + aureole.courseY * ampleur)
+            )
     }
 
     /// Le grain, dessiné une seule fois puis répété en mosaïque.
@@ -102,8 +114,7 @@ struct FondAccueil: View {
             let cg = contexte.cgContext
             for x in 0..<cote {
                 for y in 0..<cote {
-                    let valeur = CGFloat.random(in: 0.42...0.58)
-                    cg.setFillColor(gray: valeur, alpha: 1)
+                    cg.setFillColor(gray: CGFloat.random(in: 0.42...0.58), alpha: 1)
                     cg.fill(CGRect(x: x, y: y, width: 1, height: 1))
                 }
             }
