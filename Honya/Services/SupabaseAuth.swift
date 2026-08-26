@@ -19,12 +19,17 @@ enum SupabaseAuth {
 
     enum Souci: LocalizedError {
         case nonConfigure
+        /// Le compte existe mais son adresse n'a jamais été confirmée. Un cas
+        /// à part : c'est le seul dont on sort en renvoyant un courrier.
+        case adresseNonConfirmee
         case message(String)
 
         var errorDescription: String? {
             switch self {
             case .nonConfigure:
                 return String(localized: "Les comptes par adresse e-mail ne sont pas encore configurés dans cette version.")
+            case .adresseNonConfirmee:
+                return String(localized: "Confirmez d'abord votre adresse : un courrier vous attend.")
             case .message(let texte):
                 return texte
             }
@@ -106,6 +111,19 @@ enum SupabaseAuth {
         )
     }
 
+    /// Renvoie le courrier de confirmation d'inscription.
+    ///
+    /// Le premier courrier se perd, s'efface ou part dans les indésirables ;
+    /// sans ce renvoi, le compte reste créé mais inutilisable à jamais.
+    static func renvoyerConfirmation(email: String) async throws {
+        _ = try await brut(
+            chemin: "/auth/v1/resend",
+            methode: "POST",
+            corps: ["type": "signup", "email": email],
+            jeton: nil
+        )
+    }
+
     // MARK: - Déconnexion et suppression
 
     static func deconnecter(jeton: String) async {
@@ -161,6 +179,10 @@ enum SupabaseAuth {
         let (donnees, reponse) = try await URLSession.shared.data(for: requete)
         let code = (reponse as? HTTPURLResponse)?.statusCode ?? 0
         guard (200..<300).contains(code) else {
+            // Le compte non confirmé se distingue : c'est le seul refus qui
+            // se répare, en refaisant partir le courrier.
+            let texte = String(data: donnees, encoding: .utf8)?.lowercased() ?? ""
+            if texte.contains("not confirmed") { throw Souci.adresseNonConfirmee }
             throw Souci.message(messageLisible(donnees, code: code))
         }
         return donnees

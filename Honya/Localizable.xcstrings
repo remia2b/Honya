@@ -1,6 +1,42 @@
 {
   "sourceLanguage": "fr",
   "strings": {
+    "Renvoyer le courrier de confirmation": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Send the confirmation email again" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Reenviar el correo de confirmación" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Reenviar el correo de confirmación" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Reenviar o e-mail de confirmação" } },
+        "de": { "stringUnit": { "state": "translated", "value": "Bestätigungsmail erneut senden" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Invia di nuovo l'e-mail di conferma" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Bevestigingsmail opnieuw sturen" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Wyślij ponownie e-mail potwierdzający" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Skicka bekräftelsemejlet igen" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Doğrulama e-postasını yeniden gönder" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Отправить письмо подтверждения ещё раз" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "確認メールを再送する" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "확인 메일 다시 보내기" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "重新发送确认邮件" } }
+      }
+    },
+    "Un nouveau courrier de confirmation vient de partir.": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "A new confirmation email is on its way." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Acabamos de enviarte otro correo de confirmación." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Acabamos de enviarte otro correo de confirmación." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Um novo e-mail de confirmação acabou de sair." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Eine neue Bestätigungsmail ist unterwegs." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Una nuova e-mail di conferma è appena partita." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Er is net een nieuwe bevestigingsmail verstuurd." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Nowy e-mail potwierdzający właśnie poleciał." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Ett nytt bekräftelsemejl är på väg." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Yeni bir doğrulama e-postası yola çıktı." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Новое письмо подтверждения уже в пути." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "確認メールをもう一度お送りしました。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "확인 메일을 다시 보냈어요." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "新的确认邮件已经发出。" } }
+      }
+    },
     "%@ : %lld minutes": {
       "localizations": {
         "en": {

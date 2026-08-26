@@ -27,89 +27,20 @@ import UIKit
 //    qu'un éventuel faux départ se démente — puis on rend le contenu au guide
 //    plutôt que de le laisser flotter au milieu de l'écran.
 
-/// Trace du plongeon du clavier — TEMPORAIREMENT active aussi en version
-/// installée : le bug ne se montre que sur un vrai iPhone, et seul ce
-/// journal peut dire qui retire le clavier. La CI le ramasse avec
-/// `simctl get_app_container` ; sur appareil, Réglages sait le partager.
-/// À redescendre en DEBUG une fois le plongeon compris.
-@MainActor
-func journalClavier(_ message: String) {
-    let temps = Date().timeIntervalSinceReferenceDate
-    let ligne = String(format: "[%.3f] %@", temps, message) + "\n"
-    print(ligne, terminator: "")
-    JournalDistant.deposer(ligne)
-    if let documents = FileManager.default.urls(
-        for: .documentDirectory, in: .userDomainMask
-    ).first {
-        let fichier = documents.appendingPathComponent("journal-clavier.log")
-        if let donnees = ligne.data(using: .utf8) {
-            if let poignee = try? FileHandle(forWritingTo: fichier) {
-                _ = try? poignee.seekToEnd()
-                try? poignee.write(contentsOf: donnees)
-                try? poignee.close()
-            } else {
-                try? donnees.write(to: fichier)
-            }
-        }
-    }
-}
-
-/// L'emplacement du journal, pour le partage depuis les réglages.
-@MainActor
-var journalClavierURL: URL? {
-    FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
-        .first?.appendingPathComponent("journal-clavier.log")
-}
-
-/// Dépose le journal sur le serveur, par paquets — diagnostic TEMPORAIRE.
+/// Trace des événements clavier, en débogage seulement.
 ///
-/// Impossible de brancher un débogueur sur l'iPhone de Rémi : les lignes
-/// partent donc dans une table dont l'anonyme ne peut qu'ÉCRIRE, et que
-/// seule la console du projet sait lire. Aucune donnée personnelle : des
-/// noms d'événements clavier et des horodatages. À retirer avec le reste
-/// du diagnostic.
+/// Elle a servi à identifier le plongeon : le journal a montré qu'iOS
+/// reconstruit le clavier à chaque transfert de premier répondant pour
+/// re-négocier AutoFill. Le remède fut l'escalier — un champ par marche,
+/// donc plus aucun transfert. On garde l'outil, sans rien envoyer nulle
+/// part : en version installée, ces lignes n'existent pas.
 @MainActor
-private enum JournalDistant {
-    static var tampon: [String] = []
-    static var envoiPrevu = false
-
-    static func deposer(_ ligne: String) {
-        tampon.append(ligne)
-        guard !envoiPrevu else { return }
-        envoiPrevu = true
-        Task {
-            // Quatre secondes de calme : un paquet par salve d'événements,
-            // pas une requête par ligne.
-            try? await Task.sleep(for: .seconds(4))
-            envoiPrevu = false
-            await envoyer()
-        }
-    }
-
-    private static func envoyer() async {
-        guard !tampon.isEmpty,
-              !Secrets.supabaseURL.isEmpty,
-              !Secrets.supabaseCleAnon.isEmpty,
-              let url = URL(string: Secrets.supabaseURL + "/rest/v1/journal_clavier")
-        else { return }
-        let contenu = tampon.joined()
-        tampon.removeAll()
-
-        var requete = URLRequest(url: url)
-        requete.httpMethod = "POST"
-        requete.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        requete.setValue(Secrets.supabaseCleAnon, forHTTPHeaderField: "apikey")
-        requete.setValue(
-            "Bearer " + Secrets.supabaseCleAnon, forHTTPHeaderField: "Authorization"
-        )
-        let appareil = UIDevice.current.model + " iOS " + UIDevice.current.systemVersion
-        requete.httpBody = try? JSONSerialization.data(withJSONObject: [
-            "appareil": appareil,
-            "contenu": contenu,
-        ])
-        requete.timeoutInterval = 15
-        _ = try? await URLSession.shared.data(for: requete)
-    }
+@inline(__always)
+func journalClavier(_ message: String) {
+    #if DEBUG
+    let temps = Date().timeIntervalSinceReferenceDate
+    print(String(format: "[%.3f] %@", temps, message))
+    #endif
 }
 
 /// La saisie vue comme une session : ouverte au premier champ touché,

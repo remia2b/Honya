@@ -47,6 +47,9 @@ struct BienvenueView: View {
     }
 
     @State private var marche: Marche = .adresse
+    /// Le compte existe mais son adresse n'est pas confirmée : on propose
+    /// alors de refaire partir le courrier.
+    @State private var confirmationAttendue = false
     @State private var code = ""
     @State private var nouveauMotDePasse = ""
 
@@ -401,6 +404,27 @@ struct BienvenueView: View {
                 message(erreur, couleur: .red)
             }
 
+            if confirmationAttendue {
+                // Le premier courrier se perd, s'efface, part dans les
+                // indésirables. Sans cette porte, un compte créé mais non
+                // confirmé reste inutilisable pour toujours.
+                Button {
+                    Task { await renvoyerLaConfirmation() }
+                } label: {
+                    Text("Renvoyer le courrier de confirmation")
+                        .font(.system(size: 14, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 42)
+                        .foregroundStyle(Couleurs.accent)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Couleurs.accent.opacity(0.12))
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(enCours)
+            }
+
             liens
         }
         .padding(20)
@@ -443,16 +467,49 @@ struct BienvenueView: View {
     private var enTeteDeMarche: some View {
         switch marche {
         case .adresse:
-            Picker("", selection: $mode) {
+            // Un sélecteur maison plutôt que le segmenté d'iOS : sur la
+            // plaque translucide posée devant les couvertures, ce dernier
+            // s'effaçait au point qu'on ne voyait plus lequel des deux
+            // chemins était pris — et on créait un compte en croyant se
+            // connecter. Ici la pastille active porte la couleur de
+            // l'application et du texte blanc.
+            HStack(spacing: 4) {
                 ForEach(Mode.allCases) { cas in
-                    Text(cas.libelle).tag(cas)
+                    Button {
+                        guard mode != cas else { return }
+                        erreur = nil
+                        information = nil
+                        confirmationAttendue = false
+                        withAnimation(.snappy(duration: 0.22)) { mode = cas }
+                    } label: {
+                        Text(cas.libelle)
+                            .font(.system(size: 15, weight: .semibold))
+                            // Les deux branches nommées explicitement : un
+                            // ternaire entre deux styles de nature différente
+                            // ne se laisse pas déduire.
+                            .foregroundStyle(mode == cas ? Color.white : Color.primary.opacity(0.7))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 42)
+                            .background {
+                                if mode == cas {
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(Couleurs.accent)
+                                        .shadow(color: Couleurs.accent.opacity(0.35), radius: 6, y: 2)
+                                }
+                            }
+                    }
+                    .buttonStyle(.plain)
                 }
             }
-            .pickerStyle(.segmented)
-            .onChange(of: mode) { _, _ in
-                erreur = nil
-                information = nil
-            }
+            .padding(4)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(uiColor: .secondarySystemBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+            )
 
         case .motDePasse:
             // L'adresse retenue, et la porte pour la corriger : le lecteur
@@ -738,10 +795,28 @@ struct BienvenueView: View {
         }
     }
 
+    private func renvoyerLaConfirmation() async {
+        fermerLeClavier()
+        erreur = nil
+        information = nil
+        enCours = true
+        defer { enCours = false }
+        do {
+            try await compte.renvoyerConfirmation(
+                email: email.trimmingCharacters(in: .whitespaces)
+            )
+            confirmationAttendue = false
+            information = String(localized: "Un nouveau courrier de confirmation vient de partir.")
+        } catch {
+            erreur = error.localizedDescription
+        }
+    }
+
     private func valider() async {
         fermerLeClavier()
         erreur = nil
         information = nil
+        confirmationAttendue = false
         enCours = true
         defer { enCours = false }
 
@@ -750,11 +825,17 @@ struct BienvenueView: View {
             if mode == .inscription {
                 if let attente = try await compte.inscrire(email: adresse, motDePasse: motDePasse) {
                     information = attente
+                    // Le courrier vient de partir, mais il peut se perdre :
+                    // la porte de renvoi reste ouverte tout de suite.
+                    confirmationAttendue = true
                     mode = .connexion
                 }
             } else {
                 try await compte.connecter(email: adresse, motDePasse: motDePasse)
             }
+        } catch SupabaseAuth.Souci.adresseNonConfirmee {
+            erreur = SupabaseAuth.Souci.adresseNonConfirmee.errorDescription
+            confirmationAttendue = true
         } catch {
             erreur = error.localizedDescription
         }

@@ -125,6 +125,11 @@ final class Compte {
         return nil
     }
 
+    /// Fait repartir le courrier de confirmation vers cette adresse.
+    func renvoyerConfirmation(email adresse: String) async throws {
+        try await SupabaseAuth.renvoyerConfirmation(email: adresse)
+    }
+
     func connecter(email adresse: String, motDePasse: String) async throws {
         let session = try await SupabaseAuth.connecter(email: adresse, motDePasse: motDePasse)
         adopter(session, adresse: adresse)

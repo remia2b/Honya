@@ -304,7 +304,14 @@ struct ChampsSession: UIViewRepresentable {
                 ? String(localized: "Mot de passe (6 caractères min.)")
                 : String(localized: "Mot de passe"),
             clavier: .default,
-            contenu: inscription ? .newPassword : .password,
+            // `.password` et JAMAIS `.newPassword` : depuis que l'app est
+            // associée à son domaine, `.newPassword` déclenche la génération
+            // automatique d'iOS, qui pose un mot de passe fort dans le champ
+            // sans que personne l'ait demandé — on croit son compte créé avec
+            // un mot de passe qu'on n'a jamais choisi. On ne remplit pas un
+            // champ à la place du lecteur ; l'enregistrement, lui, reste
+            // proposé à l'envoi du formulaire.
+            contenu: .password,
             retour: .go
         )
         configurer(
@@ -320,7 +327,7 @@ struct ChampsSession: UIViewRepresentable {
             texte: nouveau,
             invite: String(localized: "Nouveau mot de passe (6 caractères min.)"),
             clavier: .default,
-            contenu: .newPassword,
+            contenu: .password,
             retour: .go
         )
     }
