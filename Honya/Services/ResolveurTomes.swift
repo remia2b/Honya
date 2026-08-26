@@ -49,8 +49,13 @@ enum ResolveurTomes {
                 .rechercherLivres(requete, langue: langue)
             // Correspondance STRICTE : même série ET même numéro — et parmi
             // les éditions valables, celle de la langue du lecteur d'abord.
+            let auteurs = [serie.auteur].compactMap { $0 }
             let valables = resultats.filter { resultat in
-                guard resultat.couvertureURL != nil else { return false }
+                guard resultat.couvertureURL != nil,
+                      // Même titre ne veut pas dire même livre : l'auteur
+                      // départage, ici comme dans EditionsLocales.
+                      EditionsLocales.memeAuteur(resultat, que: auteurs)
+                else { return false }
                 let (candidatBase, candidatNumero) = Tomaison.decomposer(resultat.titre)
                 return candidatNumero == tome.numero
                     && Tomaison.memeSerie(candidatBase, base)

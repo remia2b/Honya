@@ -12,6 +12,9 @@ struct RacineView: View {
     @AppStorage("editionsLocalesV10") private var editionsMigrees = false
     /// Une seule fois : chaque série existante gagne le rayon complet du catalogue.
     @AppStorage("catalogueCompletV11") private var catalogueComplet = false
+    /// Les couvertures locales posées par un simple homonyme de titre — avant
+    /// que l'auteur ne départage — doivent repartir se faire vérifier.
+    @AppStorage("editionsVerifieesV49") private var editionsVerifiees = false
     @State private var celebrations = Celebrations.partage
 
     var body: some View {
@@ -89,6 +92,24 @@ struct RacineView: View {
                         oeuvre.titres[code] = nil
                     }
                 }
+                oeuvre.couvertureLocaleURL = nil
+                oeuvre.resumeLocal = nil
+            }
+        }
+
+        // Une seule fois : tout ce qu'un homonyme de titre a pu poser est
+        // rendu au doute. Un lecteur s'est retrouvé avec la couverture d'un
+        // manuel de survie sur le livre qu'il venait de scanner ; effacer ces
+        // données dérivées suffit, le rattrapage ci-dessous les refait avec
+        // l'auteur pour juge. Rien de ce que le lecteur a saisi n'est touché.
+        if !editionsVerifiees {
+            editionsVerifiees = true
+            for serie in series {
+                serie.couvertureLocaleURL = nil
+                serie.resumeLocal = nil
+                ResolveurTomes.reinitialiser(serie)
+            }
+            for oeuvre in oeuvres {
                 oeuvre.couvertureLocaleURL = nil
                 oeuvre.resumeLocal = nil
             }

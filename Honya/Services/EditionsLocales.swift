@@ -11,6 +11,9 @@ import SwiftData
 /// 2. Jamais un titre dans un alphabet que le lecteur ne lit pas.
 /// 3. Jamais écraser une donnée sûre par une incertaine — mais une donnée
 ///    sûre remplace une donnée héritée d'une autre édition.
+/// 4. Le titre seul ne désigne personne. « Instinct » est le livre d'Inoxtag
+///    et un manuel de survie chez Amphora ; l'auteur départage, comme le
+///    ferait un libraire.
 @MainActor
 enum EditionsLocales {
 
@@ -40,8 +43,10 @@ enum EditionsLocales {
         // Ne garder que les éditions FIABLES de CETTE série.
         var parNumero: [Int: ResultatRecherche] = [:]
         var horsNumero: ResultatRecherche?
+        let auteurs = [serie.auteur].compactMap { $0 }
         for resultat in resultats {
-            guard estFiable(resultat, langue: langue) else { continue }
+            guard estFiable(resultat, langue: langue),
+                  memeAuteur(resultat, que: auteurs) else { continue }
             let (base, numero) = Tomaison.decomposer(resultat.titre)
             guard Tomaison.memeSerie(base, referenceBase) else { continue }
             if let numero {
@@ -132,7 +137,8 @@ enum EditionsLocales {
 
         let candidat = resultats.first { resultat in
             guard estFiable(resultat, langue: langue),
-                  resultat.couvertureURL != nil else { return false }
+                  resultat.couvertureURL != nil,
+                  memeAuteur(resultat, que: oeuvre.auteurs) else { return false }
             return Tomaison.memeSerie(
                 Tomaison.decomposer(resultat.titre).base,
                 referenceBase
@@ -157,5 +163,31 @@ enum EditionsLocales {
     /// (Apple Books) ou si sa langue est explicitement celle du lecteur.
     private static func estFiable(_ resultat: ResultatRecherche, langue: String) -> Bool {
         resultat.source == "Apple Books" || resultat.langue == langue
+    }
+
+    /// Ce candidat est-il du même auteur ?
+    ///
+    /// Deux livres différents portent parfois exactement le même titre. Le
+    /// titre seul ne désigne donc personne : c'est l'auteur qui tranche. On
+    /// compare des mots plutôt que des chaînes entières, parce que les
+    /// catalogues écrivent « Rowling, J. K. » là où un autre écrit
+    /// « J.K. Rowling » — un seul mot en commun suffit à reconnaître.
+    ///
+    /// Sans auteur d'un côté ou de l'autre, on ne refuse rien : mieux vaut
+    /// une couverture douteuse que pas de couverture du tout pour les
+    /// catalogues avares en mentions de responsabilité.
+    static func memeAuteur(_ candidat: ResultatRecherche, que auteurs: [String]) -> Bool {
+        let siens = motsDAuteur(auteurs)
+        let ceux = motsDAuteur(candidat.auteurs)
+        guard !siens.isEmpty, !ceux.isEmpty else { return true }
+        return !siens.isDisjoint(with: ceux)
+    }
+
+    private static func motsDAuteur(_ noms: [String]) -> Set<String> {
+        Set(noms.flatMap { nom in
+            TexteUtil.normaliser(nom)
+                .components(separatedBy: CharacterSet.alphanumerics.inverted)
+                .filter { $0.count >= 3 }
+        })
     }
 }

@@ -68,6 +68,15 @@ enum Tomaison {
         let a = TexteUtil.normaliser(un)
         let b = TexteUtil.normaliser(deux)
         guard !a.isEmpty, !b.isEmpty else { return false }
-        return a == b || a.contains(b) || b.contains(a)
+        if a == b { return true }
+        // Une mention d'édition s'ajoute À LA FIN d'un titre — « Solo
+        // Leveling » devient « Solo Leveling - Édition Deluxe ». Elle ne
+        // s'insère jamais au milieu, ni au début.
+        //
+        // Accepter n'importe quel morceau commun faisait passer « After the
+        // End » pour « The Beginning After the End » : la couverture d'un
+        // roman inconnu venait se coller sur le livre du lecteur, qui
+        // retrouvait dans sa bibliothèque un livre qu'il n'avait pas scanné.
+        return a.hasPrefix(b) || b.hasPrefix(a)
     }
 }
