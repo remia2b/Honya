@@ -79,29 +79,7 @@ SQUELETTE = """<!DOCTYPE html>
                 <td style="font-family:SANS; font-size:16px; line-height:26px;
                            color:TEXTE; padding:0 0 30px 0;">CORPS</td>
               </tr>
-              <tr>
-                <td style="padding:0 0 30px 0;">
-                  <table role="presentation" cellpadding="0" cellspacing="0" border="0">
-                    <tr>
-                      <td style="background:ACCENT; border-radius:10px;">
-                        <a href="{{ .ConfirmationURL }}"
-                           style="display:inline-block; padding:15px 30px; font-family:SANS;
-                                  font-size:16px; font-weight:600; color:#FFFFFF;
-                                  text-decoration:none;">BOUTON</a>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-              <tr>
-                <td style="font-family:SANS; font-size:13px; line-height:21px;
-                           color:DISCRET; border-top:1px solid #EDE7DD; padding:22px 0 0 0;">
-                  If the button doesn't work, copy this link into your browser:<br>
-                  <a href="{{ .ConfirmationURL }}"
-                     style="color:ACCENT; text-decoration:none; word-break:break-all;"
-                     >{{ .ConfirmationURL }}</a>
-                </td>
-              </tr>
+ACTION
               <tr>
                 <td style="font-family:SANS; font-size:13px; line-height:21px;
                            color:DISCRET; padding:16px 0 0 0;">NOTE</td>
@@ -131,8 +109,69 @@ SQUELETTE = """<!DOCTYPE html>
 </html>
 """
 
+# Un bouton qui mene quelque part.
+BLOC_LIEN = """              <tr>
+                <td style="padding:0 0 30px 0;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                    <tr>
+                      <td style="background:ACCENT; border-radius:10px;">
+                        <a href="LIENACTION"
+                           style="display:inline-block; padding:15px 30px; font-family:SANS;
+                                  font-size:16px; font-weight:600; color:#FFFFFF;
+                                  text-decoration:none;">BOUTON</a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="font-family:SANS; font-size:13px; line-height:21px;
+                           color:DISCRET; border-top:1px solid #EDE7DD; padding:22px 0 0 0;">
+                  If the button doesn't work, copy this link into your browser:<br>
+                  <a href="LIENACTION"
+                     style="color:ACCENT; text-decoration:none; word-break:break-all;"
+                     >LIENACTION</a>
+                </td>
+              </tr>"""
+
+# Un code a recopier. Le mot de passe oublie se termine DANS l'application,
+# sur son propre ecran : un lien ferait sortir le lecteur pour rien.
+BLOC_CODE = """              <tr>
+                <td style="padding:0 0 26px 0;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                    <tr>
+                      <td align="center"
+                          style="background:#FBF6EF; border:1px solid #EDE7DD; border-radius:12px;
+                                 padding:22px 0; font-family:SANS; font-size:34px;
+                                 font-weight:600; letter-spacing:7px; color:ENCRE;">{{ .Token }}</td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+              <tr>
+                <td style="font-family:SANS; font-size:13px; line-height:21px;
+                           color:DISCRET; border-top:1px solid #EDE7DD; padding:22px 0 0 0;">
+                  Type this code into Honya, on the screen that asked for it.
+                  It expires in one hour, and works only once.
+                </td>
+              </tr>"""
+
+
+# Le lien du courrier pointe vers honya.app et non vers Supabase.
+#
+# C'est ce qui permet au bouton d'ouvrir l'APPLICATION : un lien universel ne
+# se declenche que sur un clic direct, jamais au bout d'une redirection — et
+# passer par Supabase, c'est precisement une redirection. L'application
+# recupere le jeton hache dans l'adresse et fait la verification elle-meme.
+# Si elle n'est pas installee, la page web du site prend le relais.
+def lien(type_):
+    return ("https://www.honya.app/fr/confirme/"
+            "?token_hash={{ .TokenHash }}&type=" + type_)
+
+
 MODELES = {
     "confirmation-inscription": {
+        "lien": lien("signup"),
         "sujet": "Confirm your email address",
         "titre": "One last step",
         "corps": "Confirm this address and your shelves are ready. Add one volume "
@@ -142,15 +181,17 @@ MODELES = {
                 "nothing was set up with your address.",
     },
     "mot-de-passe-oublie": {
+        "lien": None,
         "sujet": "Reset your password",
         "titre": "Forgotten password",
-        "corps": "It happens to everyone. Choose a new one and you're back among "
-                 "your books.",
-        "bouton": "Choose a new password",
-        "note": "This link expires in one hour. If you didn't ask for it, ignore this "
-                "message: your password stays as it is.",
+        "corps": "It happens to everyone. Here is your code — type it into Honya "
+                 "and you're back among your books.",
+        "bouton": None,
+        "note": "If you didn't ask for this, ignore the message: your password "
+                "stays as it is.",
     },
     "changement-adresse": {
+        "lien": lien("email_change"),
         "sujet": "Confirm your new email address",
         "titre": "New address",
         "corps": "Confirm this address to start using it to sign in to Honya. "
@@ -164,10 +205,13 @@ MODELES = {
 
 def ecrire():
     for nom, m in MODELES.items():
+        action = BLOC_LIEN if m["lien"] else BLOC_CODE
         page = (SQUELETTE
+                .replace("ACTION", action)
+                .replace("LIENACTION", m["lien"] or "")
+                .replace("BOUTON", m["bouton"] or "")
                 .replace("TITRE", m["titre"])
                 .replace("CORPS", m["corps"])
-                .replace("BOUTON", m["bouton"])
                 .replace("NOTE", m["note"])
                 .replace("CREME", CREME)
                 .replace("ENCRE", ENCRE)

@@ -15,6 +15,11 @@
 	<array>
 		<string>webcredentials:www.honya.app</string>
 		<string>webcredentials:honya.app</string>
+		<!-- Le lien de confirmation du courrier ouvre l'application, pas le
+		     site : c'est applinks qui le permet. Les chemins sont limites a
+		     la page de confirmation dans le fichier d'association. -->
+		<string>applinks:www.honya.app</string>
+		<string>applinks:honya.app</string>
 	</array>
 </dict>
 </plist>

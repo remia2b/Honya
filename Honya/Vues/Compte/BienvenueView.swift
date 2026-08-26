@@ -142,6 +142,17 @@ struct BienvenueView: View {
             .ignoresSafeArea()
             .ignoresSafeArea(.keyboard)
         }
+        .onChange(of: compte.adresseVientDEtreConfirmee) { _, confirme in
+            guard confirme else { return }
+            withAnimation(.snappy(duration: 0.3)) {
+                parEmail = true
+                marche = .adresse
+                mode = .connexion
+                erreur = nil
+                information = nil
+                confirmationAttendue = false
+            }
+        }
         .onChange(of: vieApplication) { _, etat in
             switch etat {
             case .background:
@@ -379,6 +390,10 @@ struct BienvenueView: View {
     /// pour trois champs cassait la continuité de la page d'accueil.
     private var formulaireEnBas: some View {
         VStack(spacing: 12) {
+            if compte.adresseVientDEtreConfirmee {
+                bandeauConfirmee
+            }
+
             enTeteDeMarche
 
             // De vrais UITextField dans un arbre persistant, UN SEUL visible
@@ -441,6 +456,31 @@ struct BienvenueView: View {
         .padding(.horizontal, 16)
         .padding(.bottom, 26)
         .animation(.snappy(duration: 0.25), value: marche)
+    }
+
+    /// Le retour de la boîte aux lettres : l'adresse est confirmée, il ne
+    /// reste qu'à entrer. Vert, comme tout ce qui est accompli dans Honya.
+    private var bandeauConfirmee: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(Couleurs.lu)
+            Text("Adresse confirmée. Connectez-vous.")
+                .font(.system(size: 13.5, weight: .semibold))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .fill(Couleurs.lu.opacity(0.14))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 13, style: .continuous)
+                .strokeBorder(Couleurs.lu.opacity(0.45), lineWidth: 1)
+        )
+        .transition(.opacity.combined(with: .move(edge: .top)))
     }
 
     private var configurationChamps: ChampsSessionVue.Configuration {

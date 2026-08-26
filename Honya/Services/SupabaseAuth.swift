@@ -129,6 +129,23 @@ enum SupabaseAuth {
         )
     }
 
+    /// Confirme une adresse à partir du jeton haché porté par le lien du
+    /// courrier, et ouvre la session dans la foulée.
+    ///
+    /// C'est ce qui permet au lien d'ouvrir l'APPLICATION plutôt que le site :
+    /// le courrier ne pointe plus vers Supabase — qui redirigerait, et une
+    /// redirection ne déclenche jamais un lien universel — mais directement
+    /// vers honya.app, une adresse que le système reconnaît comme nôtre. La
+    /// vérification, elle, se fait ici.
+    static func confirmerAvecJeton(
+        _ jetonHache: String, type: String
+    ) async throws -> Session {
+        try await appeler(
+            "/auth/v1/verify",
+            corps: ["type": type, "token_hash": jetonHache]
+        )
+    }
+
     /// Pose le nouveau mot de passe sur le compte de la session en cours.
     static func changerMotDePasse(_ nouveau: String, jeton: String) async throws {
         _ = try await brut(

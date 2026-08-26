@@ -141,6 +141,12 @@ struct HonyaApp: App {
             }
             .animation(.easeInOut(duration: 0.35), value: compte.etat)
             .preferredColorScheme(apparence.schema)
+            .onOpenURL { url in
+                // Le lien de confirmation venu du courrier. On le traite ici,
+                // a la racine : il peut arriver que l'application soit deja
+                // ouverte, sur n'importe quel ecran.
+                Task { await compte.confirmerDepuisLien(url) }
+            }
             .task {
                 await compte.verifierSession()
                 // Toucher la boutique la met en route : elle charge le

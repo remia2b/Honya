@@ -125,6 +125,37 @@ final class Compte {
         return nil
     }
 
+    /// L'adresse vient d'être confirmée depuis le lien du courrier. Vaut le
+    /// temps d'un message : le lecteur a quitté l'application pour sa boîte
+    /// aux lettres, il doit savoir en revenant que c'est allé au bout.
+    private(set) var adresseVientDEtreConfirmee = false
+
+    func accuserConfirmation() { adresseVientDEtreConfirmee = false }
+
+    /// Confirme l'adresse depuis le lien du courrier, et connecte.
+    ///
+    /// - Returns: vrai si la confirmation a abouti.
+    @discardableResult
+    func confirmerDepuisLien(_ url: URL) async -> Bool {
+        guard let composants = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let elements = composants.queryItems,
+              let jeton = elements.first(where: { $0.name == "token_hash" })?.value,
+              !jeton.isEmpty
+        else { return false }
+
+        let type = elements.first(where: { $0.name == "type" })?.value ?? "signup"
+        do {
+            let session = try await SupabaseAuth.confirmerAvecJeton(jeton, type: type)
+            adopter(session, adresse: session.user?.email ?? email ?? "")
+            adresseVientDEtreConfirmee = true
+            return true
+        } catch {
+            // Un jeton périmé ou déjà utilisé : rien à annoncer de plus que
+            // l'écran de connexion, qui dira lui-même ce qui cloche.
+            return false
+        }
+    }
+
     /// Fait repartir le courrier de confirmation vers cette adresse.
     func renvoyerConfirmation(email adresse: String) async throws {
         try await SupabaseAuth.renvoyerConfirmation(email: adresse)
