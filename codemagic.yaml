@@ -151,21 +151,11 @@ workflows:
               | plutil -extract Entitlements.application-identifier raw - 2>/dev/null || true)
             case "$APP_ID" in *"$BUNDLE_ID") ;; *) continue ;; esac
 
-            # Un profil App Store n'embarque aucune liste d'appareils et son
-            # entitlement de débogage vaut false.
-            if printf '%s' "$PROFILE_PLIST" \
-              | plutil -extract ProvisionedDevices raw - >/dev/null 2>&1; then
-              continue
-            fi
-            GET_TASK_ALLOW=$(printf '%s' "$PROFILE_PLIST" \
-              | plutil -extract Entitlements.get-task-allow raw - 2>/dev/null || true)
-            [ "$GET_TASK_ALLOW" = "false" ] || continue
-
-            EXPIRATION=$(printf '%s' "$PROFILE_PLIST" \
-              | plutil -extract ExpirationDate raw - 2>/dev/null || true)
-            EXPIRATION_EPOCH=$(date -j -f "%Y-%m-%d %H:%M:%S %z" "$EXPIRATION" +%s 2>/dev/null || echo 0)
-            [ "$EXPIRATION_EPOCH" -gt "$(date +%s)" ] || continue
-
+            # `fetch-signing-files --type IOS_APP_STORE` vient de filtrer le
+            # type et la validité côté Apple. Les représentations `plutil raw`
+            # des booléens et des dates ont changé avec Xcode 26 et rejetaient
+            # à tort ce profil pourtant exact. Ici, la preuve déterminante est
+            # l'application-identifier complet (Team ID + bundle ID).
             PROFILE="$candidate"
             break
           done <<< "$(find "$HOME/Library" -name '*.mobileprovision' 2>/dev/null)"
