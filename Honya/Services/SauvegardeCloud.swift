@@ -2,7 +2,7 @@ import Foundation
 import Observation
 import SwiftData
 
-/// Sauvegarde de compte v1 : un snapshot complet, versionne et controle par
+/// Sauvegarde de compte : un snapshot complet, versionne et controle par
 /// revision dans Supabase. Ce n'est pas encore une fusion en temps reel : en
 /// cas de divergence de deux appareils, le lecteur choisit explicitement la
 /// copie a conserver.
@@ -28,6 +28,9 @@ final class SauvegardeCloud {
     private var distanteEnConflit: SupabaseAuth.SauvegardeBibliothequeDistante?
     private var derniereTentative: Date?
 
+    // Ces noms historiques restent stables : conserver l'empreinte v1 connue
+    // permet à la v2 de prouver sa base commune puis de mettre le cloud à jour
+    // sans afficher un faux conflit lors de la première ouverture.
     private let cleEmpreinte = "sauvegardeCloudEmpreinteV1"
     private let cleRevision = "sauvegardeCloudRevisionV1"
 

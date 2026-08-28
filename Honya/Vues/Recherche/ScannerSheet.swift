@@ -27,6 +27,7 @@ struct ScannerSheet: View {
     @State private var ajoutes: Set<String> = []
     @State private var ajoutManuel: DemandeAjoutManuel?
     @State private var plusVisible = false
+    @State private var verrouPlus: Verrou?
     @State private var compteur = CompteurScans.partage
     @State private var oublisVisibles = false
     /// VisionKit peut devenir indisponible pendant que la feuille est ouverte,
@@ -95,9 +96,12 @@ struct ScannerSheet: View {
                 listeTrouves
             }
             }
-            .ecranHonyaPlus($plusVisible, verrou: .scan(
-                couvertures: trouves.prefix(3).compactMap(\.couvertureURL)
-            ))
+            .ecranHonyaPlus(
+                $plusVisible,
+                verrou: verrouPlus ?? .scan(
+                    couvertures: trouves.prefix(3).compactMap(\.couvertureURL)
+                )
+            )
             .navigationTitle("Scanner")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -427,14 +431,32 @@ struct ScannerSheet: View {
 
     @discardableResult
     private func ajouterTout(_ statut: StatutLecture) -> Bool {
+        var premierRayonVerrouille: Verrou?
         for resultat in trouves where !estAjoute(resultat) {
             switch ImportService.ajouter(resultat, statut: statut, dans: contexte) {
             case .limiteAtteinte:
+                verrouPlus = .bibliotheque(
+                    couvertures: trouves.prefix(3).compactMap(\.couvertureURL)
+                )
                 plusVisible = true
                 return false
+            case .rayonVerrouille(let serie):
+                // Un tome Honya+ ne doit pas interrompre toute l'étagère :
+                // les livres gratuits placés après lui restent ajoutables.
+                // On garde le premier contexte de vente et on poursuit le lot.
+                if premierRayonVerrouille == nil {
+                    premierRayonVerrouille = .serie(
+                        serie, langue: langueLecture
+                    )
+                }
             case .oeuvre, .serie, .dejaPresent:
                 ajoutes.insert(resultat.id)
             }
+        }
+        if let premierRayonVerrouille {
+            verrouPlus = premierRayonVerrouille
+            plusVisible = true
+            return false
         }
         return true
     }
@@ -442,6 +464,12 @@ struct ScannerSheet: View {
     private func ajouter(_ resultat: ResultatRecherche, statut: StatutLecture) {
         switch ImportService.ajouter(resultat, statut: statut, dans: contexte) {
         case .limiteAtteinte:
+            verrouPlus = .bibliotheque(
+                couvertures: [resultat.couvertureURL].compactMap { $0 }
+            )
+            plusVisible = true
+        case .rayonVerrouille(let serie):
+            verrouPlus = .serie(serie, langue: langueLecture)
             plusVisible = true
         case .oeuvre, .serie, .dejaPresent:
             ajoutes.insert(resultat.id)
@@ -465,6 +493,7 @@ struct ScannerSheet: View {
         let debit: CompteurScans.Debit?
         if decompter {
             guard compteur.autorise else {
+                verrouPlus = nil
                 plusVisible = true
                 return
             }

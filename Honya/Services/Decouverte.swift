@@ -6,19 +6,87 @@ import Foundation
 @MainActor
 enum Decouverte {
 
-    // MARK: - Classements (flux RSS Apple, instantanés)
+    // MARK: - Suggestions localisées
 
-    /// Le top des livres du pays — payants ou gratuits.
-    ///
-    /// Le flux RSS Apple ne déclare pas la langue de chaque édition. Un
-    /// storefront français contient aussi des titres anglais ; l'assimiler à
-    /// `fr` briserait la garantie titre/couverture locale. Les classements
-    /// restent donc vides jusqu'à une source sous licence qui expose cette
-    /// donnée édition par édition.
+    /// Un étal vivant construit uniquement avec des éditions dont la langue est
+    /// explicitement celle du lecteur. `gratuits` sépare simplement deux jeux
+    /// de requêtes afin que l'accueil obtienne un mur varié ; aucune notion de
+    /// prix n'est affichée ni inventée.
     static func classement(gratuits: Bool, langue: String) async -> [ResultatRecherche] {
-        _ = gratuits
-        _ = langue
-        return []
+        let tous = termesSuggestions(pour: langue)
+        let termes = gratuits
+            ? Array(tous.dropFirst(tous.count / 2))
+            : Array(tous.prefix(tous.count / 2))
+        var trouves: [ResultatRecherche] = []
+        let code = langue.lowercased()
+            .split(whereSeparator: { $0 == "-" || $0 == "_" })
+            .first.map(String.init) ?? langue.lowercased()
+
+        func presentables(_ resultats: [ResultatRecherche]) -> [ResultatRecherche] {
+            parSerie(resultats.filter { resultat in
+                guard resultat.couvertureURL != nil,
+                      let langueResultat = resultat.langue else { return false }
+                let locale = langueResultat.lowercased()
+                    .split(whereSeparator: { $0 == "-" || $0 == "_" })
+                    .first.map(String.init) ?? langueResultat.lowercased()
+                return locale == code
+            })
+        }
+
+        // Deux appels à la fois au maximum : assez rapide pour l'écran, sans
+        // transformer chaque lancement en rafale contre les catalogues ouverts.
+        for paire in stride(from: 0, to: termes.count, by: 2) {
+            guard !Task.isCancelled else { return [] }
+            let premier = termes[paire]
+            let second = paire + 1 < termes.count ? termes[paire + 1] : nil
+            if let second {
+                async let a = rayonBrut(premier, langue: langue)
+                async let b = rayonBrut(second, langue: langue)
+                let paireTrouvee = await (a, b)
+                trouves += paireTrouvee.0 + paireTrouvee.1
+            } else {
+                trouves += await rayonBrut(premier, langue: langue)
+            }
+            // Douze couvertures suffisent à la rangée Recherche ; les deux
+            // moitiés réunies donnent les vingt-quatre cases du mur d'accueil.
+            // Ne pas lancer une troisième requête quand les deux premières ont
+            // déjà rempli leur rayon rend les vraies images visibles plus vite.
+            let deja = presentables(trouves)
+            if deja.count >= 12 { return Array(deja.prefix(12)) }
+        }
+
+        return Array(presentables(trouves).prefix(12))
+    }
+
+    /// Les libellés sont cherchés dans le catalogue de traductions de l'app
+    /// avec la langue D'ÉDITION choisie. Cela reste correct lorsqu'un iPhone
+    /// français cherche volontairement des livres allemands ou japonais, et le
+    /// même tableau sert de repli visible dans l'écran Recherche.
+    static func termesSuggestions(pour langue: String) -> [String] {
+        let code = langue.lowercased().replacingOccurrences(of: "_", with: "-")
+        // Le sélecteur d'éditions utilise les codes bibliographiques courts,
+        // tandis que le catalogue de l'app distingue ces variantes régionales.
+        let identifiantLocale: String
+        switch code.split(separator: "-").first.map(String.init) ?? code {
+        case "pt": identifiantLocale = "pt-BR"
+        case "zh": identifiantLocale = "zh-Hans"
+        default: identifiantLocale = code
+        }
+        let locale = Locale(identifier: identifiantLocale)
+        let termes = [
+            String(localized: "Manga", locale: locale),
+            String(localized: "BD & Comics", locale: locale),
+            String(localized: "Jeunesse", locale: locale),
+            String(localized: "Romance", locale: locale),
+            String(localized: "SF & Fantasy", locale: locale),
+            String(localized: "Polar", locale: locale),
+        ]
+        var vus = Set<String>()
+        return termes.filter { terme in
+            let propre = terme.trimmingCharacters(in: .whitespacesAndNewlines)
+            return !propre.isEmpty
+                && vus.insert(TexteUtil.normaliser(propre)).inserted
+        }
     }
 
     // MARK: - Rayons thématiques (recherche catalogue)

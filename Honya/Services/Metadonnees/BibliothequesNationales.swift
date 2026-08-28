@@ -15,10 +15,48 @@ import Foundation
 ///   Suède      LIBRIS   JSON
 ///   Pologne    BN       JSON
 ///
-/// La BnF et openBD peuvent aussi servir une couverture. Sans image portant
-/// l'ISBN exact, Honya laisse la couverture vide plutôt que d'en certifier une
+/// La BnF et openBD peuvent aussi servir une couverture. Quelques éditeurs
+/// fournissent en plus une image officiellement reliée à un ISBN précis ; ces
+/// rares correspondances vérifiées sont attribuées explicitement. Sans cette
+/// preuve, Honya laisse la couverture vide plutôt que d'en certifier une
 /// provenant d'une autre édition.
 struct BibliothequeNationaleProvider: Sendable {
+
+    struct RecherchePaginee: Sendable {
+        let resultats: [ResultatRecherche]
+        /// `false` signifie que des pages valides ont pu être rendues, mais
+        /// qu'elles ne doivent pas être mémorisées comme le rayon définitif.
+        let complete: Bool
+    }
+
+    /// Recherche textuelle dans le catalogue national de la langue demandée.
+    ///
+    /// La BnF est aujourd'hui le complément décisif d'Open Library pour les
+    /// éditions françaises récentes : elle connaît par exemple les tomes de
+    /// Kagurabachi et de TBATE qu'Open Library ne possède qu'en anglais.
+    func rechercher(_ requete: String, langue: String?) async -> [ResultatRecherche] {
+        let code = langue?.lowercased()
+            .split(whereSeparator: { $0 == "-" || $0 == "_" })
+            .first.map(String.init)
+        guard code == "fr",
+              requete.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2
+        else { return [] }
+        return await rechercherBnF(requete, mode: .interactif).resultats
+    }
+
+    /// Parcours paginé réservé à la résolution d'une série déjà choisie.
+    /// Chaque page repasse par la cadence commune des catalogues nationaux.
+    func rechercherEditionsSerie(
+        _ requete: String, langue: String?
+    ) async -> RecherchePaginee {
+        let code = langue?.lowercased()
+            .split(whereSeparator: { $0 == "-" || $0 == "_" })
+            .first.map(String.init)
+        guard code == "fr",
+              requete.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2
+        else { return RecherchePaginee(resultats: [], complete: true) }
+        return await rechercherBnF(requete, mode: .serieProfonde)
+    }
 
     func parISBN(_ isbn: String) async -> ResultatRecherche? {
         guard await CadenceBibliotheques.partage.attendre() else { return nil }
@@ -68,8 +106,14 @@ struct BibliothequeNationaleProvider: Sendable {
         // quota et qu'Apple, Open Library et la BnF n'ont pas cette édition.
         guard !Task.isCancelled else { return nil }
         let complementSudoc = await noticeSudoc
-        guard var principale = noticeNationale else { return complementSudoc }
-        guard let complement = complementSudoc else { return principale }
+        guard var principale = noticeNationale else {
+            return await completerParCouvertureEditeur(
+                complementSudoc, isbn: propre
+            )
+        }
+        guard let complement = complementSudoc else {
+            return await completerParCouvertureEditeur(principale, isbn: propre)
+        }
 
         if principale.auteurs.isEmpty { principale.auteurs = complement.auteurs }
         if (complement.resume?.count ?? 0) > (principale.resume?.count ?? 0) {
@@ -79,6 +123,7 @@ struct BibliothequeNationaleProvider: Sendable {
         if principale.annee == nil { principale.annee = complement.annee }
         if principale.couvertureURL == nil {
             principale.couvertureURL = complement.couvertureURL
+            principale.attributionCouverture = complement.attributionCouverture
         }
         if principale.langue == nil { principale.langue = complement.langue }
         if principale.type == .livre, complement.type != .livre {
@@ -91,10 +136,336 @@ struct BibliothequeNationaleProvider: Sendable {
             where principale.titresParLangue[langue] == nil {
             principale.titresParLangue[langue] = titre
         }
-        return principale
+        return await completerParCouvertureEditeur(principale, isbn: propre)
+    }
+
+    /// Correspondances ponctuelles publiées par l'éditeur lui-même. Ce n'est
+    /// pas un scraper : chaque entrée est contrôlée manuellement sur une fiche
+    /// où l'ISBN et l'image figurent ensemble, puis accompagnée de l'attribution
+    /// demandée. La table reste petite par conception ; le catalogue ouvert
+    /// demeure la source générale.
+    private func completerParCouvertureEditeur(
+        _ resultat: ResultatRecherche?, isbn: String
+    ) async -> ResultatRecherche? {
+        guard var fiche = resultat else { return nil }
+        guard fiche.couvertureURL == nil else { return fiche }
+        switch isbn {
+        case "9782749958194":
+            let chaine =
+                "https://www.michel-lafon.fr/medias/images/livres/Instinct_-_Tome_2_poster.png"
+            // Le hotlink n'est persistant que s'il sert encore réellement une
+            // image. Sinon les replis exacts restent libres de s'exécuter au
+            // lieu d'être bloqués par une URL morte non nulle.
+            if let url = URL(string: chaine),
+               let donnees = await charger(url), estImage(donnees) {
+                fiche.couvertureURL = chaine
+                fiche.attributionCouverture = "© MLP"
+            }
+        default:
+            break
+        }
+        return fiche
     }
 
     // MARK: - France · BnF
+
+    private enum ModeRechercheBnF {
+        case interactif
+        case serieProfonde
+
+        var taillePage: Int {
+            switch self {
+            case .interactif: return 30
+            case .serieProfonde: return 100
+            }
+        }
+
+        var limiteTotale: Int {
+            switch self {
+            case .interactif: return 30
+            case .serieProfonde: return 1_000
+            }
+        }
+
+        var estProfonde: Bool {
+            if case .serieProfonde = self { return true }
+            return false
+        }
+    }
+
+    private func rechercherBnF(
+        _ requete: String, mode: ModeRechercheBnF
+    ) async -> RecherchePaginee {
+        // Les guillemets et barres obliques ont une signification en CQL. Les
+        // neutraliser suffit ici : URLComponents s'occupe ensuite de l'URL.
+        let propre = requete
+            .replacingOccurrences(of: "\\", with: " ")
+            .replacingOccurrences(of: "\"", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !propre.isEmpty else {
+            return RecherchePaginee(resultats: [], complete: true)
+        }
+
+        var resultats: [ResultatRecherche] = []
+        var isbnVus = Set<String>()
+        var noticesVues = Set<String>()
+        var position = 1
+        var limite = mode.limiteTotale
+
+        while position <= limite {
+            guard !Task.isCancelled else {
+                return RecherchePaginee(resultats: [], complete: false)
+            }
+            guard await CadenceBibliotheques.partage.attendre() else {
+                return RecherchePaginee(resultats: resultats, complete: false)
+            }
+
+            var composants = URLComponents(
+                string: "https://catalogue.bnf.fr/api/SRU"
+            )!
+            composants.queryItems = [
+                .init(name: "version", value: "1.2"),
+                .init(name: "operation", value: "searchRetrieve"),
+                // `bib.anywhere` couvre titre, auteur et collection,
+                // conformément à la promesse du champ de recherche de Honya.
+                .init(name: "query", value: "bib.anywhere all \"\(propre)\""),
+                // Dublin Core perd précisément la relation série/volume. Le
+                // schéma INTERMARC expose 290/460 : « Kagurabachi » + « 5 ».
+                .init(name: "recordSchema", value: "intermarcxchange"),
+                .init(name: "startRecord", value: String(position)),
+                .init(name: "maximumRecords", value: String(mode.taillePage)),
+            ]
+            guard let url = composants.url,
+                  let xml = await chargerTexte(url),
+                  !Task.isCancelled
+            else {
+                // Une panne sur la page 6 ne doit pas effacer les cinq pages
+                // déjà validées. Une annulation explicite, elle, ne publie
+                // jamais un résultat devenu obsolète dans l'interface.
+                return RecherchePaginee(
+                    resultats: Task.isCancelled ? [] : resultats,
+                    complete: false
+                )
+            }
+
+            if let total = balise("srw:numberOfRecords", dans: xml).flatMap(Int.init) {
+                limite = min(limite, total)
+            }
+            let enregistrements = captures(
+                #"<srw:record\b[^>]*>([\s\S]*?)</srw:record>"#,
+                dans: xml
+            )
+            for enregistrement in enregistrements {
+                guard !Task.isCancelled else {
+                    return RecherchePaginee(resultats: [], complete: false)
+                }
+                let identifiant = balise(
+                    "srw:recordIdentifier", dans: enregistrement
+                )
+                guard let notice = captures(
+                    #"<srw:recordData[^>]*>([\s\S]*?)</srw:recordData>"#,
+                    dans: enregistrement
+                ).first,
+                      let resultat = resultatBnF(
+                        dans: notice, identifiant: identifiant
+                      )
+                else { continue }
+
+                let isbn = resultat.isbn.flatMap(ISBNUtil.canonique)
+                guard isbn.map({ !isbnVus.contains($0) }) ?? true,
+                      identifiant.map({ !noticesVues.contains($0) }) ?? true
+                else { continue }
+                if let isbn { isbnVus.insert(isbn) }
+                if let identifiant { noticesVues.insert(identifiant) }
+                resultats.append(resultat)
+            }
+
+            guard mode.estProfonde else { break }
+            let suivante = balise(
+                "srw:nextRecordPosition", dans: xml
+            ).flatMap(Int.init)
+            if let suivante,
+               suivante > position,
+               suivante <= limite {
+                position = suivante
+                continue
+            }
+
+            // À la dernière page, `position + quantité` dépasse le total.
+            // Si le serveur annonce encore des notices mais omet (ou rend
+            // illisible) `nextRecordPosition`, ce parcours est partiel : il
+            // peut être affiché, jamais mis en cache comme rayon définitif.
+            if position + enregistrements.count <= limite {
+                return RecherchePaginee(
+                    resultats: resultats,
+                    complete: false
+                )
+            }
+            break
+        }
+        return RecherchePaginee(resultats: resultats, complete: true)
+    }
+
+    private func resultatBnF(
+        dans notice: String, identifiant: String?
+    ) -> ResultatRecherche? {
+        let blocLangue = blocs(tag: "041", dans: notice).first ?? ""
+        guard languePrincipaleIntermarc(
+                dans: notice,
+                bloc041: blocLangue
+              ) == "fr",
+              let blocTitre = blocs(tag: "245", dans: notice).first,
+              let titrePropre = sousChamps("a", dans: blocTitre).first
+        else { return nil }
+        let isbn = blocs(tag: "020", dans: notice)
+            .flatMap { sousChamps("a", dans: $0) }
+            .compactMap(ISBNUtil.canonique).first
+            ?? blocs(tag: "038", dans: notice)
+                .flatMap { sousChamps("a", dans: $0) }
+                .compactMap(ISBNUtil.canonique).first
+        guard isbn != nil || identifiant != nil,
+              var resultat = fiche(
+                titre: titreCatalogue(
+                    titrePropre,
+                    serieEtNumero: serieEtNumero(dans: notice)
+                ),
+                auteur: sousChamps("f", dans: blocTitre).first,
+                date: blocs(tag: "260", dans: notice).first
+                    .flatMap { sousChamps("d", dans: $0).first },
+                langue: "fr",
+                isbn: isbn,
+                source: "BnF",
+                couverture: isbn.flatMap {
+                    couvertureDisponible(dans: notice)
+                        ? urlCouvertureBnF($0)
+                        : nil
+                },
+                identifiant: identifiant
+              )
+        else { return nil }
+
+        let auteurs = auteursIntermarc(dans: notice).filter { !$0.isEmpty }
+        if !auteurs.isEmpty {
+            var auteursVus = Set<String>()
+            resultat.auteurs = auteurs.filter {
+                auteursVus.insert(TexteUtil.normaliser($0)).inserted
+            }
+        }
+        if let format = blocs(tag: "280", dans: notice).first
+            .flatMap({ sousChamps("a", dans: $0).first }) {
+            resultat.pages = nombreDePages(format)
+        }
+        if let resume = blocs(tag: "830", dans: notice).first
+            .flatMap({ sousChamps("a", dans: $0).first }),
+           !resume.isEmpty {
+            resultat.resume = resume
+        }
+
+        // `sti` = image fixe dans la forme du contenu INTERMARC. Croisé avec
+        // une relation de volume, cela distingue une BD illustrée d'une suite
+        // de romans ; la langue source japonaise affine ensuite manga vs BD.
+        let formes = blocs(tag: "051", dans: notice)
+            .flatMap { sousChamps("a", dans: $0) }
+        let languesSource = sousChamps("c", dans: blocLangue)
+            .compactMap(codeLangue)
+        if serieEtNumero(dans: notice) != nil, formes.contains("sti") {
+            resultat.type = languesSource.contains("ja") ? .manga : .bd
+        }
+        return resultat
+    }
+
+    /// Nom et ordinal structurés de la collection bibliographique. Le champ
+    /// 290 décrit le volume lui-même ; 460 est son lien vers la monographie
+    /// en plusieurs parties et sert de repli aux notices plus anciennes.
+    private func serieEtNumero(dans notice: String) -> (nom: String, numero: Int)? {
+        // Les notices les plus récentes placent directement l'ordinal en 245$h
+        // (« Kagurabachi », « 7 »), sans zone 290/460.
+        if let blocTitre = blocs(tag: "245", dans: notice).first,
+           let nom = sousChamps("a", dans: blocTitre).first,
+           let ordinal = sousChamps("h", dans: blocTitre).first,
+           let numero = Int(ordinal.filter(\.isNumber)), numero > 0 {
+            return (nom, numero)
+        }
+        for (tag, codeTitre) in [("290", "a"), ("460", "t")] {
+            for bloc in blocs(tag: tag, dans: notice) {
+                guard let nom = sousChamps(codeTitre, dans: bloc).first,
+                      let ordinal = sousChamps("v", dans: bloc).first,
+                      let numero = Int(ordinal.filter(\.isNumber)), numero > 0
+                else { continue }
+                return (nom, numero)
+            }
+        }
+        return nil
+    }
+
+    private func titreCatalogue(
+        _ titrePropre: String,
+        serieEtNumero: (nom: String, numero: Int)?
+    ) -> String {
+        guard let serieEtNumero else { return titrePropre }
+        let prefixe = "\(serieEtNumero.nom) #\(serieEtNumero.numero)"
+        guard TexteUtil.normaliser(titrePropre)
+                != TexteUtil.normaliser(serieEtNumero.nom)
+        else { return prefixe }
+        // Le sous-titre reste celui publié sur l'édition française. Le
+        // marqueur #, universel et interne à Honya, garde la tomaison lisible
+        // par `Tomaison` sans traduire artificiellement « Tome ».
+        return prefixe + " — " + titrePropre
+    }
+
+    private func auteursIntermarc(dans notice: String) -> [String] {
+        var auteurs: [String] = []
+        for tag in ["100", "700", "701", "702"] {
+            for bloc in blocs(tag: tag, dans: notice) {
+                guard let nom = sousChamps("a", dans: bloc).first else { continue }
+                let prenom = sousChamps("m", dans: bloc).first
+                auteurs.append(
+                    [prenom, nom].compactMap { $0 }
+                        .joined(separator: " ")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+            }
+        }
+        if auteurs.isEmpty,
+           let blocTitre = blocs(tag: "245", dans: notice).first,
+           let responsabilite = sousChamps("f", dans: blocTitre).first {
+            auteurs = [nettoyerAuteur(responsabilite)]
+        }
+        return auteurs
+    }
+
+    /// Dans INTERMARC, 950$b = C1 atteste la présence de la première
+    /// couverture numérisée. Sans cette zone, l'endpoint construit avec l'EAN
+    /// existe syntaxiquement mais répond 500 : ne jamais laisser cette URL
+    /// morte écraser une image Open Library réellement disponible.
+    private func couvertureDisponible(dans notice: String) -> Bool {
+        blocs(tag: "950", dans: notice).contains { bloc in
+            sousChamps("b", dans: bloc).contains {
+                $0.caseInsensitiveCompare("C1") == .orderedSame
+            }
+        }
+    }
+
+    /// 041 est le champ détaillé habituel. Certaines notices très récentes
+    /// (Kagurabachi 6 notamment) ne le portent toutefois pas : INTERMARC-B
+    /// code alors la langue principale en 008, positions 31 à 33. On lit cette
+    /// preuve structurée au lieu de supposer que toute notice BnF est française.
+    private func languePrincipaleIntermarc(
+        dans notice: String,
+        bloc041: String
+    ) -> String? {
+        let langues = sousChamps("a", dans: bloc041).compactMap(codeLangue)
+        if langues.contains("fr") { return "fr" }
+        if let premiere = langues.first {
+            return premiere
+        }
+        guard let fixe = champControle(tag: "008", dans: notice),
+              fixe.count >= 34
+        else { return nil }
+        let debut = fixe.index(fixe.startIndex, offsetBy: 31)
+        let fin = fixe.index(debut, offsetBy: 3)
+        return codeLangue(String(fixe[debut..<fin]))
+    }
 
     private func bnf(_ isbn: String) async -> ResultatRecherche? {
         var composants = URLComponents(string: "https://catalogue.bnf.fr/api/SRU")!
@@ -353,17 +724,24 @@ struct BibliothequeNationaleProvider: Sendable {
     /// visuel de remplacement : aucun risque d'afficher la couverture d'un
     /// autre livre, le chargement échoue simplement.
     private func couvertureBnF(_ isbn: String) async -> String? {
+        guard let chaine = urlCouvertureBnF(isbn), let url = URL(string: chaine),
+              let donnees = await charger(url), estImage(donnees)
+        else { return nil }
+        return chaine
+    }
+
+    /// URL stable conservée dans les modèles. `ImageCharge` adapte ensuite sa
+    /// largeur au contexte (grille ou fiche) sans retomber sur la miniature.
+    private func urlCouvertureBnF(_ isbn: String) -> String? {
         var composants = URLComponents(
             string: "https://openapi.bnf.fr/couverture/image/image/recupererImage"
         )
         composants?.queryItems = [
             .init(name: "EAN", value: isbn),
             .init(name: "couverture", value: "1"),
+            .init(name: "taille", value: "originale"),
         ]
-        guard let url = composants?.url,
-              let donnees = await charger(url),
-              estImage(donnees) else { return nil }
-        return url.absoluteString
+        return composants?.url?.absoluteString
     }
 
     private func estImage(_ donnees: Data) -> Bool {
@@ -376,8 +754,8 @@ struct BibliothequeNationaleProvider: Sendable {
     /// La fiche commune, avec le nettoyage du catalogage.
     private func fiche(
         titre titreBrut: String, auteur auteurBrut: String?,
-        date: String?, langue: String?, isbn: String, source: String,
-        couverture: String? = nil
+        date: String?, langue: String?, isbn: String?, source: String,
+        couverture: String? = nil, identifiant: String? = nil
     ) -> ResultatRecherche? {
         // « Titre. 1 / mention de responsabilité » : la barre oblique du
         // catalogage porte les contributeurs, seul le titre nous regarde ;
@@ -389,8 +767,10 @@ struct BibliothequeNationaleProvider: Sendable {
         )
         guard !titre.isEmpty else { return nil }
 
+        let identifiantStable = isbn ?? identifiant
+            ?? TexteUtil.normaliser(titre) + "|" + (date ?? "-")
         var resultat = ResultatRecherche(
-            id: "\(source.lowercased()):\(isbn)",
+            id: "\(source.lowercased()):\(identifiantStable)",
             titre: titre,
             auteurs: [auteurBrut.map(nettoyerAuteur)].compactMap { $0 }.filter { !$0.isEmpty },
             annee: date.flatMap { Int($0.filter(\.isNumber).prefix(4)) },
@@ -452,7 +832,7 @@ struct BibliothequeNationaleProvider: Sendable {
     /// Tous les champs UNIMARC portant une étiquette donnée.
     private func blocs(tag: String, dans xml: String) -> [String] {
         captures(
-            #"<datafield\s+tag="\#(tag)"[^>]*>([\s\S]*?)</datafield>"#,
+            #"<(?:[A-Za-z0-9_]+:)?datafield\b[^>]*\btag="\#(tag)"[^>]*>([\s\S]*?)</(?:[A-Za-z0-9_]+:)?datafield>"#,
             dans: xml
         )
     }
@@ -460,12 +840,21 @@ struct BibliothequeNationaleProvider: Sendable {
     /// Toutes les valeurs d'un sous-champ dans un bloc UNIMARC.
     private func sousChamps(_ code: String, dans bloc: String) -> [String] {
         captures(
-            #"<subfield\s+code="\#(code)"[^>]*>([\s\S]*?)</subfield>"#,
+            #"<(?:[A-Za-z0-9_]+:)?subfield\b[^>]*\bcode="\#(code)"[^>]*>([\s\S]*?)</(?:[A-Za-z0-9_]+:)?subfield>"#,
             dans: bloc
         )
         .map(deplier)
         .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
         .filter { !$0.isEmpty }
+    }
+
+    /// Valeur brute d'une zone fixe MARCXML, en conservant les espaces : leur
+    /// position fait partie du format et ne doit pas être normalisée.
+    private func champControle(tag: String, dans xml: String) -> String? {
+        captures(
+            #"<(?:[A-Za-z0-9_]+:)?controlfield\b[^>]*\btag="\#(tag)"[^>]*>([\s\S]*?)</(?:[A-Za-z0-9_]+:)?controlfield>"#,
+            dans: xml
+        ).first.map(deplier)
     }
 
     private func captures(_ motif: String, dans texte: String) -> [String] {
@@ -599,6 +988,7 @@ struct BibliothequeNationaleProvider: Sendable {
         if let code = table[propre] { return code }
         return Langues.codes.contains(propre) ? propre : nil
     }
+
 }
 
 /// Un scan en rafale ne doit pas devenir une attaque distribuée depuis chaque

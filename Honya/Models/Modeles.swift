@@ -378,7 +378,9 @@ final class Serie {
 
     /// La série apparaît dans « En cours » si on a commencé sans finir.
     var lectureEnCours: Bool {
-        (nbLus > 0 && !estTerminee) || (chapitresLus > 0)
+        tomes.contains { $0.statut == .enCours }
+            || (nbLus > 0 && !estTerminee)
+            || chapitresLus > 0
     }
 
     /// Statut équivalent à celui d'un livre, déduit de l'état des tomes.
@@ -390,8 +392,12 @@ final class Serie {
         // avec le menu que le lecteur venait d'utiliser.
         if let statutChoisi { return statutChoisi }
         if estTerminee { return .lu }
-        if nbLus > 0 || chapitresLus > 0 { return .enCours }
-        if nbPossedes > 0 { return .aLire }
+        if lectureEnCours { return .enCours }
+        let possedes = tomes.filter(\.possede)
+        if !possedes.isEmpty, possedes.allSatisfy({ $0.abandonne }) {
+            return .abandonne
+        }
+        if !possedes.isEmpty { return .aLire }
         return .wishlist
     }
 
@@ -439,12 +445,24 @@ final class Tome {
     var preteLe: Date?
     /// Un tome qu'on a commencé puis laissé tomber.
     var abandonne: Bool = false
+    /// Statut choisi pour CE volume. Optionnel pour migrer sans risque les
+    /// bibliothèques créées avant que les tomes puissent être « En cours ».
+    /// Les trois anciens booléens restent la source matérielle (possession,
+    /// lecture, abandon) ; ce champ conserve uniquement la nuance qui leur
+    /// manquait.
+    var statutRaw: String?
 
     var numero: Int = 1
     var possede: Bool = false
     var lu: Bool = false
     var dateLu: Date?
     var isbn: String?
+    /// Champs historiques conservés lors de la migration d'un volume qui
+    /// avait été rangé comme livre isolé dans une ancienne bêta.
+    var langueEdition: String?
+    var dateAchat: Date?
+    var dateDebut: Date?
+    var dateFin: Date?
     /// Chaque tome est un livre à part entière : son titre, sa couverture, ses pages.
     var titre: String?
     /// Couverture fournie par les catalogues pour cette édition.
@@ -464,10 +482,70 @@ final class Tome {
 
     var couvertureAffichee: String? { couverturePersonnelleURL ?? couvertureURL }
 
+    /// Le statut affiché sur la fiche du tome. Les faits les plus forts
+    /// (manquant, abandonné, lu) priment toujours sur une ancienne valeur
+    /// persistée ; seul « En cours » a besoin du champ optionnel ci-dessus.
+    var statut: StatutLecture {
+        if !possede { return .wishlist }
+        if abandonne { return .abandonne }
+        if lu { return .lu }
+        if statutRaw == StatutLecture.enCours.rawValue { return .enCours }
+        return .aLire
+    }
+
+    /// Un seul point de mutation garde les booléens historiques et le statut
+    /// explicite parfaitement synchronisés.
+    func changerStatut(_ nouveau: StatutLecture) {
+        let etaitPossede = possede
+        statutRaw = nouveau.rawValue
+        switch nouveau {
+        case .wishlist:
+            possede = false
+            lu = false
+            dateLu = nil
+            abandonne = false
+            preteA = nil
+            preteLe = nil
+            dateAchat = nil
+            dateDebut = nil
+            dateFin = nil
+        case .aLire:
+            possede = true
+            lu = false
+            dateLu = nil
+            abandonne = false
+            dateDebut = nil
+            dateFin = nil
+        case .enCours:
+            possede = true
+            lu = false
+            dateLu = nil
+            abandonne = false
+            if dateDebut == nil { dateDebut = Date() }
+            dateFin = nil
+        case .lu:
+            possede = true
+            if !lu || dateLu == nil { dateLu = Date() }
+            if dateFin == nil { dateFin = dateLu ?? Date() }
+            lu = true
+            abandonne = false
+        case .abandonne:
+            possede = true
+            lu = false
+            dateLu = nil
+            abandonne = true
+            dateFin = nil
+        }
+        if !etaitPossede, possede, dateAchat == nil { dateAchat = Date() }
+    }
+
     init(numero: Int, possede: Bool = false, lu: Bool = false) {
         self.numero = numero
         self.possede = possede
         self.lu = lu
+        self.statutRaw = lu
+            ? StatutLecture.lu.rawValue
+            : (possede ? StatutLecture.aLire.rawValue : StatutLecture.wishlist.rawValue)
     }
 }
 

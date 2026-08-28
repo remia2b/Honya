@@ -34,6 +34,7 @@ struct RechercheView: View {
     @State private var scannerVisible = false
     @State private var ajoutManuelVisible = false
     @State private var plusVisible = false
+    @State private var verrouPlus: Verrou?
     @State private var ajoutes: Set<String> = []
     @State private var tendances: [ResultatRecherche] = []
     @FocusState private var champActif: Bool
@@ -122,7 +123,10 @@ struct RechercheView: View {
                     }
                 }
             }
-            .ecranHonyaPlus($plusVisible, verrou: .bibliotheque())
+            .ecranHonyaPlus(
+                $plusVisible,
+                verrou: verrouPlus ?? .bibliotheque()
+            )
             .task(id: cleRecherche) {
                 await lancerRecherche()
             }
@@ -232,27 +236,55 @@ struct RechercheView: View {
                             .padding(.top, 8)
                     }
                 }
-                ForEach(resultats) { resultat in
-                    NavigationLink {
-                        ApercuResultatView(resultat: resultat, langue: langueAffichage)
-                    } label: {
-                        RangeeResultat(
-                            resultat: resultat,
-                            langue: langueAffichage,
-                            dejaAjoute: ajoutes.contains(resultat.id)
-                                || ImportService.existeDeja(resultat, dans: contexte)
-                        ) { statut in
-                            switch ImportService.ajouter(
-                                resultat, statut: statut, dans: contexte
-                            ) {
-                            case .limiteAtteinte:
-                                plusVisible = true
-                            case .oeuvre, .serie, .dejaPresent:
-                                ajoutes.insert(resultat.id)
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
+                if !resultatsSeries.isEmpty {
+                    EtiquetteSection(texte: "Séries")
+                    rangees(resultatsSeries)
+                }
+                if !resultatsTomes.isEmpty {
+                    EtiquetteSection(texte: "Tomes")
+                        .padding(.top, resultatsSeries.isEmpty ? 0 : 8)
+                    rangees(resultatsTomes)
+                }
+                if !resultatsLivres.isEmpty {
+                    EtiquetteSection(texte: "Livres")
+                        .padding(.top, (resultatsSeries.isEmpty && resultatsTomes.isEmpty) ? 0 : 8)
+                    rangees(resultatsLivres)
+                }
+            }
+        }
+    }
+
+    private var resultatsSeries: [ResultatRecherche] {
+        resultats.filter(\.estSerie)
+    }
+
+    private var resultatsTomes: [ResultatRecherche] {
+        resultats.filter { !$0.estSerie && $0.estUnTome }
+    }
+
+    private var resultatsLivres: [ResultatRecherche] {
+        resultats.filter { !$0.estSerie && !$0.estUnTome }
+    }
+
+    private func rangees(_ elements: [ResultatRecherche]) -> some View {
+        ForEach(elements) { resultat in
+            RangeeResultat(
+                resultat: resultat,
+                langue: langueAffichage,
+                dejaAjoute: ajoutes.contains(resultat.id)
+                    || ImportService.existeDeja(resultat, dans: contexte)
+            ) { statut in
+                switch ImportService.ajouter(
+                    resultat, statut: statut, dans: contexte
+                ) {
+                case .limiteAtteinte:
+                    verrouPlus = nil
+                    plusVisible = true
+                case .rayonVerrouille(let serie):
+                    verrouPlus = .serie(serie, langue: langueAffichage)
+                    plusVisible = true
+                case .oeuvre, .serie, .dejaPresent:
+                    ajoutes.insert(resultat.id)
                 }
             }
         }
@@ -266,16 +298,19 @@ struct RechercheView: View {
 
             if !tendances.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    TitreSection(titre: "Populaires en ce moment")
+                    TitreSection(titre: "Nouveautés et tendances")
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(alignment: .top, spacing: 14) {
                             ForEach(tendances.prefix(12)) { resultat in
                                 NavigationLink {
-                                    ApercuResultatView(resultat: resultat, langue: langue)
+                                    ApercuResultatView(
+                                        resultat: resultat,
+                                        langue: langueSelectionnee
+                                    )
                                 } label: {
                                     CouvertureView(
                                         urlString: resultat.couvertureURL,
-                                        titre: resultat.titre,
+                                        titre: resultat.titreAffiche(langueSelectionnee),
                                         coins: 6,
                                         manga: resultat.type != .livre
                                     )
@@ -289,34 +324,38 @@ struct RechercheView: View {
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 4) {
-                    TitreSection(titre: "Tendances des recherches")
-                    ForEach(termesTendance, id: \.self) { terme in
-                        Button {
-                            texte = terme
-                        } label: {
-                            HStack(spacing: 12) {
-                                Image(systemName: "magnifyingglass")
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(Couleurs.accent)
-                                Text(terme)
-                                    .font(.callout)
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(1)
-                                Spacer()
-                            }
-                            .padding(.vertical, 9)
-                            .contentShape(Rectangle())
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                TitreSection(titre: "Tendances des recherches")
+                ForEach(termesTendance, id: \.self) { terme in
+                    Button {
+                        texte = terme
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(Couleurs.accent)
+                            Text(terme)
+                                .font(.callout)
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                            Spacer()
                         }
-                        .buttonStyle(.plain)
-                        Divider()
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    Divider()
                 }
             }
         }
-        .task {
-            guard tendances.isEmpty else { return }
-            tendances = await Decouverte.classement(gratuits: false, langue: langue)
+        .task(id: langueSelectionnee) {
+            tendances = []
+            tendances = await Decouverte.classement(
+                gratuits: false,
+                langue: langueSelectionnee
+            )
         }
     }
 
@@ -325,12 +364,17 @@ struct RechercheView: View {
     private var termesTendance: [String] {
         var vus = Set<String>()
         let bases = tendances.compactMap { resultat -> String? in
-            let base = Tomaison.decomposer(resultat.titre).base
+            let base = Tomaison.decomposer(
+                resultat.titreAffiche(langueSelectionnee)
+            ).base
             let cle = TexteUtil.normaliser(base)
             guard !cle.isEmpty, vus.insert(cle).inserted else { return nil }
             return base
         }
-        return Array(bases.prefix(8))
+        let trouves = Array(bases.prefix(8))
+        return trouves.isEmpty
+            ? Array(Decouverte.termesSuggestions(pour: langueSelectionnee).prefix(6))
+            : trouves
     }
 
     private var carteInvitation: some View {
@@ -515,6 +559,27 @@ private struct RangeeResultat: View {
     var surAjout: (StatutLecture) -> Void
 
     var body: some View {
+        HStack(spacing: 0) {
+            NavigationLink {
+                ApercuResultatView(resultat: resultat, langue: langue)
+            } label: {
+                contenu
+            }
+            .buttonStyle(.plain)
+
+            if !dejaAjoute {
+                controleAjout
+            }
+        }
+        .padding(10)
+        .background(
+            Color(uiColor: .secondarySystemGroupedBackground),
+            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+        )
+        .sensoryFeedback(.success, trigger: dejaAjoute)
+    }
+
+    private var contenu: some View {
         HStack(spacing: 12) {
             CouvertureView(
                 urlString: resultat.couvertureURL,
@@ -568,28 +633,24 @@ private struct RangeeResultat: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.title3)
                     .foregroundStyle(Couleurs.lu)
+                    .frame(width: 44, height: 44)
                     .accessibilityLabel("Déjà dans la bibliothèque")
-            } else if resultat.estSerie {
-                Menu {
-                    Button { surAjout(.aLire) } label: {
-                        Label("Je la possède · à lire", systemImage: "books.vertical.fill")
-                    }
-                    Button { surAjout(.enCours) } label: {
-                        Label("Je suis en train de la lire", systemImage: "book.fill")
-                    }
-                    Button { surAjout(.lu) } label: {
-                        Label("Je l'ai lue", systemImage: "checkmark.circle.fill")
-                    }
-                    Button { surAjout(.wishlist) } label: {
-                        Label("À acheter", systemImage: "cart.fill")
-                    }
-                    Button { surAjout(.abandonne) } label: {
-                        Label("Je l'ai abandonnée", systemImage: "xmark.circle")
-                    }
-                } label: {
+            }
+        }
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private var controleAjout: some View {
+        if resultat.estSerie {
+                // Ajouter la série crée son rayon complet, sans prétendre que
+                // le lecteur possède soudain tous les volumes. Le statut global
+                // reste modifiable ensuite depuis la fiche de la série.
+                Button { surAjout(.wishlist) } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.title2)
                         .foregroundStyle(Couleurs.accent)
+                        .frame(width: 44, height: 44)
                 }
                 .accessibilityLabel("Ajouter la série")
             } else {
@@ -613,16 +674,10 @@ private struct RangeeResultat: View {
                     Image(systemName: "plus.circle.fill")
                         .font(.title2)
                         .foregroundStyle(Couleurs.accent)
+                        .frame(width: 44, height: 44)
                 }
                 .accessibilityLabel("Ajouter")
-            }
         }
-        .padding(10)
-        .background(
-            Color(uiColor: .secondarySystemGroupedBackground),
-            in: RoundedRectangle(cornerRadius: 14, style: .continuous)
-        )
-        .sensoryFeedback(.success, trigger: dejaAjoute)
     }
 }
 

@@ -84,9 +84,11 @@ struct AgregateurMetadonnees: Sendable {
         )
         async let dOpenLibrary: [ResultatRecherche] =
             (try? await openLibrary.rechercher(requete, langue: langue)) ?? []
-        let lots = await (dApple, deGoogle, dOpenLibrary)
+        async let desBibliotheques: [ResultatRecherche] =
+            bibliotheques.rechercher(requete, langue: langue)
+        let lots = await (dApple, deGoogle, dOpenLibrary, desBibliotheques)
         guard !Task.isCancelled else { return [] }
-        let resultatsBruts = lots.0 + lots.1 + lots.2
+        let resultatsBruts = lots.0 + lots.1 + lots.2 + lots.3
         // Un storefront ou un filtre serveur n'est pas une preuve de langue :
         // chaque résultat conservé doit annoncer explicitement celle demandée.
         // Cela écarte notamment les ebooks Apple dont l'API ne publie aucune
@@ -116,8 +118,8 @@ struct AgregateurMetadonnees: Sendable {
     }
 
     /// Passe plus profonde réservée à une fiche de série. La recherche
-    /// interactive reste légère, tandis que ce parcours pagine Google et
-    /// demande jusqu'à 100 works à Open Library pour les longues collections.
+    /// interactive reste légère, tandis que ce parcours pagine Google et la
+    /// BnF, et demande jusqu'à 100 works à Open Library pour les collections.
     func rechercherEditionsSerie(
         _ requete: String, langue: String
     ) async -> [ResultatRecherche] {
@@ -127,16 +129,20 @@ struct AgregateurMetadonnees: Sendable {
         async let deGoogle = rechercherSerieGoogleSiAutorise(
             requete, langue: langue
         )
-        async let dOpenLibrary = (try? await openLibrary.rechercherSerie(
+        // Garder l'optional distingue une vraie réponse vide d'une panne :
+        // une source en erreur ne doit jamais rendre définitif un rayon amputé.
+        async let dOpenLibrary: [ResultatRecherche]? = try? await openLibrary
+            .rechercherSerie(requete, langue: langue)
+        async let desBibliotheques = bibliotheques.rechercherEditionsSerie(
             requete, langue: langue
-        )) ?? []
-        let lots = await (deGoogle, dOpenLibrary)
+        )
+        let lots = await (deGoogle, dOpenLibrary, desBibliotheques)
         guard !Task.isCancelled else { return [] }
 
         let code = langue.lowercased()
             .split(whereSeparator: { $0 == "-" || $0 == "_" })
             .first.map(String.init) ?? langue.lowercased()
-        let locaux = (lots.0 + lots.1).filter { resultat in
+        let locaux = (lots.0 + (lots.1 ?? []) + lots.2.resultats).filter { resultat in
             guard let langueResultat = resultat.langue else { return false }
             let codeResultat = langueResultat.lowercased()
                 .split(whereSeparator: { $0 == "-" || $0 == "_" })
@@ -146,7 +152,14 @@ struct AgregateurMetadonnees: Sendable {
         let tries = dedoublonner(
             trierParPertinence(locaux, requete: requete, langue: langue)
         )
-        await CacheRecherche.partage.ecrire(cle, tries)
+        // Une série BnF peut rendre ses premières pages avant une panne. Elles
+        // restent utiles à l'écran courant, mais ne deviennent jamais la
+        // vérité de session : le prochain essai doit pouvoir compléter le rayon.
+        if lots.2.complete,
+           lots.1 != nil,
+           !SourcesCatalogue.googleBooks {
+            await CacheRecherche.partage.ecrire(cle, tries)
+        }
         return tries
     }
 
@@ -180,19 +193,167 @@ struct AgregateurMetadonnees: Sendable {
         return (try? await google.rechercherSerie(requete, langue: langue)) ?? []
     }
 
-    /// Deux éditions du même tome ne doivent apparaître qu'une fois : on garde
-    /// la mieux classée (couverture, langue du lecteur…).
+    /// Deux notices portant le même ISBN décrivent LA MÊME édition : leurs
+    /// métadonnées doivent être fusionnées, pas simplement jeter la seconde.
+    /// La BnF arrive après Open Library dans le lot, mais sa couverture est
+    /// rattachée à l'EAN exact et demandée en taille originale : elle prime.
     private func dedoublonner(_ resultats: [ResultatRecherche]) -> [ResultatRecherche] {
-        var vus = Set<String>()
-        return resultats.filter { resultat in
+        var ordre: [String] = []
+        var fusionnes: [String: ResultatRecherche] = [:]
+
+        for resultat in resultats {
+            let cle: String
             if let isbn = resultat.isbn.flatMap(ISBNUtil.canonique) {
-                return vus.insert("isbn|" + isbn).inserted
+                cle = "isbn|" + isbn
+            } else if resultat.source == "BnF" {
+                // Les éditions anciennes n'ont pas toujours d'ISBN. Leur ARK,
+                // conservé dans `id`, reste alors la clé officielle de notice.
+                cle = "notice|" + resultat.id
+            } else {
+                let (base, numero) = Tomaison.decomposer(resultat.titre)
+                let auteur = resultat.auteurs.first.map(TexteUtil.normaliser) ?? "-"
+                cle = TexteUtil.normaliser(base) + "|"
+                    + (numero.map { String($0) } ?? "-") + "|" + auteur
             }
-            let (base, numero) = Tomaison.decomposer(resultat.titre)
+
+            if let existant = fusionnes[cle] {
+                fusionnes[cle] = fusionnerNotice(existant, avec: resultat)
+            } else {
+                ordre.append(cle)
+                fusionnes[cle] = resultat
+            }
+        }
+        return ordre.compactMap { fusionnes[$0] }
+    }
+
+    private func fusionnerNotice(
+        _ gauche: ResultatRecherche,
+        avec droite: ResultatRecherche
+    ) -> ResultatRecherche {
+        func priorite(_ resultat: ResultatRecherche) -> Int {
+            var score: Int
+            switch resultat.source {
+            case "BnF": score = 100
+            case "Google Books": score = 50
+            case "Open Library": score = 40
+            case "Apple Books": score = 30
+            default: score = 10
+            }
+            if resultat.couvertureURL != nil { score += 8 }
+            if resultat.resume?.isEmpty == false { score += 4 }
+            if resultat.pages != nil { score += 2 }
+            return score
+        }
+
+        var principale: ResultatRecherche
+        let complement: ResultatRecherche
+        if priorite(droite) > priorite(gauche) {
+            principale = droite
+            complement = gauche
+        } else {
+            principale = gauche
+            complement = droite
+        }
+
+        for (code, titre) in complement.titresParLangue
+            where principale.titresParLangue[code] == nil {
+            principale.titresParLangue[code] = titre
+        }
+        if let code = principale.langue {
+            principale.titresParLangue[code] = principale.titre
+        }
+        if principale.titreOriginal == nil { principale.titreOriginal = complement.titreOriginal }
+        if principale.romaji == nil { principale.romaji = complement.romaji }
+        principale.titresAlternatifs = Array(Set(
+            principale.titresAlternatifs + complement.titresAlternatifs
+        ))
+        if principale.auteurs.isEmpty { principale.auteurs = complement.auteurs }
+        if (complement.resume?.count ?? 0) > (principale.resume?.count ?? 0) {
+            principale.resume = complement.resume
+        }
+        if principale.pages == nil { principale.pages = complement.pages }
+        if principale.annee == nil { principale.annee = complement.annee }
+        if principale.dateSortie == nil { principale.dateSortie = complement.dateSortie }
+        principale.genres = Array(Set(principale.genres + complement.genres)).sorted()
+        if principale.couvertureURL == nil, let couverture = complement.couvertureURL {
+            principale.couvertureURL = couverture
+            principale.attributionCouverture = complement.attributionCouverture
+        }
+        if principale.langue == nil { principale.langue = complement.langue }
+        if principale.type == .livre, complement.type != .livre {
+            principale.type = complement.type
+        }
+        if !principale.estSerie, complement.estSerie { principale.estSerie = true }
+        if principale.tomesTotal == nil { principale.tomesTotal = complement.tomesTotal }
+        if principale.chapitresTotal == nil { principale.chapitresTotal = complement.chapitresTotal }
+        if principale.idAniList == nil { principale.idAniList = complement.idAniList }
+        return principale
+    }
+
+    /// Les catalogues bibliographiques décrivent souvent parfaitement chaque
+    /// tome sans fournir une fiche « série ». Honya reconstruit cette entrée à
+    /// partir d'une tomaison explicite, sans inventer de traduction ni de total.
+    /// La recherche propose ainsi la série ET chacun de ses tomes.
+    private func synthetiserSeries(
+        depuis editions: [ResultatRecherche], langue: String?
+    ) -> [ResultatRecherche] {
+        var groupes: [String: [ResultatRecherche]] = [:]
+        var ordre: [String] = []
+
+        for edition in editions where edition.estUnTome {
+            let decomposition = Tomaison.decomposer(edition.titre)
+            guard decomposition.numero != nil else { continue }
+            let auteur = edition.auteurs.first.map(TexteUtil.normaliser) ?? "-"
+            let cle = TexteUtil.normaliser(decomposition.base) + "|" + auteur
+            if groupes[cle] == nil { ordre.append(cle) }
+            groupes[cle, default: []].append(edition)
+        }
+
+        return ordre.compactMap { cle in
+            guard let groupe = groupes[cle], let premiere = groupe.first else {
+                return nil
+            }
+            let tries = groupe.sorted {
+                (Tomaison.decomposer($0.titre).numero ?? .max)
+                    < (Tomaison.decomposer($1.titre).numero ?? .max)
+            }
+            let representant = tries.first {
+                Tomaison.decomposer($0.titre).numero == 1 && $0.couvertureURL != nil
+            } ?? tries.first(where: { $0.couvertureURL != nil }) ?? premiere
+            let base = Tomaison.decomposer(representant.titre).base
+
+            var serie = ResultatRecherche(
+                id: "serie-catalogue:\(langue ?? "-"):\(cle)",
+                titre: base,
+                source: representant.source
+            )
+            serie.estSerie = true
+            serie.auteurs = representant.auteurs
+            serie.type = representant.type
+            serie.resume = representant.resume
+            serie.annee = tries.compactMap(\.annee).min()
+            serie.genres = Array(Set(tries.flatMap(\.genres))).sorted()
+            serie.couvertureURL = representant.couvertureURL
+            serie.attributionCouverture = representant.attributionCouverture
+            serie.langue = representant.langue ?? langue
+            if let code = serie.langue { serie.titresParLangue[code] = base }
+            // Le plus grand numéro trouvé n'est jamais une preuve que la série
+            // s'arrête là : `tomesTotal` reste donc inconnu.
+            serie.tomesTotal = nil
+            serie.statutParution = .inconnue
+            return serie
+        }
+    }
+
+    private func retirerSeriesDoublees(
+        _ series: [ResultatRecherche]
+    ) -> [ResultatRecherche] {
+        var bases = Set<String>()
+        return series.filter { resultat in
             let auteur = resultat.auteurs.first.map(TexteUtil.normaliser) ?? "-"
-            let cle = TexteUtil.normaliser(base) + "|"
-                + (numero.map { String($0) } ?? "-") + "|" + auteur
-            return vus.insert(cle).inserted
+            let cle = TexteUtil.normaliser(Tomaison.decomposer(resultat.titre).base)
+                + "|" + auteur
+            return bases.insert(cle).inserted
         }
     }
 
@@ -247,20 +408,23 @@ struct AgregateurMetadonnees: Sendable {
         async let editions = editionsMangaLocales(requete, langue: langue)
         let lots = await (series, editions)
         guard !Task.isCancelled else { return [] }
-        let localises: [ResultatRecherche]
-        if lots.0.isEmpty {
-            // Sans licence AniList, la recherche manga reste fonctionnelle à
-            // partir des éditions physiques ouvertes : catégories BD/manga ou
-            // marqueur de tome explicite.
-            localises = lots.1.filter {
-                $0.type != .livre || $0.estUnTome
-            }
-        } else {
-            localises = localiserMangas(
-                lots.0, avec: lots.1, langue: langue
-            )
+        // AniList apporte les fiches de série ; le catalogue physique apporte
+        // les volumes réellement publiés dans la langue choisie. Les deux
+        // doivent rester visibles ensemble : masquer les éditions dès
+        // qu'AniList répondait empêchait justement d'ajouter un tome précis.
+        let seriesManga = lots.0.isEmpty
+            ? []
+            : localiserMangas(lots.0, avec: lots.1, langue: langue)
+        let editionsManga = lots.1.filter {
+            $0.type != .livre || $0.estUnTome
         }
-        let tries = trierParPertinence(localises, requete: requete, langue: langue)
+        let seriesLocales = synthetiserSeries(depuis: lots.1, langue: langue)
+        let tries = retirerSeriesDoublees(seriesManga + seriesLocales)
+            + trierParPertinence(
+                editionsManga,
+                requete: requete,
+                langue: langue
+            )
         await CacheRecherche.partage.ecrire(cle, tries)
         return tries
     }
@@ -280,7 +444,8 @@ struct AgregateurMetadonnees: Sendable {
             requete: requete,
             langue: langue
         )
-        let combines = mangas + lots.1
+        let seriesLocales = synthetiserSeries(depuis: lots.1, langue: langue)
+        let combines = retirerSeriesDoublees(mangas + seriesLocales) + lots.1
         await CacheRecherche.partage.ecrire(cle, combines)
         return combines
     }
@@ -311,9 +476,12 @@ struct AgregateurMetadonnees: Sendable {
         avec editions: [ResultatRecherche],
         langue: String?
     ) -> [ResultatRecherche] {
-        guard let langue, !editions.isEmpty else { return series }
+        guard let langue else { return series }
+        // Une série AniList sans édition attestée dans la langue demandée
+        // ne doit afficher ni son titre anglais ni sa couverture japonaise.
+        guard !editions.isEmpty else { return [] }
 
-        return series.map { serie in
+        return series.compactMap { serie in
             let nomsConnus = ([serie.titre, serie.titreOriginal, serie.romaji]
                 .compactMap { $0 })
                 + Array(serie.titresParLangue.values)
@@ -329,14 +497,22 @@ struct AgregateurMetadonnees: Sendable {
             }
             let edition = compatibles.first {
                 Tomaison.decomposer($0.titre).numero == 1
-            } ?? compatibles.first
-            guard let edition else { return serie }
+                    && $0.couvertureURL != nil
+            } ?? compatibles.first(where: { $0.couvertureURL != nil })
+                ?? compatibles.first(where: {
+                    Tomaison.decomposer($0.titre).numero == 1
+                })
+                ?? compatibles.first
+            guard let edition else { return nil }
 
             var copie = serie
             let titreLocal = Tomaison.decomposer(edition.titre).base
             copie.titresParLangue[langue] = titreLocal
             copie.langue = langue
-            copie.couvertureURL = edition.couvertureURL ?? copie.couvertureURL
+            // Titre et image viennent de la même édition locale. Une image
+            // AniList ne doit jamais se faire passer pour la couverture Kana.
+            copie.couvertureURL = edition.couvertureURL
+            copie.attributionCouverture = edition.attributionCouverture
             if let resume = edition.resume, !resume.isEmpty {
                 copie.resume = resume
             }
@@ -536,6 +712,16 @@ struct AgregateurMetadonnees: Sendable {
             for genre in fiche.genres where !fusion.genres.contains(genre) {
                 fusion.genres.append(genre)
             }
+        }
+        // Sur le même ISBN canonique, la BnF atteste la couverture de CETTE
+        // édition via INTERMARC 950$b=C1 et la fournit en taille originale.
+        // Elle doit donc remplacer la miniature Open Library, même si cette
+        // dernière appartenait à la fiche initialement la mieux notée.
+        if let nationale = exactes.first(where: {
+            $0.source == "BnF" && $0.couvertureURL != nil
+        }) {
+            fusion.couvertureURL = nationale.couvertureURL
+            fusion.attributionCouverture = nationale.attributionCouverture
         }
         fusion.isbn = isbn
         return fusion

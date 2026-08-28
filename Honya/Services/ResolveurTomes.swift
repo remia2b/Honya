@@ -92,6 +92,7 @@ enum ResolveurTomes {
             return
         }
         tome.couvertureURL = candidat.couvertureURL
+        tome.attributionCouverture = candidat.attributionCouverture
         if tome.titre == nil { tome.titre = candidat.titre }
         if tome.pages == nil { tome.pages = candidat.pages }
         if tome.isbn == nil { tome.isbn = candidat.isbn }

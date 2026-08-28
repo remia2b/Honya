@@ -10,6 +10,35 @@ enum ImportService {
         case serie(Serie)
         case dejaPresent
         case limiteAtteinte
+        /// La fiche reste consultable, mais ce volume appartient à la
+        /// continuation Honya+ d'un rayon au-delà des trois séries offertes.
+        case rayonVerrouille(Serie)
+    }
+
+    /// Une seule règle pour la grille, la recherche, le scan et les raccourcis
+    /// de bibliothèque. Sans ce point commun, « Toute la série lue » pouvait
+    /// contourner le cadenas affiché sur exactement les mêmes volumes.
+    static func tomeVerrouilleParRayon(_ tome: Tome, de serie: Serie) -> Bool {
+        guard !tome.possede else { return false }
+        return numeroVerrouilleParRayon(tome.numero, de: serie)
+    }
+
+    static func numeroVerrouilleParRayon(_ numero: Int, de serie: Serie) -> Bool {
+        guard !Droits.partage.plus,
+              serie.rayonRefuse
+                || serie.rayonHonyaPlus
+                || EditionsLocales.accesProvisoireRefuse(serie)
+        else { return false }
+        // Le droit porte sur les trois PREMIERS numéros, pas sur les trois
+        // premiers découverts. Sinon scanner directement le tome 8 avant que
+        // le catalogue ait rempli 1...7 le ferait passer pour l'index zéro.
+        return numero > Limites.tomesApercuSerie
+    }
+
+    static func contientTomeVerrouille(
+        _ tomes: [Tome], de serie: Serie
+    ) -> Bool {
+        tomes.contains { tomeVerrouilleParRayon($0, de: serie) }
     }
 
     /// Nombre d'entrées réellement rangées, utilisé par tous les parcours
@@ -77,6 +106,9 @@ enum ImportService {
         }
         if resultat.estSerie {
             return series.contains { $0.idAniList != nil && $0.idAniList == resultat.idAniList }
+                || serieCorrespondante(
+                    resultat.titre, auteurs: resultat.auteurs, dans: series
+                ) != nil
         }
         // Un tome (« Kagurabachi T3 ») est « déjà là » si la série le possède.
         let (base, numero) = Tomaison.decomposer(resultat.titre)
@@ -163,6 +195,221 @@ enum ImportService {
         }
     }
 
+    /// Les premières bêtas rangeaient certains mangas/BD numérotés comme des
+    /// livres isolés. Après la mise à jour, on les replace automatiquement dans
+    /// leur série afin qu'un ancien « TBATE 1 » ne cohabite pas avec le nouveau
+    /// rayon TBATE.
+    ///
+    /// La migration reste volontairement conservatrice : si l'ancienne fiche
+    /// contient une citation, une note, des moods, une progression ou un suivi
+    /// qui n'ont pas encore d'équivalent visible au niveau Tome, elle ne la
+    /// supprime pas. Les sessions, étagères, prêt, statut, dates, langue et
+    /// couverture sont en revanche transférés sans perte.
+    @discardableResult
+    static func migrerTomesIsolesLegacy(dans contexte: ModelContext) -> Int {
+        let oeuvres = (try? contexte.fetch(FetchDescriptor<Oeuvre>())) ?? []
+        guard !oeuvres.isEmpty else { return 0 }
+
+        var series = (try? contexte.fetch(FetchDescriptor<Serie>())) ?? []
+        let langue = ((try? contexte.fetch(FetchDescriptor<Objectif>())) ?? [])
+            .first?.languePrincipale ?? Langues.codeAppareil
+        var migrees = 0
+        var aEnrichir: [Serie] = []
+
+        for oeuvre in oeuvres {
+            guard let exemplaire = oeuvre.exemplaire,
+                  oeuvre.citations.isEmpty,
+                  exemplaire.note == nil,
+                  exemplaire.moods.isEmpty,
+                  exemplaire.pageCourante == 0,
+                  exemplaire.format == nil,
+                  exemplaire.prixPaye == nil,
+                  !exemplaire.aSuivre,
+                  let decomposition = decompositionLegacy(
+                    de: oeuvre,
+                    langue: langue,
+                    parmi: oeuvres,
+                    seriesConnues: series
+                  )
+            else { continue }
+
+            let serie: Serie
+            if let existante = serieCorrespondante(
+                decomposition.base,
+                auteurs: oeuvre.auteurs,
+                dans: series
+            ) {
+                serie = existante
+            } else {
+                serie = Serie(nom: decomposition.base, type: oeuvre.type)
+                serie.auteur = oeuvre.auteurs.first
+                serie.genres = oeuvre.genres
+                serie.resume = oeuvre.resume
+                serie.resumeLocal = oeuvre.resumeLocal
+                for (code, titre) in oeuvre.titres {
+                    let base = Tomaison.decomposer(titre).base
+                    if !base.isEmpty { serie.noms[code] = base }
+                }
+                contexte.insert(serie)
+                series.append(serie)
+            }
+
+            let tome: Tome
+            if let existant = serie.tomes.first(where: {
+                $0.numero == decomposition.numero
+            }) {
+                // Deux fiches possédées peuvent porter des historiques
+                // contradictoires. Ne jamais en supprimer une arbitrairement.
+                guard !existant.possede else { continue }
+                tome = existant
+            } else {
+                tome = Tome(numero: decomposition.numero)
+                serie.tomes.append(tome)
+            }
+
+            tome.titre = tome.titre ?? oeuvre.titre(langue)
+            tome.isbn = tome.isbn ?? exemplaire.isbn
+            tome.langueEdition = tome.langueEdition ?? exemplaire.langueEdition
+            tome.pages = tome.pages ?? oeuvre.pages
+            tome.couvertureURL = tome.couvertureURL
+                ?? exemplaire.couvertureEditionURL
+                ?? oeuvre.couvertureLocaleURL
+                ?? oeuvre.couvertureCanoniqueURL
+            tome.couverturePersonnelleURL = tome.couverturePersonnelleURL
+                ?? exemplaire.couverturePersonnelleURL
+            tome.attributionCouverture = tome.attributionCouverture
+                ?? oeuvre.attributionCouverture
+            tome.preteA = tome.preteA ?? exemplaire.preteA
+            tome.preteLe = tome.preteLe ?? exemplaire.preteLe
+            if !tome.possede || tome.statut == .wishlist {
+                tome.changerStatut(exemplaire.statut)
+                tome.dateAchat = exemplaire.dateAchat
+                tome.dateDebut = exemplaire.dateDebut
+                tome.dateFin = exemplaire.dateFin
+                if exemplaire.statut == .lu, let date = exemplaire.dateFin {
+                    tome.dateLu = date
+                }
+            }
+
+            if serie.type == .livre, oeuvre.type != .livre {
+                serie.type = oeuvre.type
+            }
+            // Une migration technique ne doit pas faire remonter un ancien
+            // ajout comme s'il venait d'être rangé aujourd'hui.
+            serie.dateAjout = min(serie.dateAjout, oeuvre.dateAjout)
+            if serie.auteur == nil { serie.auteur = oeuvre.auteurs.first }
+            for genre in oeuvre.genres where !serie.genres.contains(genre) {
+                serie.genres.append(genre)
+            }
+            for collection in oeuvre.collections where !serie.collections.contains(
+                where: { $0.persistentModelID == collection.persistentModelID }
+            ) {
+                serie.collections.append(collection)
+            }
+            // Réaffecter la relation modifie immédiatement `oeuvre.sessions` :
+            // parcourir une copie garantit qu'aucune session n'est sautée puis
+            // supprimée par la cascade de l'œuvre.
+            for session in Array(oeuvre.sessions) {
+                session.oeuvre = nil
+                session.serie = serie
+            }
+
+            contexte.delete(oeuvre)
+            migrees += 1
+            if !aEnrichir.contains(where: { $0 === serie }) {
+                aEnrichir.append(serie)
+            }
+        }
+
+        guard migrees > 0 else { return 0 }
+        do {
+            try contexte.save()
+        } catch {
+            contexte.rollback()
+            return 0
+        }
+
+        for serie in aEnrichir where !serie.rayonEnrichi {
+            Task { @MainActor in
+                await EditionsLocales.rafraichirSerieComplete(
+                    serie, langue: langue, profonde: true
+                )
+            }
+        }
+        return migrees
+    }
+
+    private static func decompositionLegacy(
+        de oeuvre: Oeuvre,
+        langue: String,
+        parmi oeuvres: [Oeuvre],
+        seriesConnues: [Serie]
+    ) -> (base: String, numero: Int)? {
+        let decompositions = decompositionsLegacyBrutes(
+            de: oeuvre, langue: langue
+        )
+
+        // « Tome 3 », « Vol. 3 » ou « #3 » est une preuve explicite et reste
+        // sûr même si un seul volume avait été ajouté dans une ancienne bêta.
+        if let explicite = decompositions.first(where: { $0.explicite }) {
+            return (explicite.base, explicite.numero)
+        }
+
+        // Un chiffre final seul est ambigu : « Area 51 » n'est pas forcément
+        // le tome 51 d'une série. On ne le migre que si un rayon correspondant
+        // existe déjà, ou si une deuxième fiche numérotée confirme la suite.
+        guard oeuvre.type != .livre else { return nil }
+        for implicite in decompositions {
+            if serieCorrespondante(
+                implicite.base,
+                auteurs: oeuvre.auteurs,
+                dans: seriesConnues
+            ) != nil {
+                return (implicite.base, implicite.numero)
+            }
+
+            let suiteConfirmee = oeuvres.contains { autre in
+                guard autre !== oeuvre, autre.type == oeuvre.type else {
+                    return false
+                }
+                if !oeuvre.auteurs.isEmpty, !autre.auteurs.isEmpty,
+                   !AuteursUtil.correspondent(oeuvre.auteurs, autre.auteurs) {
+                    return false
+                }
+                return decompositionsLegacyBrutes(de: autre, langue: langue)
+                    .contains { candidate in
+                        candidate.numero != implicite.numero
+                            && Tomaison.memeSerie(candidate.base, implicite.base)
+                    }
+            }
+            if suiteConfirmee {
+                return (implicite.base, implicite.numero)
+            }
+        }
+        return nil
+    }
+
+    private static func decompositionsLegacyBrutes(
+        de oeuvre: Oeuvre, langue: String
+    ) -> [(base: String, numero: Int, explicite: Bool)] {
+        let candidats = [oeuvre.titre(langue), oeuvre.titreOriginal]
+            + Array(oeuvre.titres.values)
+        var vus = Set<String>()
+        return candidats.compactMap { titre in
+            let decomposition = Tomaison.decomposer(titre)
+            guard let numero = decomposition.numero,
+                  !decomposition.base.isEmpty
+            else { return nil }
+            let cle = "\(TexteUtil.normaliser(decomposition.base))#\(numero)"
+            guard vus.insert(cle).inserted else { return nil }
+            return (
+                base: decomposition.base,
+                numero: numero,
+                explicite: Tomaison.estMarqueCommeTome(titre)
+            )
+        }
+    }
+
     @discardableResult
     static func ajouter(
         _ resultat: ResultatRecherche,
@@ -192,23 +439,84 @@ enum ImportService {
         // qu'elle existe déjà ou qu'il faille la créer — comme chez Apple Books.
         let (base, numero) = Tomaison.decomposer(resultat.titre)
         if let numero, estTomaison(resultat) {
+            let serieExistante = serieCorrespondante(
+                base, auteurs: resultat.auteurs, dans: series
+            )
+            // Refuser la croissance globale avant de réserver/refuser un
+            // rayon : une action sans ajout ne doit laisser aucune mutation.
             guard placeDisponible(
                 pour: resultat, statut: statut, series: series, dans: contexte
             ) else { return .limiteAtteinte }
-            let serie = serieCorrespondante(base, auteurs: resultat.auteurs, dans: series)
-                ?? creerSerieDepuisTome(base: base, resultat: resultat, contexte: contexte)
+
+            if let serieExistante {
+                EditionsLocales.preparerAccesRayon(serieExistante)
+                if Droits.partage.plus,
+                   numero > Limites.tomesApercuSerie {
+                    // Si le catalogue échoue puis que l'abonnement expire,
+                    // cette origine payante persistante réactive le cadenas.
+                    // Sans elle, une réservation mémoire disparaîtrait au
+                    // redémarrage et un tome wishlist deviendrait possédable.
+                    serieExistante.rayonHonyaPlus = true
+                }
+                let verrouille = numeroVerrouilleParRayon(
+                    numero, de: serieExistante
+                )
+                if verrouille {
+                    // Le droit protège aussi un volume d'abord rangé « À
+                    // acheter » : après un redémarrage, sa fiche ne doit pas
+                    // permettre de le transformer gratuitement en possession.
+                    serieExistante.rayonRefuse = true
+                }
+                if statut != .wishlist, verrouille {
+                    // Conserver la fiche exacte du scan, grisée : le lecteur
+                    // voit ce qu'il a tenté d'ajouter, sans que `possede`
+                    // puisse contourner Honya+.
+                    integrerTome(
+                        numero: numero,
+                        depuis: resultat,
+                        statut: .wishlist,
+                        dans: serieExistante
+                    )
+                    lancerEnrichissement(
+                        de: serieExistante, langue: objectif.languePrincipale
+                    )
+                    return .rayonVerrouille(serieExistante)
+                }
+            }
+            let serie = serieExistante
+                ?? creerSerieDepuisTome(
+                    base: base, resultat: resultat, contexte: contexte
+                )
+            // Cette réservation doit précéder `integrerTome` et ne dépendre
+            // d'aucun retour réseau : un lot scanné peut contenir dix volumes
+            // et les appels de cette boucle s'enchaînent dans le même runloop.
+            EditionsLocales.preparerAccesRayon(serie)
+            if Droits.partage.plus,
+               numero > Limites.tomesApercuSerie {
+                serie.rayonHonyaPlus = true
+            }
+            let verrouille = numeroVerrouilleParRayon(numero, de: serie)
+            if verrouille {
+                // Même garantie pour une série créée par ce scan, y compris
+                // lorsque son premier statut demandé est « À acheter ».
+                serie.rayonRefuse = true
+            }
+            if statut != .wishlist, verrouille {
+                integrerTome(
+                    numero: numero,
+                    depuis: resultat,
+                    statut: .wishlist,
+                    dans: serie
+                )
+                lancerEnrichissement(
+                    de: serie, langue: objectif.languePrincipale
+                )
+                return .rayonVerrouille(serie)
+            }
             integrerTome(numero: numero, depuis: resultat, statut: statut, dans: serie)
             // Une série née d'un scan possède déjà une couverture : attendre
             // l'ouverture de sa fiche ne lançait donc jamais la passe rayon.
-            // La réservation du quota reste centralisée dans EditionsLocales.
-            if !serie.rayonEnrichi && (!serie.rayonRefuse || Droits.partage.plus) {
-                let langue = objectif.languePrincipale
-                Task { @MainActor in
-                    await EditionsLocales.rafraichirSerieComplete(
-                        serie, langue: langue, profonde: true
-                    )
-                }
-            }
+            lancerEnrichissement(de: serie, langue: objectif.languePrincipale)
             return .serie(serie)
         }
 
@@ -283,6 +591,7 @@ enum ImportService {
         serie.genres = resultat.genres
         serie.nomsAlternatifs = resultat.titresAlternatifs
         serie.couvertureLocaleURL = resultat.couvertureURL
+        serie.attributionCouverture = resultat.attributionCouverture
         if let langue = resultat.langue {
             serie.noms[langue] = base
         }
@@ -318,29 +627,15 @@ enum ImportService {
         tome.dateSortie = resultat.dateSortie ?? tome.dateSortie
         if resultat.saisieManuelle { tome.metadonneesManuelles = true }
 
+        tome.changerStatut(statut)
         switch statut {
-        case .lu:
-            tome.possede = true
-            if !tome.lu { tome.dateLu = Date() }
-            tome.lu = true
-            tome.abandonne = false
+        case .lu, .aLire, .enCours, .abandonne:
+            // L'ajout concerne ce volume précis. La série se recalcule donc
+            // depuis ses tomes (y compris « En cours » et « Abandonné »), au
+            // lieu de recevoir un choix manuel global qui resterait collé.
             serie.statutChoisi = nil
-        case .enCours:
-            tome.possede = true
-            tome.abandonne = false
-            serie.statutChoisi = .enCours
-        case .abandonne:
-            tome.possede = true
-            tome.lu = false
-            tome.dateLu = nil
-            tome.abandonne = true
-            serie.statutChoisi = .abandonne
         case .wishlist:
             break // le tome reste manquant : il est « à acheter »
-        case .aLire:
-            tome.possede = true
-            tome.abandonne = false
-            serie.statutChoisi = nil
         }
         // Le tome 1 donne sa couverture à la série si elle n'en a pas de locale.
         if numero == 1, serie.couvertureLocaleURL == nil {
@@ -356,6 +651,17 @@ enum ImportService {
             serie.rayonComplet = (1...total).allSatisfy { numeros.contains($0) }
         } else {
             serie.rayonComplet = false
+        }
+    }
+
+    /// La déduplication des tâches est assurée dans `EditionsLocales`. Garder
+    /// ce lancement indépendant de `rayonEnrichi` est essentiel : le quota
+    /// reste une réservation mémoire jusqu'au premier résultat catalogue.
+    private static func lancerEnrichissement(de serie: Serie, langue: String) {
+        Task { @MainActor in
+            await EditionsLocales.rafraichirSerieComplete(
+                serie, langue: langue, profonde: true
+            )
         }
     }
 
@@ -479,6 +785,7 @@ enum ImportService {
         serie.genres = resultat.genres
         serie.resume = resultat.resume
         serie.couvertureURL = resultat.couvertureURL
+        serie.attributionCouverture = resultat.attributionCouverture
         serie.tomesTotal = resultat.tomesTotal
         serie.chapitresTotal = resultat.chapitresTotal
         serie.statutParution = resultat.statutParution
@@ -488,6 +795,7 @@ enum ImportService {
         // future n'est créée ici : EditionsLocales réserve d'abord l'un des
         // trois rayons gratuits (ou vérifie Honya+) avant de matérialiser 1...N.
         contexte.insert(serie)
+        EditionsLocales.preparerAccesRayon(serie)
 
         // Enrichissement automatique : l'édition du pays du lecteur — nom,
         // couvertures de tous les tomes, résumé — en une seule requête.

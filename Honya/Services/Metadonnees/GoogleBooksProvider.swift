@@ -113,8 +113,19 @@ private struct Volume: Decodable {
         let industryIdentifiers: [Identifiant]?
 
         struct Images: Decodable {
-            let thumbnail: String?
             let smallThumbnail: String?
+            let thumbnail: String?
+            let small: String?
+            let medium: String?
+            let large: String?
+            let extraLarge: String?
+
+            /// Google fournit jusqu'a six calibres pour une meme couverture.
+            /// Une fiche plein ecran ne doit jamais partir de la vignette de
+            /// 80/128 px si une image de 300 a 1 280 px est disponible.
+            var meilleureDisponible: String? {
+                extraLarge ?? large ?? medium ?? small ?? thumbnail ?? smallThumbnail
+            }
         }
 
         struct Identifiant: Decodable {
@@ -174,7 +185,7 @@ private struct Volume: Decodable {
         resultat.dateSortie = Self.dateComplete(volumeInfo.publishedDate)
         resultat.genres = categories
         resultat.couvertureURL = Self.couvertureHTTPS(
-            volumeInfo.imageLinks?.thumbnail ?? volumeInfo.imageLinks?.smallThumbnail
+            volumeInfo.imageLinks?.meilleureDisponible
         )
         resultat.isbn = isbn13
         resultat.langue = volumeInfo.language

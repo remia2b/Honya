@@ -334,7 +334,7 @@ enum SupabaseAuth {
         } catch {
             throw Souci.message(String(localized: "Réponse inattendue du serveur."))
         }
-        guard filaire.version == BibliothequeSnapshotV1.versionActuelle,
+        guard BibliothequeSnapshotV1.prendEnCharge(filaire.version),
               filaire.revision > 0,
               filaire.contenu_base64.count <= 26_666_668,
               let canoniques = Data(base64Encoded: filaire.contenu_base64),

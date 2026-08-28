@@ -4,15 +4,13 @@ import PhotosUI
 
 /// La grille de tomes, façon Apple Books : chaque tome est un vrai livre avec
 /// sa propre couverture — lu, possédé ou manquant se lit d'un coup d'œil, et
-/// un tap ouvre une feuille qui dit ce qu'elle fait.
+/// un tap ouvre sa fiche dédiée dans la navigation de la série.
 struct GrilleTomesView: View {
     @Bindable var serie: Serie
     let langue: String
 
-    @Environment(\.modelContext) private var contexte
-
-    @State private var tomeChoisi: Tome?
     @State private var reglageRapide: ReglageRapide?
+    @State private var droits = Droits.partage
 
     enum ReglageRapide: String, Identifiable {
         case possedes, lus
@@ -45,13 +43,12 @@ struct GrilleTomesView: View {
                 boutonsRapides
             }
         }
-        .sheet(item: $tomeChoisi) { tome in
-            FeuilleTome(tome: tome, serie: serie, langue: langue)
-                .presentationDetents([.height(340)])
-        }
         .sheet(item: $reglageRapide) { reglage in
-            FeuilleJusquA(serie: serie, reglage: reglage)
+            FeuilleJusquA(serie: serie, reglage: reglage, langue: langue)
                 .presentationDetents([.height(320)])
+        }
+        .task(id: droits.plus) {
+            EditionsLocales.synchroniserAccesRayon(serie)
         }
     }
 
@@ -70,11 +67,16 @@ struct GrilleTomesView: View {
             columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 3),
             spacing: 16
         ) {
-            ForEach(serie.tomesTries) { tome in
-                Button {
-                    tomeChoisi = tome
+            ForEach(serie.tomesTries, id: \.persistentModelID) { tome in
+                NavigationLink {
+                    FicheTomeView(tome: tome, serie: serie, langue: langue)
                 } label: {
-                    CaseTome(tome: tome, serie: serie, langue: langue)
+                    CaseTome(
+                        tome: tome,
+                        serie: serie,
+                        langue: langue,
+                        verrouille: tomeEstVerrouille(tome)
+                    )
                 }
                 .buttonStyle(.plain)
                 .task(id: tome.persistentModelID) {
@@ -109,6 +111,17 @@ struct GrilleTomesView: View {
                 .foregroundStyle(reglage.couleur)
         }
         .buttonStyle(.plain)
+        .badgeCadenas(contientContinuationVerrouillee)
+    }
+
+    /// Le cadenas porte sur l'automatisation du rayon, jamais sur un volume
+    /// que le lecteur possède déjà. La première rangée sert d'aperçu gratuit.
+    private func tomeEstVerrouille(_ tome: Tome) -> Bool {
+        ImportService.tomeVerrouilleParRayon(tome, de: serie)
+    }
+
+    private var contientContinuationVerrouillee: Bool {
+        ImportService.contientTomeVerrouille(serie.tomes, de: serie)
     }
 }
 
@@ -118,6 +131,7 @@ private struct CaseTome: View {
     let tome: Tome
     let serie: Serie
     let langue: String
+    let verrouille: Bool
 
     var body: some View {
         VStack(spacing: 6) {
@@ -161,7 +175,14 @@ private struct CaseTome: View {
                 }
             }
             .overlay(alignment: .topTrailing) {
-                if tome.lu {
+                if verrouille {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(6)
+                        .background(Couleurs.accent, in: Circle())
+                        .offset(x: 6, y: -6)
+                } else if tome.lu {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 17))
                         .foregroundStyle(.white, Couleurs.lu)
@@ -176,6 +197,17 @@ private struct CaseTome: View {
                     .font(.caption2.weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(tome.possede ? .primary : .secondary)
+                Group {
+                    if verrouille {
+                        Text(verbatim: "Honya+")
+                    } else {
+                        Text(tome.statut.libelle)
+                    }
+                }
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(verrouille ? Couleurs.accent : tome.statut.couleur)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
                 if let sortie = tome.dateSortie, DateCivile.estAVenir(sortie) {
                     Text(sortie, format: .dateTime.day().month())
                         .font(.system(size: 9, weight: .bold))
@@ -184,236 +216,227 @@ private struct CaseTome: View {
             }
         }
         .accessibilityLabel("Tome \(tome.numero)")
-        .accessibilityValue(tome.lu ? "lu" : tome.possede ? "possédé" : "manquant")
+        .accessibilityValue(Text(verbatim: verrouille ? "Honya+" : tome.statut.libelle))
     }
 }
 
-// MARK: - Feuille d'un tome : deux interrupteurs, aucun mystère
+// MARK: - Fiche d'un tome
 
-private struct FeuilleTome: View {
+/// Un tome reste une destination à part entière, qu'il soit possédé, manquant
+/// ou situé dans la continuation Honya+. Le cadenas protège uniquement les
+/// mutations automatiques du rayon : les métadonnées restent consultables.
+struct FicheTomeView: View {
     @Bindable var tome: Tome
     let serie: Serie
     let langue: String
 
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var contexte
     @State private var pretVisible = false
     @State private var plusVisible = false
     @State private var verrouPlus: Verrou?
     @State private var selecteurCouvertureVisible = false
     @State private var photoCouverture: PhotosPickerItem?
+    @State private var droits = Droits.partage
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    HStack(alignment: .top, spacing: 14) {
-                        CouvertureView(
-                            urlString: tome.couvertureAffichee,
-                            titre: tome.titre ?? "Tome \(tome.numero)",
-                            auteur: serie.auteur,
-                            coins: 6,
-                            manga: serie.type != .livre
-                        )
-                        .frame(width: 76)
+        Form {
+            Section {
+                HStack(alignment: .top, spacing: 14) {
+                    CouvertureView(
+                        urlString: tome.couvertureAffichee,
+                        titre: tome.titre ?? "Tome \(tome.numero)",
+                        auteur: serie.auteur,
+                        coins: 6,
+                        manga: serie.type != .livre
+                    )
+                    .frame(width: 86)
+                    .saturation(tome.possede ? 1 : 0.45)
+                    .opacity(tome.possede ? 1 : 0.72)
 
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(tome.titre ?? "Tome \(tome.numero)")
-                                .font(.titreOeuvre(19))
-                            if let auteur = serie.auteur, !auteur.isEmpty {
-                                Text(auteur)
-                                    .font(.subheadline)
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(tome.titre ?? "Tome \(tome.numero)")
+                            .font(.titreOeuvre(20))
+                        Text(serie.nomAffiche(langue))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        if let auteur = serie.auteur, !auteur.isEmpty {
+                            Text(auteur)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        BadgeStatutView(statut: tome.statut)
+                    }
+                }
+                .padding(.vertical, 5)
+            }
+
+            Section("Informations") {
+                LabeledContent("Tome", value: "\(tome.numero)")
+                if let isbn = tome.isbn {
+                    LabeledContent("ISBN", value: isbn)
+                }
+                if let pages = tome.pages {
+                    LabeledContent("Pages", value: "\(pages)")
+                }
+                if let date = tome.dateSortie {
+                    LabeledContent(
+                        "Date de sortie",
+                        value: date.formatted(date: .abbreviated, time: .omitted)
+                    )
+                }
+                if tome.couverturePersonnelleURL == nil,
+                   let attribution = tome.attributionCouverture {
+                    LabeledContent("Couverture", value: attribution)
+                }
+            }
+
+            Section {
+                if tomeEstVerrouille {
+                    Button {
+                        verrouPlus = verrouRayon
+                        plusVisible = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "lock.fill")
+                                .foregroundStyle(Couleurs.accent)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Poser le rayon entier")
+                                    .font(.subheadline.weight(.semibold))
+                                Text("Tous les tomes parus et à venir, dates comprises.")
+                                    .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
-                            if let isbn = tome.isbn {
-                                LabeledContent("ISBN", value: isbn)
-                            }
-                            if let pages = tome.pages {
-                                LabeledContent("Pages", value: "\(pages)")
-                            }
-                            if let date = tome.dateSortie {
-                                LabeledContent(
-                                    "Date de sortie",
-                                    value: date.formatted(date: .abbreviated, time: .omitted)
-                                )
-                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.tertiary)
                         }
-                        .font(.caption)
                     }
-                    .padding(.vertical, 4)
-                }
-
-                Section {
-                    Toggle(isOn: Binding(
-                        get: { tome.possede },
-                        set: { nouveau in
-                            if nouveau {
-                                guard autoriserPossession([tome]) else { return }
-                                tome.possede = true
-                            } else {
-                                tome.possede = false
-                                marquerLu(false)
-                                tome.abandonne = false
-                                tome.preteA = nil
-                                tome.preteLe = nil
-                            }
-                        }
-                    )) {
-                        Label("Je le possède", systemImage: "books.vertical.fill")
-                    }
-                    .tint(Couleurs.aLire)
-
-                    Toggle(isOn: Binding(
-                        get: { tome.lu },
-                        set: { _ = marquerLu($0) }
-                    )) {
-                        Label("Je l'ai lu", systemImage: "checkmark.circle.fill")
-                    }
-                    .tint(Couleurs.lu)
-                } footer: {
-                    if let date = tome.dateLu {
-                        Text("Lu le \(date.formatted(date: .long, time: .omitted)).")
-                    } else if let pages = tome.pages {
-                        Text("\(pages) pages.")
-                    }
-                }
-
-                Section {
-                    Toggle(isOn: Binding(
-                        get: { tome.abandonne },
-                        set: { abandonne in
-                            if abandonne, !autoriserPossession([tome]) { return }
-                            tome.abandonne = abandonne
-                            if abandonne {
-                                tome.possede = true
-                                marquerLu(false)
-                                serie.statutChoisi = .abandonne
-                            } else {
-                                serie.statutChoisi = nil
-                            }
-                        }
-                    )) {
-                        Label("Abandonné", systemImage: "xmark.circle")
-                    }
-                    .tint(Couleurs.abandonne)
-
-                    if let preteA = tome.preteA {
-                        HStack {
-                            Label("Prêté à \(preteA)", systemImage: "person.fill")
-                            Spacer(minLength: 8)
-                            Button("Rendu") {
-                                tome.preteA = nil
-                                tome.preteLe = nil
-                            }
-                            .buttonStyle(.bordered)
-                            .font(.caption.weight(.bold))
-                        }
-                    } else if tome.possede
-                                && tome.dateSortie.map({ DateCivile.estDisponible($0) }) != false {
-                        Button {
-                            // Prêter est un geste Honya+ ; rendre ne l'est jamais.
-                            if Droits.partage.plus {
-                                pretVisible = true
-                            } else {
-                                verrouPlus = .pret(
-                                    titre: tome.titre ?? "Tome \(tome.numero)",
-                                    couvertures: [tome.couvertureAffichee].compactMap { $0 }
-                                )
-                                plusVisible = true
-                            }
-                        } label: {
-                            LabelPlus(titre: "Prêter ce tome…", symbole: "person.badge.plus")
+                    .buttonStyle(.plain)
+                } else {
+                    Picker(
+                        "Statut",
+                        selection: Binding(
+                            get: { tome.statut },
+                            set: { appliquerStatut($0) }
+                        )
+                    ) {
+                        ForEach(StatutLecture.allCases) { statut in
+                            Label(statut.libelle, systemImage: statut.symbole)
+                                .tag(statut)
                         }
                     }
                 }
+            } header: {
+                Text("Statut")
+            } footer: {
+                if let date = tome.dateLu {
+                    Text("Lu le \(date.formatted(date: .long, time: .omitted)).")
+                }
+            }
 
-                Section {
+            Section {
+                if let preteA = tome.preteA {
+                    HStack {
+                        Label("Prêté à \(preteA)", systemImage: "person.fill")
+                        Spacer(minLength: 8)
+                        Button("Rendu") {
+                            tome.preteA = nil
+                            tome.preteLe = nil
+                        }
+                        .buttonStyle(.bordered)
+                        .font(.caption.weight(.bold))
+                    }
+                } else if tome.possede
+                            && tome.dateSortie.map({ DateCivile.estDisponible($0) }) != false {
                     Button {
-                        if appliquerJusquIci() { dismiss() }
+                        // Prêter est un geste Honya+ ; rendre ne l'est jamais.
+                        if droits.plus {
+                            pretVisible = true
+                        } else {
+                            verrouPlus = .pret(
+                                titre: tome.titre ?? "Tome \(tome.numero)",
+                                couvertures: [tome.couvertureAffichee].compactMap { $0 }
+                            )
+                            plusVisible = true
+                        }
                     } label: {
-                        Label("Tout marquer lu jusqu'ici", systemImage: "text.badge.checkmark")
+                        LabelPlus(titre: "Prêter ce tome…", symbole: "person.badge.plus")
                     }
+                }
+            }
+
+            Section {
+                Button {
+                    _ = appliquerJusquIci()
+                } label: {
+                    Label("Tout marquer lu jusqu'ici", systemImage: "text.badge.checkmark")
+                }
+                .badgeCadenas(tomesJusquIciContiennentUnVerrou)
+
+                if tome.possede {
                     Button(role: .destructive) {
-                        let photo = tome.couverturePersonnelleURL
-                        contexte.delete(tome)
-                        do {
-                            try contexte.save()
-                            CouverturesPersonnelles.supprimer(photo)
-                            dismiss()
-                        } catch {
-                            contexte.rollback()
-                        }
+                        appliquerStatut(.wishlist)
                     } label: {
-                        Label("Retirer ce tome", systemImage: "trash")
+                        Label("Retirer ce tome", systemImage: "minus.circle")
                     }
                 }
             }
-            .navigationTitle(tome.titre ?? "Tome \(tome.numero)")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Menu {
-                        Button {
-                            selecteurCouvertureVisible = true
+        }
+        .navigationTitle(tome.titre ?? "Tome \(tome.numero)")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button {
+                        selecteurCouvertureVisible = true
+                    } label: {
+                        Label("Modifier", systemImage: "photo.on.rectangle")
+                    }
+                    if tome.couverturePersonnelleURL != nil {
+                        Button(role: .destructive) {
+                            retirerCouverturePersonnelle()
                         } label: {
-                            Label("Modifier", systemImage: "photo.on.rectangle")
+                            Label("Retirer", systemImage: "photo.badge.minus")
                         }
-                        if tome.couverturePersonnelleURL != nil {
-                            Button(role: .destructive) {
-                                retirerCouverturePersonnelle()
-                            } label: {
-                                Label("Retirer", systemImage: "photo.badge.minus")
-                            }
-                        }
-                    } label: {
-                        Image(systemName: "photo")
                     }
-                    .accessibilityLabel("Modifier")
+                } label: {
+                    Image(systemName: "photo")
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("OK") { dismiss() }.fontWeight(.bold)
-                }
+                .accessibilityLabel("Modifier")
             }
-            .sheet(isPresented: $pretVisible) {
-                PreterSheet(cible: .tome(tome), titre: tome.titre ?? "Tome \(tome.numero)")
-            }
-            .ecranHonyaPlus(
-                $plusVisible,
-                verrou: verrouPlus ?? .pret(
-                    titre: tome.titre ?? "Tome \(tome.numero)",
-                    couvertures: [tome.couvertureAffichee].compactMap { $0 }
-                )
-            )
-            .photosPicker(
-                isPresented: $selecteurCouvertureVisible,
-                selection: $photoCouverture,
-                matching: .images
-            )
-            .task(id: photoCouverture) {
-                guard let selection = photoCouverture else { return }
-                await enregistrerCouvertureChoisie(selection)
-            }
+        }
+        .sheet(isPresented: $pretVisible) {
+            PreterSheet(cible: .tome(tome), titre: tome.titre ?? "Tome \(tome.numero)")
+        }
+        .ecranHonyaPlus(
+            $plusVisible,
+            verrou: verrouPlus ?? verrouRayon
+        )
+        .photosPicker(
+            isPresented: $selecteurCouvertureVisible,
+            selection: $photoCouverture,
+            matching: .images
+        )
+        .task(id: photoCouverture) {
+            guard let selection = photoCouverture else { return }
+            await enregistrerCouvertureChoisie(selection)
+        }
+        .task(id: droits.plus) {
+            EditionsLocales.synchroniserAccesRayon(serie)
         }
     }
 
-    @discardableResult
-    private func marquerLu(_ valeur: Bool) -> Bool {
-        if valeur, !autoriserPossession([tome]) { return false }
-        tome.lu = valeur
-        tome.dateLu = valeur ? Date() : nil
-        if valeur {
-            tome.possede = true
-            tome.abandonne = false
-        }
-        // Modifier la réalité de lecture invalide un statut de série choisi
-        // auparavant : `nil` laisse le modèle recalculer Lu / En cours / À lire.
+    private func appliquerStatut(_ statut: StatutLecture) {
+        if statut != .wishlist, !autoriserPossession([tome]) { return }
+        tome.changerStatut(statut)
+        // Le statut de la série se déduit de tous ses tomes. Un volume en
+        // cours ne doit donc pas écraser l'état des autres par un choix global.
         serie.statutChoisi = nil
         BadgesEngine.evaluer(dans: contexte)
-        if valeur, serie.estTerminee {
-            dismiss()
+        if statut == .lu, serie.estTerminee {
             Celebrations.partage.feter("Série terminée !")
         }
-        return true
     }
 
     @discardableResult
@@ -421,12 +444,7 @@ private struct FeuilleTome: View {
         let cibles = serie.tomes.filter { $0.numero <= tome.numero }
         guard autoriserPossession(cibles) else { return false }
         for autre in cibles {
-            autre.possede = true
-            autre.abandonne = false
-            if !autre.lu {
-                autre.lu = true
-                autre.dateLu = Date()
-            }
+            autre.changerStatut(.lu)
         }
         serie.statutChoisi = nil
         BadgesEngine.evaluer(dans: contexte)
@@ -468,6 +486,11 @@ private struct FeuilleTome: View {
     }
 
     private func autoriserPossession(_ tomes: [Tome]) -> Bool {
+        if tomes.contains(where: { tomeEstVerrouille($0) }) {
+            verrouPlus = verrouRayon
+            plusVisible = true
+            return false
+        }
         guard ImportService.autorisePossession(
             des: tomes, de: serie, dans: contexte
         ) else {
@@ -480,6 +503,30 @@ private struct FeuilleTome: View {
         }
         return true
     }
+
+    private var tomeEstVerrouille: Bool {
+        tomeEstVerrouille(tome)
+    }
+
+    private func tomeEstVerrouille(_ candidat: Tome) -> Bool {
+        ImportService.tomeVerrouilleParRayon(candidat, de: serie)
+    }
+
+    private var tomesJusquIciContiennentUnVerrou: Bool {
+        serie.tomes.contains {
+            $0.numero <= tome.numero && tomeEstVerrouille($0)
+        }
+    }
+
+    private var verrouRayon: Verrou {
+        .serie(
+            nom: serie.nomAffiche(langue),
+            tomes: serie.tomesTotal ?? serie.tomes.count,
+            couvertures: Array(
+                serie.tomesTries.compactMap(\.couvertureAffichee).prefix(3)
+            )
+        )
+    }
 }
 
 // MARK: - Réglage rapide : « j'ai tout jusqu'au tome N »
@@ -487,11 +534,14 @@ private struct FeuilleTome: View {
 private struct FeuilleJusquA: View {
     @Bindable var serie: Serie
     let reglage: GrilleTomesView.ReglageRapide
+    let langue: String
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var contexte
     @State private var numero: Double = 1
     @State private var plusVisible = false
+    @State private var verrouPlus: Verrou?
+    @State private var droits = Droits.partage
 
     private var maximum: Double {
         Double(max(serie.tomes.map(\.numero).max() ?? 0, 1))
@@ -537,9 +587,15 @@ private struct FeuilleJusquA: View {
                 .max() ?? 1
             numero = Double(max(1, depart))
         }
-        .ecranHonyaPlus($plusVisible, verrou: .bibliotheque(
-            couvertures: [serie.couvertureAffichee].compactMap { $0 }
-        ))
+        .ecranHonyaPlus(
+            $plusVisible,
+            verrou: verrouPlus ?? .bibliotheque(
+                couvertures: [serie.couvertureAffichee].compactMap { $0 }
+            )
+        )
+        .task(id: droits.plus) {
+            EditionsLocales.synchroniserAccesRayon(serie)
+        }
     }
 
     private var explication: String {
@@ -555,6 +611,11 @@ private struct FeuilleJusquA: View {
     private func appliquer() -> Bool {
         let seuil = Int(numero)
         let cibles = serie.tomes.filter { $0.numero <= seuil }
+        if cibles.contains(where: { tomeEstVerrouille($0) }) {
+            verrouPlus = verrouRayon
+            plusVisible = true
+            return false
+        }
         let nombrePossedesProjete: Int
         switch reglage {
         case .possedes:
@@ -567,42 +628,49 @@ private struct FeuilleJusquA: View {
         guard ImportService.autoriseNombrePossedesProjete(
             nombrePossedesProjete, de: serie, dans: contexte
         ) else {
+            verrouPlus = .bibliotheque(
+                couvertures: [serie.couvertureAffichee].compactMap { $0 }
+            )
             plusVisible = true
             return false
         }
         for tome in serie.tomes {
             switch reglage {
             case .possedes:
-                tome.possede = tome.numero <= seuil
-                if !tome.possede {
-                    if tome.lu {
-                        tome.lu = false
-                        tome.dateLu = nil
-                    }
-                    tome.abandonne = false
-                    tome.preteA = nil
-                    tome.preteLe = nil
+                if tome.numero <= seuil {
+                    if !tome.possede { tome.changerStatut(.aLire) }
+                } else {
+                    tome.changerStatut(.wishlist)
                 }
             case .lus:
                 let concerne = tome.numero <= seuil
                 if concerne {
-                    tome.possede = true
-                    tome.abandonne = false
-                    if !tome.lu { tome.dateLu = Date() }
-                    tome.lu = true
+                    tome.changerStatut(.lu)
                 } else if tome.lu {
-                    tome.lu = false
-                    tome.dateLu = nil
+                    tome.changerStatut(.aLire)
                 }
             }
         }
-        if reglage == .lus {
-            serie.statutChoisi = nil
-        }
+        serie.statutChoisi = nil
         BadgesEngine.evaluer(dans: contexte)
         if reglage == .lus, serie.estTerminee {
             Celebrations.partage.feter("Série terminée !")
         }
         return true
     }
+
+    private func tomeEstVerrouille(_ tome: Tome) -> Bool {
+        ImportService.tomeVerrouilleParRayon(tome, de: serie)
+    }
+
+    private var verrouRayon: Verrou {
+        .serie(
+            nom: serie.nomAffiche(langue),
+            tomes: serie.tomesTotal ?? serie.tomes.count,
+            couvertures: Array(
+                serie.tomesTries.compactMap(\.couvertureAffichee).prefix(3)
+            )
+        )
+    }
+
 }

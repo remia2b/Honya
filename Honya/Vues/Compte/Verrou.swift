@@ -11,16 +11,44 @@ struct Verrou {
     var detail: String
     /// Les couvertures à montrer. Vide → on retombe sur le symbole.
     var couvertures: [String] = []
+    /// Crédits indissociables des couvertures lorsque la source l'exige.
+    var attributions: [String] = []
     var symbole: String = "lock.fill"
 
     // MARK: - Les verrous de Honya
 
-    static func serie(nom: String, tomes: Int, couvertures: [String]) -> Verrou {
+    static func serie(
+        nom: String,
+        tomes: Int,
+        couvertures: [String],
+        attributions: [String] = []
+    ) -> Verrou {
         Verrou(
             titre: "Votre 4ᵉ série",
             detail: String(localized: "Honya peut poser les \(tomes) tomes de « \(nom) » à votre place, dates de sortie comprises. Comme il l'a fait pour les trois précédentes."),
             couvertures: couvertures,
+            attributions: attributions,
             symbole: "books.vertical.fill"
+        )
+    }
+
+    /// Même présentation pour tous les chemins qui rencontrent la
+    /// continuation d'un rayon (grille, recherche, scan, raccourci).
+    static func serie(_ serie: Serie, langue: String) -> Verrou {
+        let tomes = serie.tomesTries.compactMap { tome -> (String, String?)? in
+            guard let url = tome.couvertureAffichee else { return nil }
+            return (url, tome.attributionCouverture)
+        }
+        let visuels: [(String, String?)] = tomes.isEmpty
+            ? [serie.couvertureAffichee].compactMap { url in
+                url.map { ($0, serie.attributionCouvertureAffichee) }
+            }
+            : Array(tomes.prefix(3))
+        return .serie(
+            nom: serie.nomAffiche(langue),
+            tomes: serie.tomesTotal ?? serie.tomes.count,
+            couvertures: visuels.map { $0.0 },
+            attributions: visuels.compactMap { $0.1 }
         )
     }
 

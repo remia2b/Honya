@@ -5,6 +5,7 @@ import SwiftData
 /// exactement comme la page produit d'Apple Books quand on vient de la recherche.
 struct ApercuResultatView: View {
     @State private var plusVisible = false
+    @State private var verrouPlus: Verrou?
     @State private var cibleExistante: CibleSession?
     @State private var verifie = false
 
@@ -127,9 +128,12 @@ struct ApercuResultatView: View {
         .background(fond.ignoresSafeArea())
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
-        .ecranHonyaPlus($plusVisible, verrou: .bibliotheque(
-            couvertures: [resultat.couvertureURL].compactMap { $0 }
-        ))
+        .ecranHonyaPlus(
+            $plusVisible,
+            verrou: verrouPlus ?? .bibliotheque(
+                couvertures: [resultat.couvertureURL].compactMap { $0 }
+            )
+        )
         .task(id: resultat.couvertureURL) {
             guard let image = await ImageCharge.partage.uiImage(depuis: resultat.couvertureURL),
                   let couleur = CouleurCouverture.teinteDeFond(image)
@@ -179,37 +183,17 @@ struct ApercuResultatView: View {
                 .padding(.vertical, 11)
                 .background(.white.opacity(0.18), in: Capsule())
         } else if resultat.estSerie {
-            Menu {
-                Button { ajouter(.aLire) } label: {
-                    Label("Je la possède · à lire", systemImage: "books.vertical.fill")
-                }
-                Button { ajouter(.enCours) } label: {
-                    Label("Je suis en train de la lire", systemImage: "book.fill")
-                }
-                Button { ajouter(.lu) } label: {
-                    Label("Je l'ai lue", systemImage: "checkmark.circle.fill")
-                }
-                Button { ajouter(.wishlist) } label: {
-                    Label("À acheter", systemImage: "cart.fill")
-                }
-                Button { ajouter(.abandonne) } label: {
-                    Label("Je l'ai abandonnée", systemImage: "xmark.circle")
-                }
-            } label: {
+            Button { ajouter(.wishlist) } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "plus")
                         .font(.subheadline.weight(.heavy))
                     Text("Ajouter cette série")
                         .font(.subheadline.weight(.heavy))
-                    Image(systemName: "chevron.up.chevron.down")
-                        .font(.system(size: 11, weight: .bold))
-                        .opacity(0.55)
                 }
                 .frame(maxWidth: 300)
                 .padding(.vertical, 12)
                 .foregroundStyle(teinte)
                 .background(.white, in: Capsule())
-                .badgeCadenas(!Droits.partage.plus && tomesRanges >= Limites.tomes)
             }
         } else {
             // Un seul bouton, et l'état se choisit au moment d'ajouter :
@@ -254,7 +238,6 @@ struct ApercuResultatView: View {
                 .padding(.vertical, 12)
                 .foregroundStyle(teinte)
                 .background(.white, in: Capsule())
-                .badgeCadenas(!Droits.partage.plus && tomesRanges >= Limites.tomes)
             }
         }
     }
@@ -262,15 +245,14 @@ struct ApercuResultatView: View {
     private func ajouter(_ statut: StatutLecture) {
         switch ImportService.ajouter(resultat, statut: statut, dans: contexte) {
         case .limiteAtteinte:
+            verrouPlus = nil
+            plusVisible = true
+        case .rayonVerrouille(let serie):
+            verrouPlus = .serie(serie, langue: langue)
             plusVisible = true
         case .oeuvre, .serie, .dejaPresent:
             withAnimation(.snappy) { ajoute = true }
         }
-    }
-
-    /// Ce que compte le plafond : les livres seuls et les tomes des séries.
-    private var tomesRanges: Int {
-        ImportService.nombreRange(dans: contexte)
     }
 
     // MARK: - Aides

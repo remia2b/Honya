@@ -21,6 +21,7 @@ struct HonyaPlusView: View {
     @State private var apparu = false
     /// De quoi garnir le rayon quand la bibliothèque est encore vide.
     @State private var tendances: [String] = []
+    @State private var attributionsTendances: [String] = []
 
     private var contextuel: Bool { verrou != nil && !toutVoir }
 
@@ -67,6 +68,7 @@ struct HonyaPlusView: View {
             guard oeuvres.isEmpty else { return }
             let top = await Decouverte.classement(gratuits: false, langue: Langues.codeAppareil)
             tendances = top.compactMap(\.couvertureURL)
+            attributionsTendances = top.compactMap(\.attributionCouverture)
         }
     }
 
@@ -97,7 +99,13 @@ struct HonyaPlusView: View {
         VStack(spacing: 0) {
             eventail(verrou)
                 .padding(.top, 40)
-                .padding(.bottom, 30)
+                .padding(.bottom, 8)
+
+            mentionAttribution(
+                explicites: verrou.attributions,
+                urls: verrou.couvertures
+            )
+            .padding(.bottom, 20)
 
             Text(verrou.titre)
                 .font(.system(size: 30, weight: .semibold, design: .serif))
@@ -161,7 +169,18 @@ struct HonyaPlusView: View {
             // droite ; seul le texte est en retrait.
             rayon
                 .frame(height: 114)
-                .padding(.bottom, 16)
+                .padding(.bottom, 6)
+
+            mentionAttribution(
+                explicites: oeuvres.isEmpty
+                    ? attributionsTendances
+                    : oeuvres.compactMap(\.attributionCouverture),
+                urls: oeuvres.isEmpty
+                    ? tendances
+                    : oeuvres.compactMap(\.couvertureAffichee)
+            )
+            .padding(.horizontal, 28)
+            .padding(.bottom, 10)
 
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 0) {
@@ -205,6 +224,42 @@ struct HonyaPlusView: View {
         .scrollDisabled(true)
         .opacity(apparu ? 1 : 0)
         .animation(.easeOut(duration: 0.7), value: apparu)
+    }
+
+    @ViewBuilder
+    private func mentionAttribution(
+        explicites: [String], urls: [String]
+    ) -> some View {
+        let mentions = attributions(explicites: explicites, urls: urls)
+        if !mentions.isEmpty {
+            Text(verbatim: mentions.joined(separator: " · "))
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(.secondary.opacity(0.82))
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// Filet de conformité : les crédits structurés restent prioritaires. Si
+    /// un ancien snapshot ne les possède pas encore, l'hôte exact permet au
+    /// moins de ne jamais afficher une couverture BnF/MLP sans provenance.
+    private func attributions(
+        explicites: [String], urls: [String]
+    ) -> [String] {
+        var resultat = explicites.filter { !$0.isEmpty }
+        let jour = String(ISO8601DateFormatter().string(from: Date()).prefix(10))
+        for chaine in urls {
+            guard let hote = URL(string: chaine)?.host?.lowercased() else { continue }
+            if hote == "openapi.bnf.fr",
+               !resultat.contains(where: { $0.contains("Bibliothèque nationale de France") }) {
+                resultat.append("Bibliothèque nationale de France · \(jour)")
+            } else if hote.hasSuffix("michel-lafon.fr"),
+                      !resultat.contains("© MLP") {
+                resultat.append("© MLP")
+            }
+        }
+        var vues = Set<String>()
+        return resultat.filter { vues.insert($0).inserted }
     }
 
     // MARK: - Les avantages

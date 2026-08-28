@@ -23,6 +23,7 @@ struct CouvertureView: View {
                     .overlay(
                         Image(uiImage: image)
                             .resizable()
+                            .interpolation(.high)
                             .scaledToFill()
                     )
             } else {

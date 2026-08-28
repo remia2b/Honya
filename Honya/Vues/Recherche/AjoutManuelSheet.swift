@@ -23,6 +23,7 @@ struct AjoutManuelSheet: View {
     @State private var tentativeEnregistrement = false
     @State private var champsVisites: Set<Champ> = []
     @State private var plusVisible = false
+    @State private var verrouPlus: Verrou?
     @FocusState private var champActif: Champ?
 
     private let surAjout: (ResultatRecherche) -> Void
@@ -188,7 +189,9 @@ struct AjoutManuelSheet: View {
             }
             .ecranHonyaPlus(
                 $plusVisible,
-                verrou: .bibliotheque(couvertures: [couvertureApercu].compactMap { $0 })
+                verrou: verrouPlus ?? .bibliotheque(
+                    couvertures: [couvertureApercu].compactMap { $0 }
+                )
             )
         }
     }
@@ -236,6 +239,10 @@ struct AjoutManuelSheet: View {
         let resultat = resultatManuel()
         switch ImportService.ajouter(resultat, statut: statut, dans: contexte) {
         case .limiteAtteinte:
+            verrouPlus = nil
+            plusVisible = true
+        case .rayonVerrouille(let serie):
+            verrouPlus = .serie(serie, langue: langue)
             plusVisible = true
         case .oeuvre, .serie, .dejaPresent:
             surAjout(resultat)

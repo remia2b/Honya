@@ -26,8 +26,24 @@ enum EditionsLocales {
         let jeton: UUID
     }
 
+    /// Réservation purement mémoire, le temps que le catalogue confirme qu'un
+    /// rayon existe vraiment. Elle empêche deux scans synchrones de prendre la
+    /// même troisième place, sans polluer la sauvegarde si le réseau échoue.
+    private enum ReservationRayon {
+        case gratuite
+        case honyaPlus
+        case refusee
+    }
+
     private static var enrichissementsSeries: [ObjectIdentifier: Enrichissement] = [:]
     private static var enrichissementsOeuvres: [ObjectIdentifier: Enrichissement] = [:]
+    private static var reservationsRayons: [ObjectIdentifier: ReservationRayon] = [:]
+
+    private static var reservationsGratuitesEnAttente: Int {
+        reservationsRayons.values.reduce(into: 0) {
+            if case .gratuite = $1 { $0 += 1 }
+        }
+    }
 
     /// UNE requête pour toute la série : le catalogue renvoie tous les tomes
     /// d'un coup, on les matche strictement et on remplit tout — série,
@@ -47,7 +63,9 @@ enum EditionsLocales {
                    FetchDescriptor<Serie>(predicate: #Predicate {
                        $0.rayonEnrichi && !$0.rayonHonyaPlus
                    })
-               ), gratuits < Limites.seriesCompletes {
+               ),
+               gratuits + reservationsGratuitesEnAttente
+                    < Limites.seriesCompletes {
                 serie.rayonHonyaPlus = false
                 serie.rayonRefuse = false
                 return true
@@ -79,7 +97,8 @@ enum EditionsLocales {
             serie.rayonRefuse = true
             return false
         }
-        guard deja < Limites.seriesCompletes else {
+        guard deja + reservationsGratuitesEnAttente
+                < Limites.seriesCompletes else {
             serie.rayonRefuse = true
             return false
         }
@@ -91,6 +110,103 @@ enum EditionsLocales {
         serie.rayonHonyaPlus = false
         serie.rayonRefuse = false
         return true
+    }
+
+    /// Réserve le droit du rayon avant toute mutation de possession. Le scan
+    /// en rafale est synchrone : attendre le retour du catalogue laisserait le
+    /// temps aux tomes 4, 5… de passer avant que le cadenas soit connu.
+    static func preparerAccesRayon(_ serie: Serie) {
+        let identifiant = ObjectIdentifier(serie)
+        if let reservation = reservationsRayons[identifiant] {
+            // Un abonnement peut expirer pendant l'appel catalogue. Reclasser
+            // alors la réservation avant la prochaine mutation du même lot.
+            if case .honyaPlus = reservation, !Droits.partage.plus {
+                reservationsRayons.removeValue(forKey: identifiant)
+            } else {
+                return
+            }
+        }
+
+        // Ces séries possèdent déjà un résultat catalogue persistant : elles
+        // peuvent être promues/déclassées immédiatement, sans état provisoire.
+        if serie.rayonEnrichi || serie.rayonRefuse || serie.rayonHonyaPlus {
+            _ = reserverRayonSiAutorise(serie)
+            return
+        }
+
+        if Droits.partage.plus {
+            reservationsRayons[identifiant] = .honyaPlus
+            return
+        }
+
+        guard let contexte = serie.modelContext,
+              let deja = try? contexte.fetchCount(
+                FetchDescriptor<Serie>(predicate: #Predicate {
+                    $0.rayonEnrichi && !$0.rayonHonyaPlus
+                })
+              )
+        else {
+            reservationsRayons[identifiant] = .refusee
+            return
+        }
+        reservationsRayons[identifiant] =
+            deja + reservationsGratuitesEnAttente < Limites.seriesCompletes
+                ? .gratuite
+                : .refusee
+    }
+
+    /// Utilisé par l'unique règle de cadenas pendant la courte fenêtre où le
+    /// catalogue n'a pas encore confirmé le rayon.
+    static func accesProvisoireRefuse(_ serie: Serie) -> Bool {
+        let reservation = reservationsRayons[ObjectIdentifier(serie)]
+        if case .refusee = reservation { return true }
+        if case .honyaPlus = reservation, !Droits.partage.plus { return true }
+        return false
+    }
+
+    private static func annulerReservation(_ serie: Serie) {
+        reservationsRayons.removeValue(forKey: ObjectIdentifier(serie))
+    }
+
+    private static func finaliserReservation(_ serie: Serie) {
+        let identifiant = ObjectIdentifier(serie)
+        guard let reservation = reservationsRayons.removeValue(
+            forKey: identifiant
+        ) else {
+            _ = reserverRayonSiAutorise(serie)
+            return
+        }
+
+        switch reservation {
+        case .gratuite:
+            // La place était comptée dès le scan : la confirmer directement
+            // maintient la limite même si les réponses réseau arrivent ailleurs.
+            // Un passage à Plus pendant l'appel ne retire pas cette place
+            // gratuite déjà acquise : ce rayon restera donc l'un des trois
+            // gratuits après expiration, même si un tome > 3 a été ajouté
+            // entre-temps sous abonnement.
+            serie.rayonEnrichi = true
+            serie.rayonHonyaPlus = false
+            serie.rayonRefuse = false
+        case .honyaPlus where Droits.partage.plus:
+            serie.rayonEnrichi = true
+            serie.rayonHonyaPlus = true
+            serie.rayonRefuse = false
+        case .honyaPlus, .refusee:
+            // Abonnement expiré ou place libérée pendant l'appel : recalculer
+            // contre les rayons persistés ET les réservations encore en vol.
+            _ = reserverRayonSiAutorise(serie)
+        }
+    }
+
+    /// Réévalue un rayon sans refaire le moindre appel réseau. C'est
+    /// notamment nécessaire à l'expiration d'un abonnement : un ancien rayon
+    /// Honya+ devient l'un des trois gratuits si une place existe, sinon sa
+    /// continuation repasse immédiatement derrière le cadenas.
+    static func synchroniserAccesRayon(_ serie: Serie) {
+        guard serie.rayonEnrichi || serie.rayonRefuse || serie.rayonHonyaPlus
+        else { return }
+        _ = reserverRayonSiAutorise(serie)
     }
 
     static func rafraichirSerieComplete(
@@ -106,9 +222,18 @@ enum EditionsLocales {
         enrichissementsSeries[identifiant] = Enrichissement(
             langue: langue, profonde: profonde, jeton: jeton
         )
+        var reservationFinalisee = false
         defer {
-            if enrichissementsSeries[identifiant]?.jeton == jeton {
+            let estToujoursLaGenerationCourante =
+                enrichissementsSeries[identifiant]?.jeton == jeton
+            if estToujoursLaGenerationCourante {
                 enrichissementsSeries.removeValue(forKey: identifiant)
+            }
+            // Une requête remplacée (nouvelle langue ou passe profonde) ne
+            // possède plus la réservation : seule la génération encore
+            // courante peut l'annuler en échouant.
+            if estToujoursLaGenerationCourante && !reservationFinalisee {
+                annulerReservation(serie)
             }
         }
 
@@ -194,15 +319,18 @@ enum EditionsLocales {
         // créé, grisé tant qu'il n'est pas possédé — précommandes comprises.
         //
         // C'est LE geste que Honya+ ouvre en grand : le gratuit en remplit
-        // trois, au-delà on ajoute ses tomes à la main. Les éditions locales,
-        // elles, restent gratuites — on ne dégrade pas ce qui est déjà là.
+        // trois. Au-delà, tous les tomes confirmés restent visibles et leur
+        // fiche consultable ; seule la continuation après la première rangée
+        // est verrouillée. On persiste donc les métadonnées avant d'appliquer
+        // le droit dans l'interface, sans jamais masquer un tome possédé.
         // Le total AniList décrit l'édition d'origine. Une édition locale peut
         // regrouper ou découper autrement ses volumes (omnibus, perfect, BD).
         // On ne matérialise donc que les numéros réellement confirmés par le
         // catalogue local : jamais de tomes fantômes déduits de 1...N.
         let totalAnnonce = serie.tomesTotal.flatMap { $0 > 0 ? $0 : nil }
         guard !parNumero.isEmpty else { return }
-        guard reserverRayonSiAutorise(serie) else { return }
+        finaliserReservation(serie)
+        reservationFinalisee = true
 
         let numerosDuRayon = Set(parNumero.keys)
 

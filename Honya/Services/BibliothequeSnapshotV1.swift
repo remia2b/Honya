@@ -9,7 +9,15 @@ import SwiftData
 /// côtés des relations SwiftData afin qu'une future restauration puisse les
 /// vérifier avant d'écrire quoi que ce soit dans le store local.
 struct BibliothequeSnapshotV1: Codable, Sendable {
-    static let versionActuelle = 1
+    /// La v2 ajoute les statuts et dates propres aux tomes. La v1 reste
+    /// lisible afin qu'une bibliothèque créée par une bêta soit migrée sans
+    /// perte ; tous les nouveaux exports sont en revanche émis en v2.
+    static let versionMinimaleSupportee = 1
+    static let versionActuelle = 2
+
+    static func prendEnCharge(_ version: Int) -> Bool {
+        (versionMinimaleSupportee...versionActuelle).contains(version)
+    }
 
     let version: Int
     let oeuvres: [OeuvreDonnees]
@@ -109,11 +117,18 @@ struct BibliothequeSnapshotV1: Codable, Sendable {
         let preteA: String?
         let preteLe: Date?
         let abandonne: Bool
+        /// Optionnel : les sauvegardes V1 antérieures restent décodables.
+        let statutRaw: String?
         let numero: Int
         let possede: Bool
         let lu: Bool
         let dateLu: Date?
         let isbn: String?
+        /// Optionnels : les sauvegardes V1 antérieures restent décodables.
+        let langueEdition: String?
+        let dateAchat: Date?
+        let dateDebut: Date?
+        let dateFin: Date?
         let titre: String?
         let couvertureURL: String?
         let couverturePersonnelleURL: String?
@@ -196,7 +211,7 @@ enum ErreurBibliothequeSnapshotV1: Error, LocalizedError, Sendable {
 extension BibliothequeSnapshotV1 {
     /// Refuse un document partiel ou ambigu avant son encodage et son hachage.
     func valider() throws {
-        guard version == Self.versionActuelle else {
+        guard Self.prendEnCharge(version) else {
             throw ErreurBibliothequeSnapshotV1.versionInvalide(version)
         }
 
@@ -539,11 +554,16 @@ enum ExporteurBibliothequeSnapshotV1 {
             preteA: modele.preteA,
             preteLe: modele.preteLe,
             abandonne: modele.abandonne,
+            statutRaw: modele.statutRaw,
             numero: modele.numero,
             possede: modele.possede,
             lu: modele.lu,
             dateLu: modele.dateLu,
             isbn: modele.isbn,
+            langueEdition: modele.langueEdition,
+            dateAchat: modele.dateAchat,
+            dateDebut: modele.dateDebut,
+            dateFin: modele.dateFin,
             titre: modele.titre,
             couvertureURL: modele.couvertureURL,
             couverturePersonnelleURL: modele.couverturePersonnelleURL,

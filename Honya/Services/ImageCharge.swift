@@ -28,6 +28,35 @@ enum ArtworkApple {
     }
 }
 
+/// Le service Couvertures de la BnF conserve une URL canonique en taille
+/// originale dans les modeles. Pour une petite grille, demander cette image
+/// complete gaspillerait beaucoup de memoire et de bande passante ; l'API sait
+/// la redimensionner a la volee en preservant ses proportions. L'URL originale
+/// reste toujours le repli si cette variante beta devient indisponible.
+enum ArtworkBnF {
+    static func adaptee(_ chaine: String, cote: Int) -> String {
+        guard var composants = URLComponents(string: chaine),
+              composants.host?.lowercased() == "openapi.bnf.fr",
+              composants.path == "/couverture/image/image/recupererImage"
+        else { return chaine }
+
+        var parametres = composants.queryItems ?? []
+        let dimensions = Set(["taille", "largeur", "hauteur"])
+        parametres.removeAll { dimensions.contains($0.name.lowercased()) }
+
+        let largeur = max(1, cote)
+        // `cote` designe la largeur utile d'une couverture. Une borne de
+        // hauteur 8:5 couvre aussi les formats de poche un peu plus etroits,
+        // sans que le serveur ramene leur largeur sous la densite Retina.
+        let hauteur = Int(ceil(Double(largeur) * 1.6))
+        parametres.append(.init(name: "taille", value: "originale"))
+        parametres.append(.init(name: "largeur", value: String(largeur)))
+        parametres.append(.init(name: "hauteur", value: String(hauteur)))
+        composants.queryItems = parametres
+        return composants.url?.absoluteString ?? chaine
+    }
+}
+
 // MARK: - Chargeur d'images de couvertures (mémoire + cache HTTP système)
 
 actor ImageCharge {
@@ -73,29 +102,36 @@ actor ImageCharge {
         // Même les couvertures enregistrées en petit ressortent nettes :
         // la réécriture se fait au chargement, pas dans les données.
         let brute = chaine
-        chaine = ArtworkApple.nette(chaine, cote: cote)
+        chaine = ArtworkApple.nette(brute, cote: cote)
+        chaine = ArtworkBnF.adaptee(chaine, cote: cote)
         guard URL(string: chaine) != nil else { return nil }
-
-        let cle = Self.empreinte(chaine)
-        if let enMemoire = memoire.object(forKey: cle as NSString) {
-            return enMemoire
-        }
         // Certaines vignettes n'existent pas au calibre demandé : le serveur
         // répond alors autre chose qu'une image. On retombe sur l'adresse
         // d'origine plutôt que d'abandonner la couverture.
         let candidates = chaine == brute ? [chaine] : [chaine, brute]
         for candidate in candidates {
             guard let url = URL(string: candidate) else { continue }
-            let donnees: Data?
-            if let (telechargees, _) = try? await URLSession.shared.data(from: url) {
-                donnees = telechargees
-            } else {
-                donnees = nil
+            // Une variante basse definition ne doit jamais empoisonner la cle
+            // d'une variante HD. Chaque URL candidate possede son propre cache.
+            let cleCandidate = Self.empreinte(candidate)
+            if let enMemoire = memoire.object(forKey: cleCandidate as NSString) {
+                return enMemoire
             }
-            guard let donnees, let image = UIImage(data: donnees) else { continue }
+
+            guard let (donnees, reponse) = try? await URLSession.shared.data(from: url)
+            else { continue }
+            if let http = reponse as? HTTPURLResponse,
+               !(200..<300).contains(http.statusCode) {
+                continue
+            }
+            guard let image = UIImage(data: donnees) else { continue }
             let pixels = Int(image.size.width * image.scale)
                 * Int(image.size.height * image.scale) * 4
-            memoire.setObject(image, forKey: cle as NSString, cost: pixels)
+            memoire.setObject(
+                image,
+                forKey: cleCandidate as NSString,
+                cost: pixels
+            )
             return image
         }
         return nil

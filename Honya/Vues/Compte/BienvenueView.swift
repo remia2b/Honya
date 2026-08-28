@@ -27,6 +27,9 @@ struct BienvenueView: View {
     @State private var compte = Compte.partage
     @State private var vignettes: [Vignette] = []
     @State private var apparu = false
+    /// Origine locale de la derive. Une date absolue faisait commencer le mur
+    /// a un endroit arbitraire de sa boucle a chaque apparition.
+    @State private var debutMur = Date()
 
     @State private var parEmail = false
     @State private var mode: Mode = .inscription
@@ -102,22 +105,50 @@ struct BienvenueView: View {
         let url: String?
         let titre: String
         let manga: Bool
+        /// Conserve la provenance avec le cache. Le mur ne transforme jamais
+        /// une image issue d'une source ouverte en visuel « sans auteur ».
+        let attribution: String?
+
+        init(
+            id: String,
+            url: String?,
+            titre: String,
+            manga: Bool,
+            attribution: String? = nil
+        ) {
+            self.id = id
+            self.url = url
+            self.titre = titre
+            self.manga = manga
+            self.attribution = attribution
+        }
     }
 
     // Trois colonnes qui se recouvrent : le nombre de couvertures par colonne
     // se déduit de la hauteur de l'écran, il n'est pas figé.
     private static let colonnes = 3
-    private static let ecart: CGFloat = 9
-    private static let marge: CGFloat = 5
+    private static let ecart: CGFloat = 4
+    private static let marge: CGFloat = 0
     /// Les colonnes ne démarrent pas au même endroit, sinon les couvertures
     /// forment des rangées bien alignées et le mur perd sa vie. Exprimé en
     /// fraction d'une couverture, jamais plus d'une : au-delà, la boucle
     /// laisserait le bas de l'écran à découvert.
-    private static let departs: [CGFloat] = [-0.10, -0.55, -0.28]
+    private static let departs: [CGFloat] = [-0.06, -0.34, -0.16]
     private static let durees: [Double] = [66, 78, 58]
 
     private var langue: String {
         objectifs.first?.languePrincipale ?? Langues.codeAppareil
+    }
+
+    /// Une edition anglaise du store US et une edition anglaise du store GB
+    /// peuvent avoir des titres et couvertures differents. Le souvenir du mur
+    /// est donc cloisonne par langue ET par storefront, comme le catalogue.
+    private var cleCacheMur: String {
+        let code = langue.lowercased()
+            .split(whereSeparator: { $0 == "-" || $0 == "_" })
+            .first.map(String.init) ?? langue.lowercased()
+        let storefront = Langues.storefront(pourLangue: langue).lowercased()
+        return "murAccueilV3.\(code).\(storefront)"
     }
 
     var body: some View {
@@ -191,7 +222,10 @@ struct BienvenueView: View {
                 break
             }
         }
-        .task { await chargerLeMur() }
+        .task(id: cleCacheMur) {
+            debutMur = Date()
+            await chargerLeMur()
+        }
         .onAppear {
             withAnimation(.easeOut(duration: 0.7)) { apparu = true }
             if connexionSeulement { mode = .connexion }
@@ -237,7 +271,12 @@ struct BienvenueView: View {
                 let pas = largeur * 1.5 + Self.ecart
                 let parColonne = Int(ceil(geo.size.height / pas)) + 1
                 let course = pas * CGFloat(parColonne)
-                let instant = contexte.date.timeIntervalSinceReferenceDate
+                // La timeline est deja pausee avec Reduce Motion ; la phase
+                // zero explicite garantit aussi une composition immobile si
+                // SwiftUI recalcule le contexte apres un changement d'etat.
+                let instant = mouvementReduit
+                    ? 0
+                    : max(0, contexte.date.timeIntervalSince(debutMur))
 
                 HStack(alignment: .top, spacing: Self.ecart) {
                     ForEach(0..<Self.colonnes, id: \.self) { index in
@@ -322,6 +361,9 @@ struct BienvenueView: View {
                 manga: vignette.manga,
                 cote: 400
             )
+            // Le mur est un decor : VoiceOver doit atteindre directement le
+            // titre et les choix de connexion, pas enumerer 24 couvertures.
+            .accessibilityHidden(true)
         }
     }
 
@@ -778,22 +820,40 @@ struct BienvenueView: View {
     /// Accessible avant toute transmission d'adresse e-mail ou d'identite
     /// Apple, comme l'exige une creation de compte transparente.
     private var liensLegaux: some View {
-        HStack(spacing: 16) {
-            Link(
-                "Politique de confidentialité",
-                destination: URL(string: "https://www.honya.app/en/privacy/")!
-            )
-            Link(
-                "Conditions d’utilisation",
-                destination: URL(
-                    string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
-                )!
-            )
+        VStack(spacing: 5) {
+            HStack(spacing: 16) {
+                Link(
+                    "Politique de confidentialité",
+                    destination: URL(string: "https://www.honya.app/en/privacy/")!
+                )
+                Link(
+                    "Conditions d’utilisation",
+                    destination: URL(
+                        string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+                    )!
+                )
+            }
+            if !attributionsMur.isEmpty {
+                // Une mention consolidee, pas 24 credits repetes par le mur.
+                // La provenance et la date viennent telles quelles du
+                // fournisseur afin de respecter sa licence dans toute langue.
+                Text(verbatim: attributionsMur.joined(separator: " · "))
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(.secondary.opacity(0.82))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .font(.caption2.weight(.medium))
         .foregroundStyle(.secondary)
         .multilineTextAlignment(.center)
         .padding(.top, 2)
+    }
+
+    private var attributionsMur: [String] {
+        var vues = Set<String>()
+        return vignettes.compactMap(\.attribution).filter { attribution in
+            !attribution.isEmpty && vues.insert(attribution).inserted
+        }
     }
 
     /// Chaque marche redescend d'où elle vient.
@@ -825,44 +885,61 @@ struct BienvenueView: View {
 
     private func chargerLeMur() async {
         let besoin = 24
+        let langueDemandee = langue
+        let codeLangue = langueDemandee.lowercased()
+            .split(whereSeparator: { $0 == "-" || $0 == "_" })
+            .first.map(String.init) ?? langueDemandee.lowercased()
 
-        // JAMAIS d'écran nu, pas même à la toute première ouverture : le mur
-        // de la dernière fois s'affiche tel quel, et faute de souvenir, un jeu
-        // de départ embarqué dans l'app prend la place. Le réseau ne sert qu'à
-        // préparer l'ouverture suivante — il ne redistribue jamais sous les
-        // yeux.
+        // JAMAIS d'ecran nu, pas meme a la toute premiere ouverture : le mur
+        // local de cette langue/storefront apparait sans reseau. Les vraies
+        // couvertures remplacent ensuite ce jeu DANS l'ouverture courante.
         if !poserDepuisCache() {
             poser(Self.jeuDeDepart)
         }
 
-        for essai in 0..<4 {
+        for essai in 0..<3 {
             if Task.isCancelled { return }
             if essai > 0 {
-                try? await Task.sleep(for: .seconds(Double(essai) * 2))
+                try? await Task.sleep(for: .seconds(Double(essai + 1)))
             }
 
-            // Les deux classements du pays, mêlés puis battus comme un jeu de
-            // cartes : les têtes d'affiche du moment, dans un ordre différent
-            // à chaque ouverture.
-            async let payants = Decouverte.classement(gratuits: false, langue: langue)
-            async let libres = Decouverte.classement(gratuits: true, langue: langue)
-            var tirage = await payants + libres
-            if tirage.isEmpty && essai == 3 {
-                tirage = await Decouverte.rayonBrut("roman", langue: langue)
-            }
+            // Les deux classements couvrent ensemble les six suggestions
+            // localisees de `Decouverte`, sans ajouter une requete brute que
+            // certains catalogues prendraient pour un titre litteral.
+            async let payants = Decouverte.classement(
+                gratuits: false, langue: langueDemandee
+            )
+            async let libres = Decouverte.classement(
+                gratuits: true, langue: langueDemandee
+            )
+            let lots = await (payants, libres)
+            guard !Task.isCancelled else { return }
+            let tirage = lots.0 + lots.1
             guard !tirage.isEmpty else { continue }
 
             var vues = Set<String>()
             let jeu = tirage.shuffled().compactMap { resultat -> Vignette? in
                 // Uniquement de vraies couvertures : une case de remplacement
                 // au milieu des tendances se verrait tout de suite.
-                guard let url = resultat.couvertureURL,
+                guard let langueResultat = resultat.langue else { return nil }
+                let codeResultat = langueResultat.lowercased()
+                    .split(whereSeparator: { $0 == "-" || $0 == "_" })
+                    .first.map(String.init) ?? langueResultat.lowercased()
+                guard codeResultat == codeLangue,
+                      let url = resultat.couvertureURL,
                       vues.insert(url).inserted else { return nil }
-                return Vignette(id: resultat.id, url: url, titre: resultat.titre,
-                                manga: resultat.type != .livre)
+                return Vignette(
+                    id: resultat.id,
+                    url: url,
+                    titre: resultat.titreAffiche(langueDemandee),
+                    manga: resultat.type != .livre,
+                    attribution: resultat.attributionCouverture
+                )
             }
             if !jeu.isEmpty {
-                garder(Array(jeu.prefix(besoin)))
+                let nouveauMur = Array(jeu.prefix(besoin))
+                garder(nouveauMur)
+                poser(nouveauMur)
                 return
             }
         }
@@ -894,11 +971,8 @@ struct BienvenueView: View {
         Vignette(id: "depart-19", url: nil, titre: "Honya", manga: true),
     ]
 
-    /// Le dernier tirage, gardé sur l'appareil pour l'ouverture suivante.
-    private static let cleCache = "murAccueilV2"
-
     private func poserDepuisCache() -> Bool {
-        guard let donnees = UserDefaults.standard.data(forKey: Self.cleCache),
+        guard let donnees = UserDefaults.standard.data(forKey: cleCacheMur),
               let jeu = try? JSONDecoder().decode([Vignette].self, from: donnees),
               !jeu.isEmpty
         else { return false }
@@ -908,7 +982,7 @@ struct BienvenueView: View {
 
     private func garder(_ jeu: [Vignette]) {
         if let donnees = try? JSONEncoder().encode(jeu) {
-            UserDefaults.standard.set(donnees, forKey: Self.cleCache)
+            UserDefaults.standard.set(donnees, forKey: cleCacheMur)
         }
     }
 

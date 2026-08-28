@@ -38,7 +38,8 @@ struct FicheSerieView: View {
                 .frame(maxWidth: 280)
                 menuStatut
                 carteTomes
-                if serie.rayonRefuse && !droits.plus {
+                if serie.rayonRefuse && !droits.plus
+                    && ImportService.contientTomeVerrouille(serie.tomes, de: serie) {
                     invitationRayon
                 }
                 carteSortie
@@ -165,7 +166,10 @@ struct FicheSerieView: View {
                 serie.genres.append(genre)
             }
             if let resume = bon.resume, !resume.isEmpty { serie.resume = resume }
-            if let couverture = bon.couvertureURL { serie.couvertureURL = couverture }
+            if let couverture = bon.couvertureURL {
+                serie.couvertureURL = couverture
+                serie.attributionCouverture = bon.attributionCouverture
+            }
             if let total = bon.tomesTotal { serie.tomesTotal = total }
             if bon.statutParution != .inconnue {
                 serie.statutParution = bon.statutParution

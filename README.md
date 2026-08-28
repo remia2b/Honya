@@ -38,14 +38,15 @@ dans `Honya/` est automatiquement compilé, sans toucher au `.xcodeproj`.
     runner macOS. Gratuit, c'est le filet anti-régression.
   - **Codemagic** (`codemagic.yaml`) : workflow `testflight`, archive signée et envoi à
     TestFlight. Deux façons de le lancer :
-    1. **Manuellement** (le plus sûr) : *Start new build* → branche `main` → workflow
-       « Honya · Archive signée → TestFlight ». Ne dépend d'aucun webhook.
-    2. **Par tag** : `git tag v0.1 && git push origin v0.1` — nécessite que le webhook
-       GitHub de Codemagic soit actif.
+    1. **Automatiquement** : chaque push sur `main` déclenche le webhook Codemagic ; un
+       nouveau push annule l'archive précédente encore en cours.
+    2. **Manuellement** : *Start new build* → branche `main` → workflow
+       « Honya · Archive signée → TestFlight », si le webhook est momentanément indisponible.
+    3. **Par tag** : `git tag v0.1 && git push origin v0.1` pour un jalon explicite.
 
-    Un push ordinaire déclenche uniquement la compilation GitHub Actions. Avec la
-    configuration actuelle, Codemagic ne construit une IPA que manuellement ou sur un
-    tag `v*` : ne pas créer le tag de livraison avant que le SHA exact soit vert.
+    GitHub Actions compile le même SHA sur simulateur pendant que Codemagic construit
+    l'archive signée et l'envoie à TestFlight. Ne pas soumettre ce build à l'App Store
+    avant que la compilation et le parcours sur iPhone soient validés.
 
     Prérequis : intégration *Developer Portal* (clé API App Store Connect) enregistrée
     sous le nom repris dans `integrations → app_store_connect` (ici : `Binjo ASC key`).
@@ -108,7 +109,8 @@ Honya/
 - **Test de non-régression réel** : `9782749958194` doit rendre via Sudoc l'édition
   papier française d'**Instinct, tome 2**, avec sa tomaison, et ne jamais être
   fusionné avec l'ebook `9782749963990`. La BnF ne possède actuellement aucune
-  vignette pour cet EAN : Honya laisse donc l'image vide plutôt que d'en inventer une.
+  vignette pour cet EAN ; la couverture vient donc de la fiche officielle Michel
+  Lafon qui relie explicitement ce poster au même ISBN, avec attribution `© MLP`.
 - **Streak avec joker** : un trou d'un jour est pardonné (anti-culpabilité).
 - **Branding** : « Honya » s'emploie comme un nom propre, sans aucune référence japonaise
   (pas de kanji, pas de traduction du nom).
@@ -170,7 +172,9 @@ récupération, conformément à la licence ouverte de l'État.
 - [x] La sauvegarde/restauration Supabase est liée à `auth.users.id` : stores locaux
       séparés par compte, UUID stables pour les neuf modèles, snapshot canonique contrôlé
       par SHA-256 et révision optimiste, restauration automatique d'un nouvel appareil et
-      arbitrage explicite si deux bibliothèques divergent. Les photos personnelles restent
+      arbitrage explicite si deux bibliothèques divergent. La v2 lit encore les snapshots
+      v1, mais le serveur interdit qu'une ancienne bêta remplace ensuite une v2 par une
+      copie amputée des nouveaux statuts/dates de tomes. Les photos personnelles restent
       la limite documentée ci-dessus.
 - [ ] Pour les comptes Apple, ajouter au backend la révocation du jeton Apple lors de la
       suppression du compte, puis tester ce parcours de bout en bout. Supprimer seulement
@@ -264,6 +268,7 @@ technique existe.
 | Projet Supabase dédié (West EU, Paris) | fait |
 | Migration `20260827171723_suppression_compte_idempotente` | fait et vérifié le 27/08/2026 |
 | Migrations `20260827183316_sauvegarde_bibliotheque_v1` et `20260827185323_sauvegarde_bibliotheque_octets_v1` | faites et vérifiées le 27/08/2026 |
+| Migration `20260828085009_sauvegarde_bibliotheque_v2` | faite et vérifiée le 28/08/2026 ; v1 lisible, régression v2→v1 bloquée |
 | Provider Apple activé, *Client ID* `com.remiabbou.honya` | fait |
 | Provider Email activé (mot de passe ≥ 6 caractères) | fait |
 | Inscriptions anonymes | désactivées |

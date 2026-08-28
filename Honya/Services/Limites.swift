@@ -13,8 +13,12 @@ enum Limites {
     /// Plafond gratuit de la bibliothèque ; les éléments existants restent
     /// toujours consultables quand il est atteint.
     static let tomes = 200
-    /// Rayons remplis automatiquement. Au-delà, on ajoute tome par tome.
+    /// Rayons dont toute la continuation est utilisable automatiquement.
     static let seriesCompletes = 3
+    /// Sur un rayon qui dépasse les trois séries offertes, une première rangée
+    /// reste réellement utilisable. Les volumes suivants sont visibles et
+    /// consultables, mais leur rangement automatique demande Honya+.
+    static let tomesApercuSerie = 3
     /// De quoi essayer le scan sur une vraie pile de livres avant Honya+.
     static let scans = 10
     static let etageres = 2

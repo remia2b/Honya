@@ -523,11 +523,16 @@ enum RestaurateurBibliothequeSnapshotV1 {
         modele.preteA = donnees.preteA
         modele.preteLe = donnees.preteLe
         modele.abandonne = donnees.abandonne
+        modele.statutRaw = donnees.statutRaw
         modele.numero = donnees.numero
         modele.possede = donnees.possede
         modele.lu = donnees.lu
         modele.dateLu = donnees.dateLu
         modele.isbn = donnees.isbn
+        modele.langueEdition = donnees.langueEdition
+        modele.dateAchat = donnees.dateAchat
+        modele.dateDebut = donnees.dateDebut
+        modele.dateFin = donnees.dateFin
         modele.titre = donnees.titre
         modele.couvertureURL = donnees.couvertureURL
         modele.couverturePersonnelleURL = donnees.couverturePersonnelleURL

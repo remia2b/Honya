@@ -390,6 +390,26 @@ private struct EspaceCompteView: View {
         return "\(droits.plus)|\(langue)"
     }
 
+    @MainActor
+    private func migrerAnciensTomesSiPossible() async {
+        switch sauvegarde.etat {
+        case .aJour, .restauree:
+            break
+        default:
+            return
+        }
+        let nombre = ImportService.migrerTomesIsolesLegacy(dans: contexte)
+        guard nombre > 0 else { return }
+        // La première synchronisation vient d'établir une base commune avec
+        // Supabase : publier aussitôt la migration évite que l'ancien modèle
+        // réapparaisse sur un autre appareil.
+        await sauvegarde.synchroniser(
+            compte: identifiantCompte,
+            contexte: contexte,
+            forcer: true
+        )
+    }
+
     var body: some View {
         Group {
             if !droitsVerifies {
@@ -440,6 +460,8 @@ private struct EspaceCompteView: View {
                 forcer: true
             )
             guard !Task.isCancelled else { return }
+            await migrerAnciensTomesSiPossible()
+            guard !Task.isCancelled else { return }
             sauvegardeInitialeTerminee = true
 
             while !Task.isCancelled {
@@ -449,6 +471,7 @@ private struct EspaceCompteView: View {
                     compte: identifiantCompte,
                     contexte: contexte
                 )
+                await migrerAnciensTomesSiPossible()
             }
         }
         .task(id: cleReconciliationRappels) {

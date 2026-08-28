@@ -556,6 +556,7 @@ private struct MenuSerie: ViewModifier {
     @State private var confirmerSuppression = false
     @State private var etagereVisible = false
     @State private var plusVisible = false
+    @State private var verrouPlus: Verrou?
     @State private var plusEtagereVisible = false
 
     func body(content: Content) -> some View {
@@ -568,8 +569,7 @@ private struct MenuSerie: ViewModifier {
                 )
                 if let prochain = serie.prochainALire {
                     Button {
-                        prochain.lu = true
-                        prochain.dateLu = Date()
+                        prochain.changerStatut(.lu)
                         // Une nouvelle lecture rend caduc un ancien choix
                         // manuel (Abandonné, Wishlist, etc.). Le statut peut
                         // de nouveau suivre les tomes réellement lus.
@@ -584,18 +584,22 @@ private struct MenuSerie: ViewModifier {
                 }
                 if serie.statut != .lu && !serie.tomesParus.isEmpty {
                     Button {
+                        if ImportService.contientTomeVerrouille(
+                            serie.tomesParus, de: serie
+                        ) {
+                            verrouPlus = .serie(serie, langue: langue)
+                            plusVisible = true
+                            return
+                        }
                         guard ImportService.autorisePossession(
                             des: serie.tomesParus, de: serie, dans: contexte
                         ) else {
+                            verrouPlus = nil
                             plusVisible = true
                             return
                         }
                         for tome in serie.tomesParus {
-                            tome.possede = true
-                            if !tome.lu {
-                                tome.lu = true
-                                tome.dateLu = Date()
-                            }
+                            tome.changerStatut(.lu)
                         }
                         // Cette action est une déclaration explicite, même si
                         // aucun catalogue autorisé ne connaît le total final.
@@ -633,9 +637,12 @@ private struct MenuSerie: ViewModifier {
                 }
             }
             .alerteNouvelleEtagere(.serie(serie), visible: $etagereVisible)
-            .ecranHonyaPlus($plusVisible, verrou: .bibliotheque(
-                couvertures: [serie.couvertureAffichee].compactMap { $0 }
-            ))
+            .ecranHonyaPlus(
+                $plusVisible,
+                verrou: verrouPlus ?? .bibliotheque(
+                    couvertures: [serie.couvertureAffichee].compactMap { $0 }
+                )
+            )
             .ecranHonyaPlus($plusEtagereVisible, verrou: .etagere(
                 couvertures: [serie.couvertureAffichee].compactMap { $0 }
             ))
