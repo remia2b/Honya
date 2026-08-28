@@ -175,11 +175,15 @@ workflows:
           NAME=$(printf '%s' "$PROFILE_PLIST" | plutil -extract Name raw -)
           echo "Profil retenu : $NAME ($UUID)"
 
-          # Le format pbxproj accepte plusieurs réglages sur une même ligne.
+          # `xcode-project use-profiles` peut laisser le style sur Automatic ou
+          # le passer sur Manual selon sa version. On remplace donc les deux
+          # formes et on écrit le nom ET l'UUID réellement lus dans le profil.
           PBX=Honya.xcodeproj/project.pbxproj
-          sed -i '' "s|CODE_SIGN_STYLE = Automatic;|CODE_SIGN_STYLE = Manual; CODE_SIGN_IDENTITY = \"Apple Distribution\"; PROVISIONING_PROFILE_SPECIFIER = \"$UUID\";|g" "$PBX"
-          if ! grep -q "PROVISIONING_PROFILE_SPECIFIER = \"$UUID\";" "$PBX"; then
+          sed -i '' -E "s|CODE_SIGN_STYLE = (Automatic|Manual);.*|CODE_SIGN_STYLE = Manual; CODE_SIGN_IDENTITY = \"Apple Distribution\"; PROVISIONING_PROFILE_SPECIFIER = \"$NAME\"; PROVISIONING_PROFILE = \"$UUID\";|g" "$PBX"
+          if ! grep -Fq "PROVISIONING_PROFILE_SPECIFIER = \"$NAME\";" "$PBX" \
+             || ! grep -Fq "PROVISIONING_PROFILE = \"$UUID\";" "$PBX"; then
             echo "❌ Le profil n'a pas été inscrit dans les réglages Xcode."
+            grep -n "CODE_SIGN_STYLE\|PROVISIONING_PROFILE" "$PBX" || true
             exit 1
           fi
 
