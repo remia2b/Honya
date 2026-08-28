@@ -416,7 +416,17 @@ enum RestaurateurBibliothequeSnapshotV1 {
         source: String
     ) throws -> Modele? {
         guard let identifiant else { return nil }
-        return try resoudre(identifiant, dans: modeles, source: source)
+        // Swift accepte la promotion implicite d'un UUID en UUID?, ce qui
+        // rend l'appel à la surcharge non optionnelle ambigu sous Xcode 26.
+        // Résoudre directement évite cette ambiguïté tout en conservant le
+        // même diagnostic de snapshot corrompu.
+        guard let modele = modeles[identifiant] else {
+            throw ErreurBibliothequeSnapshotV1.referenceInconnue(
+                identifiant,
+                source: source
+            )
+        }
+        return modele
     }
 
     private static func creerOeuvre(
