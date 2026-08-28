@@ -10043,94 +10043,6 @@
         }
       }
     },
-    "Continuer sans compte": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Continue without an account"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Continuar sin cuenta"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Continuar sin cuenta"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Continuar sem conta"
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ohne Account fortfahren"
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Continua senza account"
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Kontynuuj bez konta"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "アカウントなしで続ける"
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Ga door zonder account"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "계정 없이 계속하기"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "不创建账户，直接使用"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Hesapsız devam et"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Продолжить без учётной записи"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Fortsätt utan konto"
-          }
-        }
-      }
-    },
     "Continuer à lire": {
       "localizations": {
         "en": {
@@ -20867,90 +20779,90 @@
         }
       }
     },
-    "Métadonnées : Google Books, Open Library, AniList. Les couvertures restent la propriété de leurs éditeurs.": {
+    "Métadonnées : Google Books, Apple Books, Open Library, AniList et bibliothèques nationales. Les couvertures restent la propriété de leurs éditeurs.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Metadata: Google Books, Open Library, AniList. Covers remain the property of their publishers."
+            "value": "Metadata: Google Books, Apple Books, Open Library, AniList, and national libraries. Covers remain the property of their publishers."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Metadatos: Google Books, Open Library, AniList. Las portadas siguen siendo propiedad de sus editoriales."
+            "value": "Metadatos: Google Books, Apple Books, Open Library, AniList y bibliotecas nacionales. Las portadas siguen siendo propiedad de sus editoriales."
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "Metadatos: Google Books, Open Library, AniList. Las portadas siguen siendo propiedad de sus editoriales."
+            "value": "Metadatos: Google Books, Apple Books, Open Library, AniList y bibliotecas nacionales. Las portadas siguen siendo propiedad de sus editoriales."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Metadados: Google Books, Open Library, AniList. As capas continuam sendo propriedade das editoras."
+            "value": "Metadados: Google Books, Apple Books, Open Library, AniList e bibliotecas nacionais. As capas continuam sendo propriedade das editoras."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Metadaten: Google Books, Open Library, AniList. Cover bleiben Eigentum der Verlage."
+            "value": "Metadaten: Google Books, Apple Books, Open Library, AniList und Nationalbibliotheken. Cover bleiben Eigentum der Verlage."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "Metadati: Google Books, Open Library, AniList. Le copertine restano di proprietà degli editori."
+            "value": "Metadati: Google Books, Apple Books, Open Library, AniList e biblioteche nazionali. Le copertine restano di proprietà degli editori."
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Metadane: Google Books, Open Library, AniList. Okładki pozostają własnością wydawców."
+            "value": "Metadane: Google Books, Apple Books, Open Library, AniList i biblioteki narodowe. Okładki pozostają własnością wydawców."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "メタデータ：Google Books、Open Library、AniList。表紙は各出版社に帰属します。"
+            "value": "メタデータ：Google Books、Apple Books、Open Library、AniList、各国の国立図書館。表紙は各出版社に帰属します。"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Metagegevens: Google Books, Open Library, AniList. Covers blijven eigendom van hun uitgevers."
+            "value": "Metagegevens: Google Books, Apple Books, Open Library, AniList en nationale bibliotheken. Covers blijven eigendom van hun uitgevers."
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "메타데이터: Google Books, Open Library, AniList. 표지의 권리는 각 출판사에 있습니다."
+            "value": "메타데이터: Google Books, Apple Books, Open Library, AniList 및 국립도서관. 표지의 권리는 각 출판사에 있습니다."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "元数据：Google Books、Open Library、AniList。封面版权归各出版社所有。"
+            "value": "元数据：Google Books、Apple Books、Open Library、AniList 及各国国家图书馆。封面版权归各出版社所有。"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Üstveri: Google Books, Open Library, AniList. Kapaklar yayıncılarının mülkiyetinde kalır."
+            "value": "Üstveri: Google Books, Apple Books, Open Library, AniList ve ulusal kütüphaneler. Kapaklar yayıncılarının mülkiyetinde kalır."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Метаданные: Google Books, Open Library, AniList. Обложки остаются собственностью издателей."
+            "value": "Метаданные: Google Books, Apple Books, Open Library, AniList и национальные библиотеки. Обложки остаются собственностью издателей."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Metadata: Google Books, Open Library, AniList. Omslagen tillhör respektive förlag."
+            "value": "Metadata: Google Books, Apple Books, Open Library, AniList och nationalbibliotek. Omslagen tillhör respektive förlag."
           }
         }
       }
@@ -38027,90 +37939,90 @@
         }
       }
     },
-    "Votre bibliothèque, vos sessions, vos badges et vos étagères seront effacés. C'est sans retour.": {
+    "Votre bibliothèque, vos sessions, vos badges et vos étagères seront effacés. C'est sans retour. Un abonnement Honya+ reste géré par Apple et doit être résilié séparément.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Your library, sessions, badges and shelves will be erased. There's no going back."
+            "value": "Your library, sessions, badges and shelves will be erased permanently. A Honya+ subscription remains managed by Apple and must be cancelled separately."
           }
         },
         "es": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tu biblioteca, tus sesiones, tus insignias y tus estanterías se borrarán. No hay vuelta atrás."
+            "value": "Tu biblioteca, tus sesiones, tus insignias y tus estanterías se borrarán para siempre. La suscripción a Honya+ seguirá gestionada por Apple y tendrás que cancelarla por separado."
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "translated",
-            "value": "Tu biblioteca, tus sesiones, tus insignias y tus estantes se borrarán. No hay vuelta atrás."
+            "value": "Tu biblioteca, tus sesiones, tus insignias y tus estantes se borrarán para siempre. La suscripción a Honya+ seguirá gestionada por Apple y tendrás que cancelarla por separado."
           }
         },
         "pt-BR": {
           "stringUnit": {
             "state": "translated",
-            "value": "Sua biblioteca, sessões, emblemas e estantes serão apagados. Não há volta."
+            "value": "Sua biblioteca, sessões, emblemas e estantes serão apagados para sempre. A assinatura do Honya+ continuará sendo gerenciada pela Apple e deverá ser cancelada separadamente."
           }
         },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deine Bibliothek, Sitzungen, Abzeichen und Regale werden gelöscht. Ohne Rückweg."
+            "value": "Deine Bibliothek, Sitzungen, Abzeichen und Regale werden endgültig gelöscht. Ein Honya+-Abo wird weiterhin von Apple verwaltet und muss separat gekündigt werden."
           }
         },
         "it": {
           "stringUnit": {
             "state": "translated",
-            "value": "La tua libreria, le sessioni, i distintivi e gli scaffali saranno cancellati. Senza ritorno."
+            "value": "La tua libreria, le sessioni, i distintivi e gli scaffali saranno cancellati definitivamente. Un abbonamento Honya+ resta gestito da Apple e deve essere annullato separatamente."
           }
         },
         "pl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Twoja biblioteka, sesje, odznaki i półki zostaną usunięte. Bez odwrotu."
+            "value": "Twoja biblioteka, sesje, odznaki i półki zostaną trwale usunięte. Subskrypcja Honya+ pozostaje zarządzana przez Apple i trzeba ją anulować osobno."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ライブラリ・セッション・バッジ・本棚がすべて消えます。取り消せません。"
+            "value": "ライブラリ、セッション、バッジ、本棚は完全に削除されます。Honya+のサブスクリプションは引き続きAppleによって管理され、別途解約が必要です。"
           }
         },
         "nl": {
           "stringUnit": {
             "state": "translated",
-            "value": "Je bibliotheek, sessies, badges en planken worden gewist. Zonder weg terug."
+            "value": "Je bibliotheek, sessies, badges en planken worden definitief gewist. Een Honya+-abonnement blijft door Apple beheerd en moet afzonderlijk worden opgezegd."
           }
         },
         "ko": {
           "stringUnit": {
             "state": "translated",
-            "value": "서재·세션·배지·책장이 모두 지워집니다. 되돌릴 수 없습니다."
+            "value": "서재, 세션, 배지, 책장이 영구적으로 삭제됩니다. Honya+ 구독은 계속 Apple에서 관리되며 별도로 해지해야 합니다."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "你的书库、阅读记录、徽章和书架都会被清除，无法恢复。"
+            "value": "你的书库、阅读记录、徽章和书架将被永久删除。Honya+ 订阅仍由 Apple 管理，需要另行取消。"
           }
         },
         "tr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Kitaplığın, oturumların, rozetlerin ve rafların silinecek. Geri dönüşü yok."
+            "value": "Kitaplığın, oturumların, rozetlerin ve rafların kalıcı olarak silinecek. Honya+ aboneliği Apple tarafından yönetilmeye devam eder ve ayrıca iptal edilmelidir."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ваша библиотека, сеансы, значки и полки будут стёрты. Без возврата."
+            "value": "Ваша библиотека, сеансы, значки и полки будут удалены безвозвратно. Подписка Honya+ по-прежнему управляется Apple, и её нужно отменить отдельно."
           }
         },
         "sv": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ditt bibliotek, dina pass, märken och hyllor raderas. Ingen väg tillbaka."
+            "value": "Ditt bibliotek, dina pass, märken och hyllor raderas permanent. En Honya+-prenumeration fortsätter att hanteras av Apple och måste avslutas separat."
           }
         }
       }
@@ -38463,94 +38375,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Din läsrad är"
-          }
-        }
-      }
-    },
-    "Vous utilisez Honya sans compte : tout reste sur cet appareil.": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "You're using Honya without an account: everything stays on this device."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Usas Honya sin cuenta: todo se queda en este dispositivo."
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Usas Honya sin cuenta: todo se queda en este dispositivo."
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Você usa o Honya sem conta: tudo fica neste aparelho."
-          }
-        },
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Du nutzt Honya ohne Account: Alles bleibt auf diesem Gerät."
-          }
-        },
-        "it": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Usi Honya senza account: tutto resta su questo dispositivo."
-          }
-        },
-        "pl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Używasz Honya bez konta: wszystko zostaje na tym urządzeniu."
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "アカウントなしでHonyaを使っています。すべてこの端末に残ります。"
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Je gebruikt Honya zonder account: alles blijft op dit apparaat."
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "계정 없이 Honya를 쓰고 있습니다. 모든 것은 이 기기에 남습니다."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "你在不使用账户的情况下使用 Honya：一切都留在本机。"
-          }
-        },
-        "tr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Honya'yı hesapsız kullanıyorsun: her şey bu cihazda kalır."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Вы пользуетесь Honya без учётной записи: всё остаётся на этом устройстве."
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Du använder Honya utan konto: allt stannar på den här enheten."
           }
         }
       }
@@ -48597,6 +48421,886 @@
         }
       }
     },
+    "Auteur": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Author"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autor"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autor"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autor"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autor"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autore"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auteur"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autor"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Författare"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yazar"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Автор"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "著者"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "저자"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "作者"
+          }
+        }
+      }
+    },
+    "Tome": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tomo"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tomo"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Band"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Volume"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deel"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tom"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Del"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cilt"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Том"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "巻"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "권"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "卷"
+          }
+        }
+      }
+    },
+    "Titre requis": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Title required"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El título es obligatorio"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "El título es obligatorio"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "O título é obrigatório"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titel erforderlich"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titolo obbligatorio"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titel is verplicht"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tytuł jest wymagany"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Titel krävs"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Başlık gerekli"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Название обязательно"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "タイトルは必須です"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "제목은 필수입니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标题为必填项"
+          }
+        }
+      }
+    },
+    "Valeur invalide": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid value"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valor no válido"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valor no válido"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valor inválido"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungültiger Wert"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Valore non valido"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ongeldige waarde"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nieprawidłowa wartość"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ogiltigt värde"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geçersiz değer"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Некорректное значение"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "値が無効です"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "올바르지 않은 값입니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "值无效"
+          }
+        }
+      }
+    },
+    "ISBN invalide": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid ISBN"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISBN no válido"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISBN no válido"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISBN inválido"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungültige ISBN"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISBN non valido"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ongeldig ISBN"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nieprawidłowy ISBN"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ogiltigt ISBN"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geçersiz ISBN"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Некорректный ISBN"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISBNが無効です"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "올바르지 않은 ISBN입니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ISBN 无效"
+          }
+        }
+      }
+    },
+    "URL de couverture": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cover URL"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL de la portada"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL de la portada"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL da capa"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cover-URL"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL della copertina"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL van de omslag"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adres URL okładki"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Omslags-URL"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kapak URL’si"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL обложки"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "表紙画像のURL"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "표지 이미지 URL"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "封面图片网址"
+          }
+        }
+      }
+    },
+    "URL invalide": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid URL"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL no válida"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL no válida"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL inválida"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungültige URL"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URL non valido"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ongeldige URL"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nieprawidłowy adres URL"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ogiltig URL"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Geçersiz URL"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Некорректный URL"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "URLが無効です"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "올바르지 않은 URL입니다"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "网址无效"
+          }
+        }
+      }
+    },
+    "Ajout manuel": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manual entry"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Añadir manualmente"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Agregar manualmente"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adicionar manualmente"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Manueller Eintrag"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inserimento manuale"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Handmatige invoer"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dodawanie ręczne"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lägg till manuellt"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elle ekleme"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Добавление вручную"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手動で追加"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "직접 추가"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手动添加"
+          }
+        }
+      }
+    },
+    "Politique de confidentialité": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy Policy"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Política de privacidad"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Política de privacidad"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Política de Privacidade"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datenschutzrichtlinie"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Informativa sulla privacy"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacybeleid"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Polityka prywatności"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Integritetspolicy"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gizlilik Politikası"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Политика конфиденциальности"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プライバシーポリシー"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "개인정보 처리방침"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐私政策"
+          }
+        }
+      }
+    },
+    "Conditions d’utilisation": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terms of Use"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Condiciones de uso"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Términos de uso"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Termos de Uso"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nutzungsbedingungen"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Condizioni d’uso"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gebruiksvoorwaarden"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warunki użytkowania"
+          }
+        },
+        "sv": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Användarvillkor"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kullanım Koşulları"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Условия использования"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "利用規約"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "이용약관"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用条款"
+          }
+        }
+      }
+    },
     "Chercher « %@ »": {
       "localizations": {
         "en": {
@@ -48683,6 +49387,744 @@
             "value": "搜索“%@”"
           }
         }
+      }
+    },
+    "Disponible aujourd'hui": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Heute verfügbar" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Available today" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Disponible hoy" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Disponible hoy" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Disponibile oggi" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "本日発売" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "오늘 출시" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Vandaag beschikbaar" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Dostępne dzisiaj" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Disponível hoje" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Доступно сегодня" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Tillgänglig idag" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bugün satışta" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "今日上市" } }
+      }
+    },
+    "Ce lien de confirmation est incomplet. Renvoyez un nouveau courrier.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Dieser Bestätigungslink ist unvollständig. Sende eine neue E-Mail." } },
+        "en": { "stringUnit": { "state": "translated", "value": "This confirmation link is incomplete. Send a new email." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Este enlace de confirmación está incompleto. Envía un nuevo correo." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Este enlace de confirmación está incompleto. Envía un nuevo correo." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Questo link di conferma è incompleto. Invia una nuova e-mail." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "確認リンクが不完全です。新しいメールを送信してください。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "확인 링크가 완전하지 않습니다. 새 이메일을 보내세요." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Deze bevestigingslink is onvolledig. Stuur een nieuwe e-mail." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Ten link potwierdzający jest niekompletny. Wyślij nową wiadomość." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Este link de confirmação está incompleto. Envie um novo e-mail." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Ссылка подтверждения неполная. Отправьте новое письмо." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Bekräftelselänken är ofullständig. Skicka ett nytt mejl." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bu doğrulama bağlantısı eksik. Yeni bir e-posta gönderin." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "确认链接不完整。请发送一封新邮件。" } }
+      }
+    },
+    "Certaines éditions n'y figurent pas — cherchez le titre ou saisissez sa fiche à la main.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Einige Ausgaben fehlen — suche nach dem Titel oder erfasse die Angaben manuell." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Some editions are not listed — search for the title or enter its details manually." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Algunas ediciones no aparecen: busca el título o introduce la ficha manualmente." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Algunas ediciones no aparecen: busca el título o ingresa la ficha manualmente." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Alcune edizioni non sono presenti: cerca il titolo o inserisci la scheda a mano." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "一部の版は未収録です。タイトルを検索するか、書誌情報を手動で入力してください。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "일부 판본은 등록되어 있지 않습니다. 제목을 검색하거나 정보를 직접 입력하세요." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Sommige edities ontbreken — zoek op titel of voer de gegevens handmatig in." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Niektórych wydań brakuje — wyszukaj tytuł lub wpisz dane ręcznie." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Algumas edições não estão listadas — busque o título ou preencha a ficha manualmente." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Некоторых изданий нет в каталоге — найдите название или введите данные вручную." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Vissa utgåvor saknas — sök efter titeln eller ange uppgifterna manuellt." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bazı baskılar listelenmiyor — başlığı arayın veya bilgileri elle girin." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "部分版本未收录——请搜索书名或手动填写资料。" } }
+      }
+    },
+    "Gérer l'abonnement Apple": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Apple-Abonnement verwalten" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Manage Apple subscription" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Gestionar la suscripción de Apple" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Administrar la suscripción de Apple" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Gestisci l'abbonamento Apple" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Appleのサブスクリプションを管理" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "Apple 구독 관리" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Apple-abonnement beheren" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Zarządzaj subskrypcją Apple" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Gerenciar assinatura da Apple" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Управлять подпиской Apple" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Hantera Apple-prenumeration" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Apple aboneliğini yönet" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "管理 Apple 订阅" } }
+      }
+    },
+    "Rayons complets, bibliothèque sans plafond, historique entier.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Vollständige Reihen, unbegrenzte Bibliothek und der gesamte Verlauf." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Complete series, an unlimited library, and your full history." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Series completas, biblioteca sin límite e historial completo." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Series completas, biblioteca sin límite e historial completo." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Serie complete, biblioteca senza limiti e cronologia completa." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "全巻表示、冊数無制限のライブラリ、すべての履歴。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "시리즈 전체, 무제한 서재, 전체 기록." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Complete reeksen, een onbeperkte bibliotheek en je volledige geschiedenis." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Pełne serie, biblioteka bez limitu i cała historia." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Séries completas, biblioteca sem limite e histórico inteiro." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Полные серии, библиотека без ограничений и вся история." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Kompletta serier, obegränsat bibliotek och full historik." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Eksiksiz seriler, sınırsız kitaplık ve tüm geçmiş." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "完整系列、无限书库与全部记录。" } }
+      }
+    },
+    "Votre accès à vie est actif.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Dein lebenslanger Zugang ist aktiv." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Your lifetime access is active." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Tu acceso de por vida está activo." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Tu acceso de por vida está activo." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Il tuo accesso a vita è attivo." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "永久アクセスは有効です。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "평생 이용권이 활성화되어 있습니다." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Je levenslange toegang is actief." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Dożywotni dostęp jest aktywny." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Seu acesso vitalício está ativo." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Пожизненный доступ активен." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Din livstidsåtkomst är aktiv." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Ömür boyu erişiminiz etkin." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "你的终身使用权已激活。" } }
+      }
+    },
+    "Essai gratuit pendant %@, puis %@. Renouvelé automatiquement.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "%@ kostenlos testen, danach %@. Automatische Verlängerung." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Free for %@, then %@. Renews automatically." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Gratis durante %@ y después %@. Renovación automática." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Gratis durante %@ y después %@. Renovación automática." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Gratis per %@, poi %@. Rinnovo automatico." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%@無料、その後%@。自動更新されます。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "%@ 동안 무료, 이후 %@. 자동 갱신됩니다." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "%@ gratis, daarna %@. Wordt automatisch verlengd." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Bezpłatnie przez %@, potem %@. Odnawia się automatycznie." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Grátis por %@, depois %@. Renovação automática." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Бесплатно в течение %@, затем %@. Автопродление." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Gratis i %@, därefter %@. Förnyas automatiskt." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "%@ ücretsiz, ardından %@. Otomatik yenilenir." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "免费试用%@，之后%@。自动续订。" } }
+      }
+    },
+    "Métadonnées : Open Library et bibliothèques nationales. La provenance des couvertures soumises à attribution figure sur leur fiche.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Metadaten: Open Library und Nationalbibliotheken. Bei kennzeichnungspflichtigen Covern stehen Quelle und Abrufdatum auf der Buchseite." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Metadata: Open Library and national libraries. Covers requiring attribution show their source and retrieval date on the book page." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Metadatos: Open Library y bibliotecas nacionales. Las portadas que requieren atribución muestran su origen y fecha de consulta en la ficha." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Metadatos: Open Library y bibliotecas nacionales. Las portadas que requieren atribución muestran su origen y fecha de consulta en la ficha." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Metadati: Open Library e biblioteche nazionali. Le copertine soggette ad attribuzione mostrano fonte e data di recupero nella scheda." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "メタデータ：Open Libraryおよび各国の国立図書館。帰属表示が必要な表紙は、書籍ページに出典と取得日を表示します。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "메타데이터: Open Library 및 국립도서관. 출처 표시가 필요한 표지는 책 상세에 출처와 가져온 날짜를 표시합니다." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Metadata: Open Library en nationale bibliotheken. Covers waarvoor naamsvermelding nodig is tonen bron en ophaaldatum op de boekpagina." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Metadane: Open Library i biblioteki narodowe. Okładki wymagające przypisania pokazują źródło i datę pobrania na karcie książki." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Metadados: Open Library e bibliotecas nacionais. Capas que exigem atribuição mostram a fonte e a data de obtenção na ficha." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Метаданные: Open Library и национальные библиотеки. Для обложек, требующих атрибуции, на странице книги указаны источник и дата получения." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Metadata: Open Library och nationalbibliotek. Omslag som kräver källangivelse visar källa och hämtningsdatum på boksidan." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Üstveri: Open Library ve ulusal kütüphaneler. Atıf gerektiren kapakların kaynağı ve alınma tarihi kitap sayfasında gösterilir." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "元数据：Open Library 与各国国家图书馆。需要署名的封面会在图书详情中显示来源和获取日期。" } }
+      }
+    },
+    "Aucun livre à afficher. Vérifiez votre connexion puis réessayez.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Keine Bücher zum Anzeigen. Prüfe deine Verbindung und versuche es erneut." } },
+        "en": { "stringUnit": { "state": "translated", "value": "No books to display. Check your connection and try again." } },
+        "es": { "stringUnit": { "state": "translated", "value": "No hay libros que mostrar. Comprueba tu conexión y vuelve a intentarlo." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "No hay libros que mostrar. Comprueba tu conexión y vuelve a intentarlo." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Nessun libro da mostrare. Controlla la connessione e riprova." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "表示できる本がありません。接続を確認して、もう一度お試しください。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "표시할 책이 없습니다. 연결을 확인한 후 다시 시도하세요." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Geen boeken om weer te geven. Controleer je verbinding en probeer opnieuw." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Brak książek do wyświetlenia. Sprawdź połączenie i spróbuj ponownie." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Nenhum livro para exibir. Verifique sua conexão e tente novamente." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Нет книг для отображения. Проверьте подключение и повторите попытку." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Inga böcker att visa. Kontrollera anslutningen och försök igen." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Gösterilecek kitap yok. Bağlantınızı kontrol edip yeniden deneyin." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "没有可显示的图书。请检查网络连接后重试。" } }
+      }
+    },
+    "Reconnectez-vous avec le compte dont la suppression a été demandée.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Melde dich mit dem Konto an, dessen Löschung angefordert wurde." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Sign in with the account whose deletion was requested." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Vuelve a iniciar sesión con la cuenta cuya eliminación se solicitó." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Vuelve a iniciar sesión con la cuenta cuya eliminación se solicitó." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Accedi di nuovo con l'account per cui è stata richiesta l'eliminazione." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "削除をリクエストしたアカウントで再度サインインしてください。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "삭제를 요청한 계정으로 다시 로그인하세요." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Meld je opnieuw aan met het account waarvoor verwijdering is aangevraagd." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Zaloguj się ponownie na konto, którego usunięcie zostało zażądane." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Entre novamente com a conta cuja exclusão foi solicitada." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Снова войдите в аккаунт, удаление которого было запрошено." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Logga in igen med kontot som begärdes raderat." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Silme talep edilen hesapla yeniden giriş yapın." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "请使用申请删除的账户重新登录。" } }
+      }
+    },
+    "Réessayer": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Erneut versuchen" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Try again" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Reintentar" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Reintentar" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Riprova" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "再試行" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "다시 시도" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Opnieuw proberen" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Spróbuj ponownie" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Tentar novamente" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Повторить" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Försök igen" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Yeniden dene" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "重试" } }
+      }
+    },
+    "Associer cette bibliothèque à mon compte": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Diese Bibliothek meinem Konto zuordnen" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Link this library to my account" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Vincular esta biblioteca a mi cuenta" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Vincular esta biblioteca a mi cuenta" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Associa questa libreria al mio account" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このライブラリをアカウントに関連付ける" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "이 서재를 내 계정에 연결" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Deze bibliotheek aan mijn account koppelen" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Połącz tę bibliotekę z moim kontem" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Vincular esta biblioteca à minha conta" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Привязать эту библиотеку к моему аккаунту" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Koppla biblioteket till mitt konto" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bu kitaplığı hesabıma bağla" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "将此书库关联到我的账户" } }
+      }
+    },
+    "Bibliothèque trouvée sur cet iPhone": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Bibliothek auf diesem iPhone gefunden" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Library found on this iPhone" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Biblioteca encontrada en este iPhone" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Biblioteca encontrada en este iPhone" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Libreria trovata su questo iPhone" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このiPhoneにライブラリが見つかりました" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "이 iPhone에서 서재를 찾았습니다" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Bibliotheek gevonden op deze iPhone" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Znaleziono bibliotekę na tym iPhonie" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Biblioteca encontrada neste iPhone" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "На этом iPhone найдена библиотека" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Ett bibliotek hittades på denna iPhone" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bu iPhone’da bir kitaplık bulundu" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在此 iPhone 上发现书库" } }
+      }
+    },
+    "Choisissez celle à conserver. Ce choix remplacera l'autre copie.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Wähle aus, welche du behalten möchtest. Die andere Kopie wird dadurch ersetzt." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Choose which one to keep. This choice will replace the other copy." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Elige cuál quieres conservar. La otra copia se reemplazará." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Elige cuál quieres conservar. La otra copia se reemplazará." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Scegli quale conservare. L'altra copia verrà sostituita." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "残す方を選んでください。もう一方のコピーは置き換えられます。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "유지할 서재를 선택하세요. 다른 사본은 대체됩니다." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Kies welke je wilt bewaren. De andere kopie wordt vervangen." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Wybierz, którą kopię zachować. Druga zostanie zastąpiona." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Escolha qual delas manter. A outra cópia será substituída." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Выберите, какую копию сохранить. Другая будет заменена." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Välj vilken du vill behålla. Den andra kopian ersätts." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Hangisini saklamak istediğinizi seçin. Diğer kopya bununla değiştirilecektir." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "请选择要保留的版本，另一个副本将被替换。" } }
+      }
+    },
+    "Choisissez si cette ancienne bibliothèque appartient au compte que vous venez de connecter.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Entscheide, ob diese frühere Bibliothek zu dem Konto gehört, bei dem du dich gerade angemeldet hast." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Choose whether this existing library belongs to the account you just signed in to." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Elige si esta biblioteca anterior pertenece a la cuenta en la que acabas de iniciar sesión." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Elige si esta biblioteca anterior pertenece a la cuenta en la que acabas de iniciar sesión." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Scegli se questa libreria precedente appartiene all'account a cui hai appena effettuato l'accesso." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "この以前のライブラリが、今サインインしたアカウントのものか選択してください。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "이 기존 서재가 방금 로그인한 계정의 것인지 선택하세요." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Kies of deze bestaande bibliotheek bij het account hoort waarmee je zojuist bent ingelogd." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Wybierz, czy ta wcześniejsza biblioteka należy do konta, na które właśnie się zalogowano." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Escolha se esta biblioteca antiga pertence à conta em que você acabou de entrar." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Укажите, относится ли эта прежняя библиотека к аккаунту, в который вы только что вошли." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Välj om det här tidigare biblioteket tillhör kontot som du precis loggade in på." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bu eski kitaplığın az önce giriş yaptığınız hesaba ait olup olmadığını seçin." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "请选择这个旧书库是否属于您刚刚登录的账户。" } }
+      }
+    },
+    "Choix requis": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Auswahl erforderlich" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Choice required" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Elección necesaria" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Elección necesaria" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Scelta necessaria" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "選択が必要です" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "선택 필요" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Keuze vereist" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Wymagany wybór" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Escolha necessária" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Требуется выбор" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Val krävs" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Seçim gerekli" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "需要选择" } }
+      }
+    },
+    "Commencer une nouvelle bibliothèque": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Neue Bibliothek beginnen" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Start a new library" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Crear una biblioteca nueva" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Crear una biblioteca nueva" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Inizia una nuova libreria" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "新しいライブラリを始める" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "새 서재 시작" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Een nieuwe bibliotheek beginnen" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Rozpocznij nową bibliotekę" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Começar uma nova biblioteca" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Создать новую библиотеку" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Starta ett nytt bibliotek" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Yeni bir kitaplık başlat" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "新建书库" } }
+      }
+    },
+    "Conserver cette bibliothèque sur l'iPhone": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Diese Bibliothek auf dem iPhone behalten" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Keep this library on the iPhone" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Conservar esta biblioteca en el iPhone" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Conservar esta biblioteca en el iPhone" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Conserva questa libreria sull'iPhone" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このライブラリをiPhoneに残す" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "이 서재를 iPhone에 유지" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Deze bibliotheek op de iPhone bewaren" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Zachowaj tę bibliotekę na iPhonie" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Manter esta biblioteca no iPhone" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Сохранить эту библиотеку на iPhone" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Behåll det här biblioteket på iPhone" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bu kitaplığı iPhone’da sakla" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "保留此 iPhone 上的书库" } }
+      }
+    },
+    "Deux bibliothèques différentes ont été trouvées": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Zwei verschiedene Bibliotheken wurden gefunden" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Two different libraries were found" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Se encontraron dos bibliotecas diferentes" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Se encontraron dos bibliotecas diferentes" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Sono state trovate due librerie diverse" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "内容の異なる2つのライブラリが見つかりました" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "서로 다른 두 개의 서재를 찾았습니다" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Er zijn twee verschillende bibliotheken gevonden" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Znaleziono dwie różne biblioteki" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Duas bibliotecas diferentes foram encontradas" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Найдены две разные библиотеки" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Två olika bibliotek hittades" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "İki farklı kitaplık bulundu" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "发现两个不同的书库" } }
+      }
+    },
+    "En cours…": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Wird synchronisiert…" } },
+        "en": { "stringUnit": { "state": "translated", "value": "In progress…" } },
+        "es": { "stringUnit": { "state": "translated", "value": "En curso…" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "En curso…" } },
+        "it": { "stringUnit": { "state": "translated", "value": "In corso…" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "処理中…" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "진행 중…" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Bezig…" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "W toku…" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Em andamento…" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Выполняется…" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Pågår…" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Devam ediyor…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在进行…" } }
+      }
+    },
+    "Inactive": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Inaktiv" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Inactive" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Inactiva" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Inactiva" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Inattivo" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "無効" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "비활성" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Inactief" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Nieaktywna" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Inativo" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Неактивно" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Inaktiv" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Etkin değil" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "未启用" } }
+      }
+    },
+    "Indisponible": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Nicht verfügbar" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Unavailable" } },
+        "es": { "stringUnit": { "state": "translated", "value": "No disponible" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "No disponible" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Non disponibile" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "利用不可" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "사용할 수 없음" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Niet beschikbaar" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Niedostępna" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Indisponível" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Недоступно" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Inte tillgänglig" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Kullanılamıyor" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "不可用" } }
+      }
+    },
+    "La bibliothèque actuelle sera remplacée par la copie sauvegardée dans votre compte.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Die aktuelle Bibliothek wird durch die in deinem Konto gesicherte Kopie ersetzt." } },
+        "en": { "stringUnit": { "state": "translated", "value": "The current library will be replaced by the copy backed up to your account." } },
+        "es": { "stringUnit": { "state": "translated", "value": "La biblioteca actual se reemplazará por la copia guardada en tu cuenta." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "La biblioteca actual se reemplazará por la copia guardada en tu cuenta." } },
+        "it": { "stringUnit": { "state": "translated", "value": "La libreria attuale verrà sostituita dalla copia salvata nel tuo account." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "現在のライブラリは、アカウントにバックアップされているコピーで置き換えられます。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "현재 서재가 계정에 백업된 사본으로 대체됩니다." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "De huidige bibliotheek wordt vervangen door de kopie in je account." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Bieżąca biblioteka zostanie zastąpiona kopią zapisaną na koncie." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "A biblioteca atual será substituída pela cópia salva na sua conta." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Текущая библиотека будет заменена копией, сохранённой в вашем аккаунте." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Det aktuella biblioteket ersätts med kopian som säkerhetskopierats till ditt konto." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Mevcut kitaplık, hesabınıza yedeklenen kopyayla değiştirilecektir." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "当前书库将替换为您账户中备份的副本。" } }
+      }
+    },
+    "La bibliothèque est sauvegardée dans votre compte Supabase. Une divergence entre deux appareils demande toujours votre choix avant remplacement.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Deine Bibliothek wird in deinem Supabase-Konto gesichert. Bei Abweichungen zwischen zwei Geräten wirst du vor dem Ersetzen immer gefragt." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Your library is backed up to your Supabase account. If two devices have different copies, you will always be asked which one to keep before anything is replaced." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Tu biblioteca se guarda en tu cuenta de Supabase. Si hay diferencias entre dos dispositivos, siempre se te preguntará antes de reemplazar una copia." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Tu biblioteca se guarda en tu cuenta de Supabase. Si hay diferencias entre dos dispositivos, siempre se te preguntará antes de reemplazar una copia." } },
+        "it": { "stringUnit": { "state": "translated", "value": "La tua libreria viene salvata nel tuo account Supabase. In caso di differenze tra due dispositivi, ti verrà sempre chiesto quale copia conservare prima di sostituirla." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ライブラリはSupabaseアカウントにバックアップされます。2台のデバイス間で内容が異なる場合は、置き換える前に必ず確認します。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "서재는 Supabase 계정에 백업됩니다. 두 기기의 사본이 다르면 교체하기 전에 항상 어떤 사본을 유지할지 묻습니다." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Je bibliotheek wordt opgeslagen in je Supabase-account. Als twee apparaten verschillen, wordt altijd eerst gevraagd welke kopie je wilt bewaren." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Biblioteka jest zapisywana na koncie Supabase. Jeśli kopie na dwóch urządzeniach się różnią, przed zastąpieniem zawsze pojawi się pytanie, którą zachować." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Sua biblioteca é salva na sua conta do Supabase. Se houver diferenças entre dois aparelhos, você sempre escolherá qual cópia manter antes da substituição." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Библиотека сохраняется в вашем аккаунте Supabase. Если копии на двух устройствах различаются, перед заменой вам всегда предложат выбрать нужную." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Ditt bibliotek säkerhetskopieras till ditt Supabase-konto. Om kopiorna på två enheter skiljer sig får du alltid välja vilken som ska behållas innan något ersätts." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Kitaplığınız Supabase hesabınıza yedeklenir. İki cihazdaki kopyalar farklıysa değiştirme yapılmadan önce hangisinin saklanacağı her zaman size sorulur." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "您的书库会备份到 Supabase 账户。如果两台设备上的副本不同，替换前始终会让您选择要保留的副本。" } }
+      }
+    },
+    "La bibliothèque ne peut pas être ouverte.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Die Bibliothek kann nicht geöffnet werden." } },
+        "en": { "stringUnit": { "state": "translated", "value": "The library cannot be opened." } },
+        "es": { "stringUnit": { "state": "translated", "value": "No se puede abrir la biblioteca." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "No se puede abrir la biblioteca." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Impossibile aprire la libreria." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ライブラリを開けません。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "서재를 열 수 없습니다." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "De bibliotheek kan niet worden geopend." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Nie można otworzyć biblioteki." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Não foi possível abrir a biblioteca." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Не удаётся открыть библиотеку." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Biblioteket kan inte öppnas." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Kitaplık açılamıyor." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法打开书库。" } }
+      }
+    },
+    "La copie de cet iPhone deviendra la nouvelle sauvegarde de votre compte.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Die Kopie auf diesem iPhone wird zur neuen Sicherung deines Kontos." } },
+        "en": { "stringUnit": { "state": "translated", "value": "The copy on this iPhone will become the new backup for your account." } },
+        "es": { "stringUnit": { "state": "translated", "value": "La copia de este iPhone se convertirá en la nueva copia de seguridad de tu cuenta." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "La copia de este iPhone se convertirá en el nuevo respaldo de tu cuenta." } },
+        "it": { "stringUnit": { "state": "translated", "value": "La copia su questo iPhone diventerà il nuovo backup del tuo account." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このiPhoneのコピーが、アカウントの新しいバックアップになります。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "이 iPhone의 사본이 계정의 새 백업이 됩니다." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "De kopie op deze iPhone wordt de nieuwe reservekopie van je account." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Kopia z tego iPhone'a stanie się nową kopią zapasową konta." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "A cópia deste iPhone se tornará o novo backup da sua conta." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Копия с этого iPhone станет новой резервной копией вашего аккаунта." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Kopian på denna iPhone blir den nya säkerhetskopian för ditt konto." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bu iPhone’daki kopya, hesabınızın yeni yedeği olacaktır." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "此 iPhone 上的副本将成为您账户的新备份。" } }
+      }
+    },
+    "La sauvegarde a changé sur un autre appareil.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Die Sicherung wurde auf einem anderen Gerät geändert." } },
+        "en": { "stringUnit": { "state": "translated", "value": "The backup changed on another device." } },
+        "es": { "stringUnit": { "state": "translated", "value": "La copia de seguridad cambió en otro dispositivo." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "El respaldo cambió en otro dispositivo." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Il backup è stato modificato su un altro dispositivo." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "別のデバイスでバックアップが変更されました。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "다른 기기에서 백업이 변경되었습니다." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "De reservekopie is gewijzigd op een ander apparaat." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Kopia zapasowa została zmieniona na innym urządzeniu." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "O backup foi alterado em outro aparelho." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Резервная копия была изменена на другом устройстве." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Säkerhetskopian har ändrats på en annan enhet." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Yedek başka bir cihazda değiştirildi." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "备份已在另一台设备上更改。" } }
+      }
+    },
+    "Le stockage local ne peut pas être ouvert en toute sécurité.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Der lokale Speicher kann nicht sicher geöffnet werden." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Local storage cannot be opened safely." } },
+        "es": { "stringUnit": { "state": "translated", "value": "No se puede abrir el almacenamiento local de forma segura." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "No se puede abrir el almacenamiento local de forma segura." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Impossibile aprire l'archivio locale in sicurezza." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ローカルストレージを安全に開けません。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "로컬 저장소를 안전하게 열 수 없습니다." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "De lokale opslag kan niet veilig worden geopend." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Nie można bezpiecznie otworzyć pamięci lokalnej." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Não foi possível abrir o armazenamento local com segurança." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Не удаётся безопасно открыть локальное хранилище." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Det lokala lagringsutrymmet kan inte öppnas säkert." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Yerel depolama güvenli şekilde açılamıyor." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法安全地打开本地存储。" } }
+      }
+    },
+    "Remplacer la bibliothèque de cet iPhone ?": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Bibliothek auf diesem iPhone ersetzen?" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Replace the library on this iPhone?" } },
+        "es": { "stringUnit": { "state": "translated", "value": "¿Reemplazar la biblioteca de este iPhone?" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "¿Reemplazar la biblioteca de este iPhone?" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Sostituire la libreria su questo iPhone?" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "このiPhoneのライブラリを置き換えますか？" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "이 iPhone의 서재를 대체할까요?" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Bibliotheek op deze iPhone vervangen?" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Zastąpić bibliotekę na tym iPhonie?" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Substituir a biblioteca deste iPhone?" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Заменить библиотеку на этом iPhone?" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Ersätta biblioteket på denna iPhone?" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bu iPhone’daki kitaplık değiştirilsin mi?" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "要替换此 iPhone 上的书库吗？" } }
+      }
+    },
+    "Remplacer la sauvegarde du compte ?": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Sicherung des Kontos ersetzen?" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Replace the account backup?" } },
+        "es": { "stringUnit": { "state": "translated", "value": "¿Reemplazar la copia de seguridad de la cuenta?" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "¿Reemplazar el respaldo de la cuenta?" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Sostituire il backup dell'account?" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "アカウントのバックアップを置き換えますか？" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "계정 백업을 대체할까요?" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Reservekopie van het account vervangen?" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Zastąpić kopię zapasową konta?" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Substituir o backup da conta?" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Заменить резервную копию аккаунта?" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Ersätta kontots säkerhetskopia?" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Hesap yedeği değiştirilsin mi?" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "要替换账户备份吗？" } }
+      }
+    },
+    "Restauration de votre bibliothèque…": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Deine Bibliothek wird wiederhergestellt…" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Restoring your library…" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Restaurando tu biblioteca…" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Restaurando tu biblioteca…" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Ripristino della libreria…" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "ライブラリを復元中…" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "서재 복원 중…" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Je bibliotheek wordt hersteld…" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Przywracanie biblioteki…" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Restaurando sua biblioteca…" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Восстанавливаем библиотеку…" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Ditt bibliotek återställs…" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Kitaplığınız geri yükleniyor…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在恢复您的书库…" } }
+      }
+    },
+    "Restaurée": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Wiederhergestellt" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Restored" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Restaurada" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Restaurada" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Ripristinata" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "復元済み" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "복원됨" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Hersteld" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Przywrócona" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Restaurada" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Восстановлено" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Återställd" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Geri yüklendi" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已恢复" } }
+      }
+    },
+    "Restaurer la sauvegarde du compte": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Sicherung des Kontos wiederherstellen" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Restore the account backup" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Restaurar la copia de seguridad de la cuenta" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Restablecer el respaldo de la cuenta" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Ripristina il backup dell'account" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "アカウントのバックアップを復元" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "계정 백업 복원" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Reservekopie van het account herstellen" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Przywróć kopię zapasową konta" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Restaurar o backup da conta" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Восстановить резервную копию аккаунта" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Återställ kontots säkerhetskopia" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Hesap yedeğini geri yükle" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "恢复账户备份" } }
+      }
+    },
+    "Sauvegarde": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Sicherung" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Backup" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Copia de seguridad" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Respaldo" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Backup" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "バックアップ" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "백업" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Reservekopie" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Kopia zapasowa" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Backup" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Резервная копия" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Säkerhetskopia" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Yedek" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "备份" } }
+      }
+    },
+    "Sauvegarder maintenant": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Jetzt sichern" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Back up now" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Crear copia de seguridad ahora" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Crear respaldo ahora" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Esegui il backup ora" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "今すぐバックアップ" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "지금 백업" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Nu een reservekopie maken" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Utwórz kopię zapasową teraz" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Fazer backup agora" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Создать резервную копию" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Säkerhetskopiera nu" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Şimdi yedekle" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "立即备份" } }
+      }
+    },
+    "Se déconnecter garde votre bibliothèque locale et sa sauvegarde. Supprimer le compte efface les deux. Pour retirer Honya de votre identifiant Apple, allez dans Réglages > votre nom > Connexion avec Apple.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Beim Abmelden bleiben deine lokale Bibliothek und ihre Sicherung erhalten. Wenn du das Konto löschst, werden beide gelöscht. Um Honya von deinem Apple Account zu entfernen, gehe zu Einstellungen > dein Name > Mit Apple anmelden." } },
+        "en": { "stringUnit": { "state": "translated", "value": "Signing out keeps your local library and its backup. Deleting the account erases both. To remove Honya from your Apple Account, go to Settings > your name > Sign in with Apple." } },
+        "es": { "stringUnit": { "state": "translated", "value": "Al cerrar sesión se conservan tu biblioteca local y su copia de seguridad. Al eliminar la cuenta, se borran ambas. Para quitar Honya de tu cuenta de Apple, ve a Ajustes > tu nombre > Iniciar sesión con Apple." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Al cerrar sesión se conservan tu biblioteca local y su respaldo. Al eliminar la cuenta, se borran ambos. Para quitar Honya de tu cuenta de Apple, ve a Configuración > tu nombre > Iniciar sesión con Apple." } },
+        "it": { "stringUnit": { "state": "translated", "value": "La disconnessione conserva la libreria locale e il relativo backup. L'eliminazione dell'account cancella entrambi. Per rimuovere Honya dal tuo Apple Account, vai su Impostazioni > il tuo nome > Accedi con Apple." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "サインアウトしても、このiPhoneのライブラリとバックアップは保持されます。アカウントを削除すると、両方とも消去されます。Apple AccountからHonyaを削除するには、「設定」＞自分の名前＞「Appleでサインイン」の順に開いてください。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "로그아웃해도 로컬 서재와 백업은 유지됩니다. 계정을 삭제하면 둘 다 지워집니다. Apple 계정에서 Honya를 제거하려면 설정 > 사용자 이름 > Apple로 로그인을 여세요." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Uitloggen bewaart je lokale bibliotheek en de reservekopie. Als je het account verwijdert, worden beide gewist. Om Honya uit je Apple Account te verwijderen, ga je naar Instellingen > je naam > Log in met Apple." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Wylogowanie zachowuje lokalną bibliotekę i jej kopię zapasową. Usunięcie konta kasuje obie. Aby usunąć Honya z konta Apple, wybierz Ustawienia > Twoje imię i nazwisko > Logowanie przez Apple." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Sair mantém sua biblioteca local e o backup dela. Excluir a conta apaga os dois. Para remover o Honya da sua Conta Apple, acesse Ajustes > seu nome > Iniciar sessão com a Apple." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "При выходе сохраняются локальная библиотека и её резервная копия. При удалении аккаунта стираются обе. Чтобы удалить Honya из Аккаунта Apple, откройте Настройки > ваше имя > Вход с Apple." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "När du loggar ut behålls ditt lokala bibliotek och dess säkerhetskopia. Om du raderar kontot raderas båda. Om du vill ta bort Honya från ditt Apple-konto går du till Inställningar > ditt namn > Logga in med Apple." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Çıkış yaptığınızda yerel kitaplığınız ve yedeği korunur. Hesabı silmek ikisini de siler. Honya’yı Apple Hesabınızdan kaldırmak için Ayarlar > adınız > Apple ile Giriş bölümüne gidin." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "退出登录后，本地书库及其备份会保留；删除账户会同时清除两者。如需从 Apple 账户中移除 Honya，请前往“设置”> 你的姓名 >“通过 Apple 登录”。" } }
+      }
+    },
+    "Vérification du compte…": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Konto wird überprüft…" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Verifying account…" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Verificando la cuenta…" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Verificando la cuenta…" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Verifica dell'account…" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "アカウントを確認中…" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "계정 확인 중…" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Account wordt geverifieerd…" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Weryfikowanie konta…" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Verificando a conta…" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Проверяем аккаунт…" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Kontot verifieras…" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Hesap doğrulanıyor…" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "正在验证账户…" } }
+      }
+    },
+    "À jour": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Aktuell" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Up to date" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Al día" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Al día" } },
+        "it": { "stringUnit": { "state": "translated", "value": "Aggiornato" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "最新" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "최신 상태" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Bijgewerkt" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Aktualna" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Atualizado" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Актуально" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Uppdaterad" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Güncel" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "已是最新" } }
+      }
+    },
+    "iPhone + compte Honya": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "iPhone + Honya-Konto" } },
+        "en": { "stringUnit": { "state": "translated", "value": "iPhone + Honya account" } },
+        "es": { "stringUnit": { "state": "translated", "value": "iPhone + cuenta de Honya" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "iPhone + cuenta de Honya" } },
+        "it": { "stringUnit": { "state": "translated", "value": "iPhone + account Honya" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "iPhone + Honyaアカウント" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "iPhone + Honya 계정" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "iPhone + Honya-account" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "iPhone + konto Honya" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "iPhone + conta Honya" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "iPhone + аккаунт Honya" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "iPhone + Honya-konto" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "iPhone + Honya hesabı" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "iPhone + Honya 账户" } }
+      }
+    },
+    "La sauvegarde n'a pas pu être terminée. Votre bibliothèque locale est intacte.": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Die Sicherung konnte nicht abgeschlossen werden. Deine lokale Bibliothek ist unverändert." } },
+        "en": { "stringUnit": { "state": "translated", "value": "The backup could not be completed. Your local library is unchanged." } },
+        "es": { "stringUnit": { "state": "translated", "value": "No se pudo completar la copia de seguridad. Tu biblioteca local está intacta." } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "No se pudo completar el respaldo. Tu biblioteca local está intacta." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Non è stato possibile completare il backup. La tua libreria locale è intatta." } },
+        "ja": { "stringUnit": { "state": "translated", "value": "バックアップを完了できませんでした。ローカルのライブラリは変更されていません。" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "백업을 완료하지 못했습니다. 로컬 서재는 그대로 유지됩니다." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "De reservekopie kon niet worden voltooid. Je lokale bibliotheek is ongewijzigd." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Nie udało się ukończyć tworzenia kopii zapasowej. Lokalna biblioteka pozostała bez zmian." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Não foi possível concluir o backup. Sua biblioteca local permanece intacta." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Не удалось завершить резервное копирование. Локальная библиотека не изменена." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Säkerhetskopieringen kunde inte slutföras. Ditt lokala bibliotek är oförändrat." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Yedekleme tamamlanamadı. Yerel kitaplığınız değişmeden duruyor." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无法完成备份。您的本地书库保持不变。" } }
+      }
+    },
+    "Sortie aujourd'hui": {
+      "localizations": {
+        "de": { "stringUnit": { "state": "translated", "value": "Erscheint heute" } },
+        "en": { "stringUnit": { "state": "translated", "value": "Released today" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Lanzamiento hoy" } },
+        "es-419": { "stringUnit": { "state": "translated", "value": "Lanzamiento hoy" } },
+        "it": { "stringUnit": { "state": "translated", "value": "In uscita oggi" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "本日発売" } },
+        "ko": { "stringUnit": { "state": "translated", "value": "오늘 출시" } },
+        "nl": { "stringUnit": { "state": "translated", "value": "Verschijnt vandaag" } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Premiera dzisiaj" } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Lançamento hoje" } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Выходит сегодня" } },
+        "sv": { "stringUnit": { "state": "translated", "value": "Släpps idag" } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Bugün çıkıyor" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "今日上市" } }
       }
     }
   },

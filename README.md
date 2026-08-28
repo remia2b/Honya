@@ -1,11 +1,30 @@
 # Honya
 
-Suivi de collection **livres & mangas** — possédé / lu / à lire / wishlist / prêté, tomes et
+Suivi de collection **livres, mangas & BD** — possédé / lu / à lire / wishlist / prêté, tomes et
 chapitres, sessions chronométrées, statistiques, badges. Design dans l'ADN d'Apple Books
 (serif New York, arc d'objectif, couvertures 3D, fiches teintées par la couverture).
 
 Concept design complet : voir l'artifact « Honya — concept design » (écrans, système de
 design, roadmap).
+
+## Inventaire fonctionnel v1
+
+- **Bibliothèque** : livres, mangas, BD et séries ; statuts À lire, En cours, Lu,
+  Wishlist et Abandonné ; filtres, grille/liste, progression et notes.
+- **Éditions** : scan EAN/ISBN-10/ISBN-13 avec validation de la clé de contrôle,
+  recherche texte, ajout manuel de secours, déduplication sur l'ISBN exact, titre et
+  couverture de l'édition possédée prioritaires.
+- **Séries** : fiche série et fiche de chaque tome, tomes possédés/lus/manquants,
+  complétion du rayon, prochaine sortie et rappel local stable.
+- **Organisation** : étagères personnelles et automatiques, suivi, citations et prêt
+  d'un livre ou d'un tome avec date et emprunteur.
+- **Lecture** : chronomètre, pages lues, historique, séries de jours, objectifs,
+  statistiques et badges.
+- **International** : interface traduite en 15 variantes linguistiques et éditions
+  recherchées dans la langue choisie, sans traduction automatique des titres.
+- **Comptes et Honya+** : compte Apple ou e-mail obligatoire via Supabase,
+  restauration StoreKit, verrous contextuels et déblocage uniquement par un droit
+  Apple vérifié dans les builds distribués.
 
 ## Ouvrir & compiler
 
@@ -24,14 +43,18 @@ dans `Honya/` est automatiquement compilé, sans toucher au `.xcodeproj`.
     2. **Par tag** : `git tag v0.1 && git push origin v0.1` — nécessite que le webhook
        GitHub de Codemagic soit actif.
 
+    Un push ordinaire déclenche uniquement la compilation GitHub Actions. Avec la
+    configuration actuelle, Codemagic ne construit une IPA que manuellement ou sur un
+    tag `v*` : ne pas créer le tag de livraison avant que le SHA exact soit vert.
+
     Prérequis : intégration *Developer Portal* (clé API App Store Connect) enregistrée
-    sous le nom repris dans `integrations → app_store_connect` (ici : `Codemagic`).
+    sous le nom repris dans `integrations → app_store_connect` (ici : `Binjo ASC key`).
 
     ⚠️ Si Codemagic affiche une erreur de validation portant sur une version ancienne du
     fichier, il sert un cache : cliquer le ⟳ à côté du sélecteur de branche, ou retirer
     puis ré-ajouter l'application dans Codemagic pour forcer un nouveau clone.
-- Écrit sous Windows sans possibilité de compiler : le premier build peut révéler quelques
-  erreurs de compilation mineures — collez-les à Claude pour correction immédiate.
+- Écrit sous Windows sans toolchain iOS : GitHub Actions reste la vérification de
+  compilation de référence avant chaque archive TestFlight.
 
 ## Architecture
 
@@ -44,13 +67,16 @@ Honya/
 │                             (couverture 3D, pilule CTA, chips, étoiles), Jauges
 │                             (arc d'objectif, semaine de série)
 ├── Services/
-│   ├── Metadonnees/          MetadataProvider + Google Books, Open Library,
-│   │                         AniList (GraphQL), Agrégateur en cascade ISBN-first
+│   ├── Metadonnees/          Agrégateur Open Library et bibliothèques nationales
+│   │                         (BnF, Sudoc,
+│   │                         DNB, NDL/openBD, LIBRIS, BN Pologne)
+│   │                         + adaptateurs Google/Apple/AniList désactivés
+│   │                         sans autorisation commerciale explicite
 │   ├── ImportService.swift   Résultat de recherche → SwiftData, déduplication
 │   ├── StatsEngine.swift     Streak (avec joker), heatmap, records, genres…
 │   ├── BadgesEngine.swift    Les 8 badges
 │   ├── NotificationsService  Rappels de sorties de tomes
-│   └── ImageCharge.swift     Cache couvertures (mémoire+disque) + couleur dominante
+│   └── ImageCharge.swift     Cache mémoire + cache HTTP borné + couleur dominante
 └── Vues/
     ├── RacineView            TabView 4 onglets (Recherche en rôle .search)
     ├── Accueil/              Arc d'objectif, Reprendre, streak, À suivre, sorties
@@ -65,35 +91,102 @@ Honya/
 
 ## Décisions produit clés
 
-- **Couverture canonique globale** : une seule couverture par œuvre, identique pour tous
-  (l'édition scannée est stockée en interne mais pas affichée).
+- **Édition exacte d'abord** : la couverture et le titre associés à l'ISBN scanné
+  priment. Si aucune source ne connaît la couverture de ce code précis, Honya la
+  laisse vide au lieu d'afficher celle d'un autre tirage ou de l'ebook. Le lecteur
+  peut alors choisir sa propre photo depuis la fiche du livre ou du tome ; elle
+  reste dans le conteneur privé de l'app et est supprimée avec le livre/compte.
 - **Titres officiels par langue** : jamais de traduction automatique. `Oeuvre.titres[langue]`
-  est rempli par les éditions réellement publiées (Google Books `langRestrict`, AniList) ;
-  repli : langue de l'utilisateur → anglais → titre original.
-- **ISBN d'abord** : le scan donne l'édition exacte ; le préfixe (978-2 = FR, 978-4 = JP)
-  détecte la langue.
+  est rempli par les éditions réellement publiées (Open Library au niveau édition
+  et catalogues nationaux) ;
+  repli d'affichage : langue de l'utilisateur → anglais → translittération → original.
+- **ISBN d'abord** : le scan ne conserve qu'une réponse portant le même ISBN canonique ;
+  le groupe d'enregistrement (978-2 = zone francophone, 978-4 = zone japonaise)
+  sert seulement à router vers un catalogue/storefront probable. Il n'est jamais
+  enregistré comme langue du livre : seule une métadonnée explicite peut localiser
+  son titre et sa couverture.
+- **Test de non-régression réel** : `9782749958194` doit rendre via Sudoc l'édition
+  papier française d'**Instinct, tome 2**, avec sa tomaison, et ne jamais être
+  fusionné avec l'ebook `9782749963990`. La BnF ne possède actuellement aucune
+  vignette pour cet EAN : Honya laisse donc l'image vide plutôt que d'en inventer une.
 - **Streak avec joker** : un trou d'un jour est pardonné (anti-culpabilité).
 - **Branding** : « Honya » s'emploie comme un nom propre, sans aucune référence japonaise
   (pas de kanji, pas de traduction du nom).
 
-## Reste à faire (v1.1+)
+## Limites connues / v1.1+
 
-- [ ] **CloudKit** : passer `ModelConfiguration(cloudKitDatabase: .automatic)` + capability
-      iCloud (les modèles sont déjà compatibles : défauts partout, relations optionnelles).
+- [ ] **Exhaustivité catalogue** : aucun catalogue public ne garantit tous les livres
+      publiés dans le monde. Honya cumule plusieurs sources et propose un ajout manuel
+      avec ISBN exact ; la fiche App Store ne doit donc pas promettre « 100 % des livres ».
+- [ ] **Licences catalogue commercial** : Google Books impose son attribution, des liens
+      visibles et une présentation de ses résultats que l'interface agrégée actuelle ne
+      respecte pas encore ; Apple limite son contenu promotionnel ; AniList demande une
+      autorisation adaptée à cet usage. Les trois adaptateurs restent coupés
+      (`HONYA_* = NO`) tant que leurs conditions et leurs UX ne sont pas validées. Pour
+      monter en charge avec Open Library, contacter Internet Archive ou ingérer ses dumps
+      selon leur politique plutôt que d'en faire un backend mobile massif.
+- [ ] **Photos de couverture dans la sauvegarde** : le snapshot Supabase protège les neuf
+      modèles et leurs relations, mais pas encore les octets des photos personnelles. Leur
+      référence reste sauvegardée ; l'image elle-même reste uniquement dans le conteneur
+      privé de l'iPhone jusqu'à l'ajout d'un bucket Storage privé.
+- [ ] **Plusieurs éditions du même ouvrage** : le modèle v1 représente un exemplaire et
+      un ISBN par œuvre (ou par tome). Une migration `Œuvre → Édition → Exemplaire` sera
+      nécessaire pour posséder simultanément plusieurs traductions/tirages du même titre.
 - [ ] **Widgets** (arc + streak, livre en cours) et **Live Activity** de session — nécessite
       une extension de cible.
 - [ ] **Rétrospective annuelle** partageable (cartes ShareLink) — teaser déjà dans Stats.
 - [ ] **Citations au scanner** (Live Text / VisionKit `ImageAnalyzer`).
-- [ ] Fournisseurs supplémentaires : **BnF SRU** (éditions FR exhaustives), **MangaDex**
-      (numérotation fine des chapitres).
-- [ ] Import Goodreads/CSV · icône App Store (voir `Design/AppIcon.svg`) · localisation EN
-      complète (socle `Localizable.xcstrings` posé, statuts/moods encore en dur).
-- [ ] Clé API Google Books optionnelle (quota) : `GoogleBooksProvider.cleAPI`, à restreindre
-      au bundle.
+- [ ] Import Goodreads/CSV et numérotation fine des chapitres via MangaDex.
+- [ ] Ajouter des tests UI/XCTest StoreKit, scanner, quotas et parcours de suppression de
+      compte ; la CI actuelle compile et contrôle les 15 traductions.
 
 ## Crédits données
 
-Google Books · Open Library · AniList. Les couvertures restent la propriété de leurs éditeurs.
+Sources actives par défaut : Open Library · BnF · Sudoc · DNB · NDL/openBD ·
+LIBRIS · Bibliothèque nationale de Pologne. Les couvertures restent la propriété
+de leurs éditeurs. Une vignette BnF affiche aussi sa provenance et sa date de
+récupération, conformément à la licence ouverte de l'État.
+
+## Contrôle avant soumission App Store
+
+- [ ] Faire passer le build GitHub macOS sur les modifications finales, puis tester sur
+      un iPhone réel le scan `9782749958194` et un ISBN invalide.
+- [ ] Décider la stratégie catalogue sous licence. Garder Google/Apple/AniList coupés
+      pour la v1, ou obtenir les accords écrits avant de poser les flags sécurisés
+      `HONYA_GOOGLE_BOOKS_LICENSED`, `HONYA_APPLE_BOOKS_PROMO_COMPLIANT` et
+      `HONYA_ANILIST_LICENSED` à `YES` dans Codemagic.
+- [x] Déployer et auditer la migration Supabase de suppression idempotente. Reste à
+      vérifier sur iPhone création, déconnexion, reconnexion et suppression définitive
+      d'un compte Apple et d'un compte e-mail.
+- [x] La page publique de confirmation reçoit `token_hash` et `type`, le schéma
+      `honya://` est déclaré et l'app vérifie elle-même le jeton. Reste à tester le lien
+      universel et son bouton de secours sur un iPhone installé.
+- [x] Le modèle Supabase **Reset password** affiche `{{ .Token }}` et le SMTP Resend de
+      production est activé. Reste à tester sur iPhone demande, renvoi, expiration,
+      saisie du code et changement effectif du mot de passe.
+- [ ] Publier dans Supabase le modèle d'inscription préparé avec `{{ .RedirectTo }}`.
+      L'app enregistre désormais la préférence `user_metadata.language` ; le contenu du
+      courrier doit encore l'utiliser, avec l'anglais comme repli.
+- [x] La sauvegarde/restauration Supabase est liée à `auth.users.id` : stores locaux
+      séparés par compte, UUID stables pour les neuf modèles, snapshot canonique contrôlé
+      par SHA-256 et révision optimiste, restauration automatique d'un nouvel appareil et
+      arbitrage explicite si deux bibliothèques divergent. Les photos personnelles restent
+      la limite documentée ci-dessus.
+- [ ] Pour les comptes Apple, ajouter au backend la révocation du jeton Apple lors de la
+      suppression du compte, puis tester ce parcours de bout en bout. Supprimer seulement
+      l'utilisateur Supabase ne suffit pas à valider cette exigence Apple.
+- [ ] Vérifier dans le sandbox StoreKit les trois produits publics, la restauration,
+      l'expiration/révocation et l'ouverture de la gestion des abonnements.
+- [ ] Renseigner dans App Store Connect la politique de confidentialité
+      `https://www.honya.app/en/privacy/`, l'assistance
+      `https://www.honya.app/en/support/` et des fiches d'abonnement cohérentes dans
+      toutes les langues distribuées.
+- [ ] Faire correspondre les réponses « App Privacy » d'App Store Connect à
+      `Honya/PrivacyInfo.xcprivacy`, joindre les captures et fournir un compte de revue
+      e-mail si ce parcours doit être testé par Apple.
+- [ ] Mettre à jour les pages publiques : remplacer l'ancien choix par région de l'iPhone
+      par la langue de lecture choisie, et ajouter les bibliothèques nationales/Sudoc aux
+      fournisseurs mentionnés dans la politique de confidentialité.
 
 ## Webhook Codemagic
 
@@ -118,8 +211,11 @@ Le client d'authentification est écrit en REST à la main
 projet Xcode**, qui est écrit à la main et supporte mal les paquets SPM. Les
 jetons de session vivent dans le Trousseau, jamais dans les préférences.
 
-Sans configuration Supabase, l'app fonctionne : seule la connexion avec Apple
-est proposée, et le chemin e-mail explique qu'il n'est pas encore disponible.
+Honya exige un compte authentifié, y compris en développement : Supabase doit donc
+être configuré pour entrer dans l'app. Une déconnexion conserve la bibliothèque locale
+jusqu'à la prochaine connexion ; seule la suppression explicite du compte l'efface.
+Google Books est optionnel et reste inactif sans accord écrit, même lorsqu'une clé API
+technique existe.
 
 ### Mise en place (une seule fois)
 
@@ -133,7 +229,10 @@ est proposée, et le chemin e-mail explique qu'il n'est pas encore disponible.
 3. **Codemagic** → Honya → Environment variables, groupe `signing`,
    case **Secure** cochée :
    - `SUPABASE_URL` — Settings → API → Project URL
-   - `SUPABASE_ANON_KEY` — la clé publique `anon`
+   - `SUPABASE_ANON_KEY` — de préférence la clé publique moderne
+     `sb_publishable_…` (la clé `anon` historique reste compatible)
+   - `CERTIFICATE_PRIVATE_KEY_B64` — clé privée PEM du certificat Apple Distribution,
+     encodée en base64 (le compte Apple est déjà à sa limite de certificats)
 
    Ces valeurs ne sont jamais dans le dépôt : la CI les écrit dans
    `Honya/Config/Secrets.swift` juste avant la compilation.
@@ -142,25 +241,20 @@ est proposée, et le chemin e-mail explique qu'il n'est pas encore disponible.
    activer, et mettre `com.remiabbou.honya` en *Client ID*. (Le flux est
    natif : aucun secret OAuth n'est nécessaire.)
 
-5. **Suppression de compte** — Apple exige qu'une app qui crée des comptes
-   permette aussi de les supprimer. Le client appelle une fonction Postgres,
-   pour n'avoir jamais besoin d'une clé d'administration. Dans le SQL Editor :
-
-   ```sql
-   create or replace function public.supprimer_mon_compte()
-   returns void
-   language sql
-   security definer
-   set search_path = pg_catalog, pg_temp
-   as $$ delete from auth.users where id = auth.uid(); $$;
-
-   revoke all on function public.supprimer_mon_compte() from public, anon;
-   grant execute on function public.supprimer_mon_compte() to authenticated;
-   ```
+5. **Suppression de compte** — la migration versionnée du dossier
+   `supabase/migrations/` est déployée. La fonction `SECURITY DEFINER` ne peut
+   supprimer que `auth.uid()` et évite d'exposer une clé d'administration dans
+   l'app. Elle ajoute une clé d'idempotence et un reçu UUID sans donnée
+   personnelle, pour prouver le succès même si la réponse réseau se perd.
 
 6. **Confirmation par e-mail** — Authentication → Providers → Email. Si elle
    reste activée, l'inscription affiche « ouvrez le courrier de confirmation »
    ; désactivée, l'inscription connecte directement.
+
+7. **Récupération par e-mail** — Authentication → Email Templates →
+   **Reset password** : inclure le code `{{ .Token }}` dans le corps du message.
+   L'interface Honya demande ce code et l'échange avec `type=recovery`; le lien
+   `{{ .ConfirmationURL }}` du modèle Supabase par défaut ne suffit pas à ce parcours.
 
 ### État de la configuration (projet Honya)
 
@@ -168,16 +262,22 @@ est proposée, et le chemin e-mail explique qu'il n'est pas encore disponible.
 |---|---|
 | Capacité *Sign In with Apple* sur l'App ID | fait |
 | Projet Supabase dédié (West EU, Paris) | fait |
-| Fonction `supprimer_mon_compte()` + permissions | fait |
+| Migration `20260827171723_suppression_compte_idempotente` | fait et vérifié le 27/08/2026 |
+| Migrations `20260827183316_sauvegarde_bibliotheque_v1` et `20260827185323_sauvegarde_bibliotheque_octets_v1` | faites et vérifiées le 27/08/2026 |
 | Provider Apple activé, *Client ID* `com.remiabbou.honya` | fait |
 | Provider Email activé (mot de passe ≥ 6 caractères) | fait |
-| `SUPABASE_URL` / `SUPABASE_ANON_KEY` dans Codemagic | **reste à faire** |
+| Inscriptions anonymes | désactivées |
+| Confirmation d'adresse e-mail | obligatoire |
+| Site URL / redirections | `https://www.honya.app` / `https://www.honya.app/*` |
+| SMTP personnalisé Resend | activé ; envois Auth réussis observés le 27/08/2026 |
+| Modèle **Reset password** avec `{{ .Token }}` | fait |
+| CAPTCHA Auth | à configurer avant montée en charge |
+| Protection des mots de passe compromis | indisponible sur le plan Free |
+| `SUPABASE_URL` / `SUPABASE_ANON_KEY` dans Codemagic | **à confirmer par le prochain build** |
 
-Tant que les deux variables ne sont pas renseignées, l'app se comporte
-normalement : la connexion avec Apple fonctionne et le chemin e-mail annonce
-qu'il n'est pas encore disponible. Aucune modification de code n'est
-nécessaire ensuite — il suffit de reconstruire.
+Sans configuration Supabase, un build local reste bloqué sur la connexion et
+l'archive TestFlight s'arrête volontairement avant la compilation.
 
-> Le service d'envoi d'e-mails inclus dans l'offre gratuite est bridé
-> (quelques courriers par heure) et destiné aux essais. Pour une vraie mise en
-> ligne, brancher un SMTP dans *Authentication → Emails → SMTP Settings*.
+> Le SMTP personnalisé est déjà actif. Avant la production publique, vérifier le
+> domaine d'envoi dans Resend, désactiver le suivi des liens et tester la délivrabilité,
+> les indésirables et les limites avec une adresse de revue dédiée.

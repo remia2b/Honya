@@ -154,6 +154,12 @@ struct CollectionsView: View {
             Button("Créer") {
                 let propre = nouveauNom.trimmingCharacters(in: .whitespaces)
                 guard !propre.isEmpty else { return }
+                // Le quota est revalidé ici : la feuille a pu rester ouverte
+                // pendant une expiration Honya+ ou une autre création.
+                guard Droits.partage.plus || collections.count < Limites.etageres else {
+                    plusVisible = true
+                    return
+                }
                 contexte.insert(Collection(nom: propre))
                 nouveauNom = ""
             }

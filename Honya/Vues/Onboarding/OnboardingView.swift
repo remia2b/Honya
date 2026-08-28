@@ -20,7 +20,9 @@ struct OnboardingView: View {
     @State private var typesChoisis: Set<TypeOeuvre> = [.livre, .manga]
     @State private var minutesChoisies = 20
     @State private var dureeLibre = false
-    @State private var languesChoisies: Set<String> = [Langues.codeAppareil]
+    /// L'ordre est celui du choix : le premier élément est la langue
+    /// principale. Un Set rendait cette décision aléatoire au premier lancement.
+    @State private var languesChoisies: [String] = [Langues.codeAppareil]
 
     /// Les durées proposées d'emblée. Au-delà, le réglage libre prend le
     /// relais : dix minutes suffisent à certains, une heure à d'autres, et une
@@ -296,10 +298,10 @@ struct OnboardingView: View {
                                     // Jamais zéro langue : la recherche n'aurait
                                     // plus de sol.
                                     if languesChoisies.count > 1 {
-                                        languesChoisies.remove(langue.code)
+                                        languesChoisies.removeAll { $0 == langue.code }
                                     }
                                 } else {
-                                    languesChoisies.insert(langue.code)
+                                    languesChoisies.append(langue.code)
                                 }
                             }
                         }
@@ -361,13 +363,7 @@ struct OnboardingView: View {
         let objectif = Objectif.courant(dans: contexte)
         objectif.minutesParJour = minutesChoisies
         objectif.typesPreferes = typesChoisis.map(\.rawValue)
-        // La langue de l'appareil d'abord, si elle fait partie des choix.
-        let appareil = Langues.codeAppareil
-        var ordonnees = Array(languesChoisies)
-        if let index = ordonnees.firstIndex(of: appareil), index != 0 {
-            ordonnees.swapAt(0, index)
-        }
-        objectif.languesLecture = ordonnees
+        objectif.languesLecture = languesChoisies
         onboardingTermine = true
     }
 }

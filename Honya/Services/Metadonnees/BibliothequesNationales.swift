@@ -2,45 +2,96 @@ import Foundation
 
 /// Les bibliothèques nationales : le filet sous les catalogues commerciaux.
 ///
-/// Dans chaque pays, le dépôt légal fait entrer TOUT ce qui paraît au
-/// catalogue de la bibliothèque nationale — éditions de clubs, petits
-/// éditeurs, tirages que Google, Apple et OpenLibrary ignorent. Le groupe
-/// d'enregistrement de l'ISBN dit le pays ; on interroge la bibliothèque de
-/// ce pays. Toutes celles branchées ici ont une API publique, gratuite et
-/// sans clé — vérifiées une à une sur pièce :
+/// Le dépôt légal référence de nombreuses éditions de clubs, de petits
+/// éditeurs et des tirages que Google, Apple et Open Library ignorent. Le
+/// groupe d'enregistrement de l'ISBN permet de choisir le catalogue national
+/// le plus pertinent parmi ceux intégrés. Ils exposent tous une API publique,
+/// gratuite et sans clé :
 ///
 ///   France     BnF      SRU, Dublin Core
+///   Monde      Sudoc    ISBN -> PPN, puis UNIMARC XML
 ///   Allemagne  DNB      SRU, Dublin Core
 ///   Japon      openBD   JSON, puis NDL en SRU Dublin Core (échappé)
 ///   Suède      LIBRIS   JSON
 ///   Pologne    BN       JSON
 ///
-/// Seule la BnF sert aussi les couvertures, par l'identifiant ark de la
-/// notice. Pour les autres, l'agrégateur emprunte ensuite l'image d'une autre
-/// édition par une recherche de titre.
-struct BibliothequeNationaleProvider {
+/// La BnF et openBD peuvent aussi servir une couverture. Sans image portant
+/// l'ISBN exact, Honya laisse la couverture vide plutôt que d'en certifier une
+/// provenant d'une autre édition.
+struct BibliothequeNationaleProvider: Sendable {
 
     func parISBN(_ isbn: String) async -> ResultatRecherche? {
+        guard await CadenceBibliotheques.partage.attendre() else { return nil }
         let propre = ISBNUtil.normaliser(isbn)
-        guard propre.count == 13 else { return nil }
+        guard propre.count == 13, !Task.isCancelled else { return nil }
         let corps = String(propre.dropFirst(3))
 
+        // Sudoc et le catalogue du pays sont indépendants. Les lancer
+        // ensemble évite d'ajouter deux appels réseau Sudoc à la latence de
+        // la bibliothèque nationale, tout en conservant la notice nationale
+        // comme source prioritaire lors de la fusion.
+        async let noticeSudoc: ResultatRecherche? = sudoc(propre)
+
+        let noticeNationale: ResultatRecherche?
         if propre.hasPrefix("979") {
-            if corps.hasPrefix("10") { return await bnf(propre) }
-            return nil
-        }
-        switch corps.first {
-        case "2": return await bnf(propre)
-        case "3": return await dnb(propre)
-        case "4":
+            if corps.hasPrefix("10") {
+                noticeNationale = await bnf(propre)
+            } else {
+                noticeNationale = nil
+            }
+        } else {
+            switch corps.first {
+            case "2": noticeNationale = await bnf(propre)
+            case "3": noticeNationale = await dnb(propre)
+            case "4":
             // openBD d'abord : des deux, c'est la seule qui donne une
             // couverture — le service d'images de la NDL nous est fermé.
-            if let trouve = await openBD(propre) { return trouve }
-            return await ndl(propre)
-        case "8" where corps.hasPrefix("83"): return await bnPologne(propre)
-        case "9" where corps.hasPrefix("91"): return await libris(propre)
-        default: return nil
+                if let openBD = await openBD(propre) {
+                    noticeNationale = openBD
+                } else {
+                    noticeNationale = await ndl(propre)
+                }
+            case "8" where corps.hasPrefix("83"):
+                noticeNationale = await bnPologne(propre)
+            case "9" where corps.hasPrefix("91"):
+                noticeNationale = await libris(propre)
+            default:
+                noticeNationale = nil
+            }
         }
+
+        // Le Sudoc ne se limite pas aux publications françaises : son réseau
+        // de bibliothèques décrit aussi de très nombreuses éditions importées.
+        // Il complète donc la notice nationale quel que soit le groupe ISBN.
+        // C'est notamment lui qui connaît
+        // 9782749958194 (Instinct, tome 2), y compris quand Google est sans
+        // quota et qu'Apple, Open Library et la BnF n'ont pas cette édition.
+        guard !Task.isCancelled else { return nil }
+        let complementSudoc = await noticeSudoc
+        guard var principale = noticeNationale else { return complementSudoc }
+        guard let complement = complementSudoc else { return principale }
+
+        if principale.auteurs.isEmpty { principale.auteurs = complement.auteurs }
+        if (complement.resume?.count ?? 0) > (principale.resume?.count ?? 0) {
+            principale.resume = complement.resume
+        }
+        if principale.pages == nil { principale.pages = complement.pages }
+        if principale.annee == nil { principale.annee = complement.annee }
+        if principale.couvertureURL == nil {
+            principale.couvertureURL = complement.couvertureURL
+        }
+        if principale.langue == nil { principale.langue = complement.langue }
+        if principale.type == .livre, complement.type != .livre {
+            principale.type = complement.type
+        }
+        for genre in complement.genres where !principale.genres.contains(genre) {
+            principale.genres.append(genre)
+        }
+        for (langue, titre) in complement.titresParLangue
+            where principale.titresParLangue[langue] == nil {
+            principale.titresParLangue[langue] = titre
+        }
+        return principale
     }
 
     // MARK: - France · BnF
@@ -55,6 +106,100 @@ struct BibliothequeNationaleProvider {
             .init(name: "maximumRecords", value: "1"),
         ]
         return await dublinCore(composants.url, isbn: isbn, source: "BnF", echappe: false)
+    }
+
+    // MARK: - Monde · Sudoc (Abes)
+
+    /// Le service ISBN -> PPN localise d'abord la notice, puis l'exposition
+    /// UNIMARC XML fournit la fiche bibliographique complète. Deux appels sont
+    /// nécessaires ; ils partent en parallèle des catalogues plus rapides.
+    private func sudoc(_ isbn: String) async -> ResultatRecherche? {
+        guard let index = URL(string:
+            "https://www.sudoc.fr/services/isbn2ppn/\(isbn)&format=text/json"
+        ),
+              let json = await chargerJSON(index),
+              let ppn = premierPPN(dans: json),
+              let url = URL(string: "https://www.sudoc.fr/\(ppn).xml"),
+              let xml = await chargerTexte(url)
+        else { return nil }
+
+        let titreBloc = blocs(tag: "200", dans: xml).first
+        guard let titreBase = titreBloc.flatMap({ sousChamps("a", dans: $0).first }),
+              !titreBase.isEmpty
+        else { return nil }
+
+        var titre = titreBase
+        if let partie = titreBloc.flatMap({ sousChamps("h", dans: $0).first }),
+           !partie.isEmpty {
+            // Le sous-champ UNIMARC contient déjà la désignation publiée
+            // (« 2 », « Band 2 », « 第2巻 »…). Ne jamais y injecter le mot
+            // français « Tome » : il corromprait les titres des autres langues.
+            let designation = partie.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Un sous-champ réduit au numéro reste une tomaison explicite.
+            // Le marqueur universel « # » conserve cette information sans
+            // traduire artificiellement le titre en français.
+            titre += designation.allSatisfy(\.isNumber)
+                ? " #\(designation)"
+                : " \(designation)"
+        } else if let sousTitre = titreBloc.flatMap({ sousChamps("e", dans: $0).first }),
+                  !sousTitre.isEmpty {
+            titre += ": \(sousTitre)"
+        }
+
+        var auteurs: [String] = []
+        for etiquette in ["700", "701"] {
+            for bloc in blocs(tag: etiquette, dans: xml) {
+                guard let nom = sousChamps("a", dans: bloc).first, !nom.isEmpty else { continue }
+                if let prenom = sousChamps("b", dans: bloc).first, !prenom.isEmpty {
+                    auteurs.append("\(prenom) \(nom)")
+                } else {
+                    auteurs.append(nom)
+                }
+            }
+        }
+        if auteurs.isEmpty,
+           let responsabilite = titreBloc.flatMap({ sousChamps("f", dans: $0).first }),
+           !responsabilite.isEmpty {
+            auteurs = [responsabilite]
+        }
+
+        let langueBrute = blocs(tag: "101", dans: xml)
+            .first.flatMap { sousChamps("a", dans: $0).first }
+        // Le préfixe ISBN identifie une agence/zone d'enregistrement, jamais
+        // avec certitude la langue du contenu. Seule la zone UNIMARC 101 est
+        // une preuve assez forte pour étiqueter et localiser cette édition.
+        let langue = langueBrute.flatMap(codeLangue)
+        let resume = blocs(tag: "330", dans: xml)
+            .first.flatMap { sousChamps("a", dans: $0).first }
+        let genres = blocs(tag: "608", dans: xml)
+            .flatMap { sousChamps("a", dans: $0) }
+        let publication = blocs(tag: "214", dans: xml)
+            .first.flatMap { sousChamps("d", dans: $0).first }
+        let pagination = blocs(tag: "215", dans: xml)
+            .first.flatMap { sousChamps("a", dans: $0).first }
+
+        var resultat = ResultatRecherche(
+            id: "sudoc:\(ppn)",
+            titre: titre,
+            auteurs: auteurs,
+            resume: resume,
+            pages: pagination.flatMap { nombreDePages($0) },
+            annee: publication.flatMap { extraireAnnee($0) },
+            genres: genres,
+            isbn: isbn,
+            langue: langue,
+            source: "Sudoc"
+        )
+        if let langue { resultat.titresParLangue[langue] = titre }
+
+        let sujets = genres.joined(separator: " ").lowercased()
+        if sujets.contains("manga") {
+            resultat.type = .manga
+        } else if sujets.contains("bande dessin") || sujets.contains("comic")
+                    || sujets.contains("graphic") {
+            resultat.type = .bd
+        }
+        return resultat
     }
 
     // MARK: - Allemagne · DNB
@@ -130,11 +275,15 @@ struct BibliothequeNationaleProvider {
         else { return nil }
 
         let date = (premier["date"] as? [String])?.first ?? premier["date"] as? String
+        let langue = premiereChaine(premier["language"]).flatMap(codeLangue)
         return fiche(
             titre: titre,
             auteur: premier["creator"] as? String,
             date: date,
-            langue: "sv",
+            // LIBRIS décrit aussi des éditions étrangères conservées en
+            // Suède. Le pays du catalogue n'est donc jamais la langue du
+            // livre : `9789147146482`, par exemple, est explicitement anglais.
+            langue: langue,
             isbn: isbn,
             source: "LIBRIS"
         )
@@ -154,7 +303,10 @@ struct BibliothequeNationaleProvider {
             titre: titre,
             auteur: premier["author"] as? String,
             date: premier["publicationYear"] as? String,
-            langue: "pl",
+            // La BN polonaise expose la langue en toutes lettres (`angielski`,
+            // `francuski`…). Une notice présente en Pologne n'est pas pour
+            // autant une édition polonaise.
+            langue: premiereChaine(premier["language"]).flatMap(codeLangue),
             isbn: isbn,
             source: "BN"
         )
@@ -172,19 +324,25 @@ struct BibliothequeNationaleProvider {
 
         let xml = echappe ? deplier(brut) : brut
         guard let titre = balise("dc:title", dans: xml) else { return nil }
+        let couverture: String?
+        if source == "BnF" {
+            couverture = await couvertureBnF(isbn)
+        } else {
+            couverture = nil
+        }
 
         return fiche(
             titre: titre,
             auteur: balise("dc:creator", dans: xml),
             date: balise("dc:date", dans: xml),
-            langue: balise("dc:language", dans: xml).map(codeLangue),
+            langue: balise("dc:language", dans: xml).flatMap(codeLangue),
             isbn: isbn,
             source: source,
-            couverture: source == "BnF" ? couvertureBnF(xml) : nil
+            couverture: couverture
         )
     }
 
-    /// La couverture de la BnF, tirée de l'identifiant ark de la notice.
+    /// La couverture de la BnF, demandée sur l'EAN exact de la notice.
     ///
     /// C'est souvent la SEULE image d'une édition française que Google, Apple
     /// et Open Library ignorent — et c'est elle qui tient la promesse : un
@@ -194,12 +352,25 @@ struct BibliothequeNationaleProvider {
     /// Quand la notice n'a pas d'image, le service répond une erreur et non un
     /// visuel de remplacement : aucun risque d'afficher la couverture d'un
     /// autre livre, le chargement échoue simplement.
-    private func couvertureBnF(_ xml: String) -> String? {
-        guard let plage = xml.range(
-            of: "ark:/12148/cb[0-9a-z]+", options: .regularExpression
-        ) else { return nil }
-        return "https://catalogue.bnf.fr/couverture"
-            + "?&appName=NE&idArk=" + xml[plage] + "&couverture=1"
+    private func couvertureBnF(_ isbn: String) async -> String? {
+        var composants = URLComponents(
+            string: "https://openapi.bnf.fr/couverture/image/image/recupererImage"
+        )
+        composants?.queryItems = [
+            .init(name: "EAN", value: isbn),
+            .init(name: "couverture", value: "1"),
+        ]
+        guard let url = composants?.url,
+              let donnees = await charger(url),
+              estImage(donnees) else { return nil }
+        return url.absoluteString
+    }
+
+    private func estImage(_ donnees: Data) -> Bool {
+        donnees.starts(with: [0xFF, 0xD8, 0xFF])
+            || donnees.starts(with: [0x89, 0x50, 0x4E, 0x47])
+            || donnees.starts(with: [0x47, 0x49, 0x46, 0x38])
+            || donnees.starts(with: [0x52, 0x49, 0x46, 0x46])
     }
 
     /// La fiche commune, avec le nettoyage du catalogage.
@@ -214,11 +385,11 @@ struct BibliothequeNationaleProvider {
         var titre = titreBrut.components(separatedBy: " / ").first ?? titreBrut
         titre = titre.trimmingCharacters(in: CharacterSet(charactersIn: " .\n\t"))
         titre = titre.replacingOccurrences(
-            of: #"\.\s+(\d{1,4})\s*$"#, with: " $1", options: .regularExpression
+            of: #"\.\s+(\d{1,4})\s*$"#, with: " #$1", options: .regularExpression
         )
         guard !titre.isEmpty else { return nil }
 
-        return ResultatRecherche(
+        var resultat = ResultatRecherche(
             id: "\(source.lowercased()):\(isbn)",
             titre: titre,
             auteurs: [auteurBrut.map(nettoyerAuteur)].compactMap { $0 }.filter { !$0.isEmpty },
@@ -228,6 +399,14 @@ struct BibliothequeNationaleProvider {
             langue: langue,
             source: source
         )
+        if source == "BnF", couverture != nil {
+            let jour = String(
+                ISO8601DateFormatter().string(from: Date()).prefix(10)
+            )
+            resultat.attributionCouverture =
+                "Bibliothèque nationale de France · \(jour)"
+        }
+        return resultat
     }
 
     // MARK: - Aides
@@ -242,6 +421,85 @@ struct BibliothequeNationaleProvider {
         return (try? JSONSerialization.jsonObject(with: donnees)) as? [String: Any]
     }
 
+    /// Dublin Core peut sérialiser une valeur unique comme une chaîne ou une
+    /// liste. Garder ce petit dépliage au même endroit évite de retomber sur la
+    /// langue du catalogue quand le format varie d'une notice à l'autre.
+    private func premiereChaine(_ valeur: Any?) -> String? {
+        if let texte = valeur as? String { return texte }
+        return (valeur as? [String])?.first
+    }
+
+    /// Le service ISBN2PPN peut répondre avec un résultat unique ou une liste.
+    /// On descend donc sa petite structure JSON sans figer le décodage sur une
+    /// seule forme, tout en n'acceptant qu'un véritable identifiant Sudoc.
+    private func premierPPN(dans valeur: Any) -> String? {
+        if let objet = valeur as? [String: Any] {
+            if let ppn = objet["ppn"] as? String,
+               ppn.range(of: #"^[0-9]{8}[0-9X]$"#, options: .regularExpression) != nil {
+                return ppn
+            }
+            for enfant in objet.values {
+                if let ppn = premierPPN(dans: enfant) { return ppn }
+            }
+        } else if let liste = valeur as? [Any] {
+            for enfant in liste {
+                if let ppn = premierPPN(dans: enfant) { return ppn }
+            }
+        }
+        return nil
+    }
+
+    /// Tous les champs UNIMARC portant une étiquette donnée.
+    private func blocs(tag: String, dans xml: String) -> [String] {
+        captures(
+            #"<datafield\s+tag="\#(tag)"[^>]*>([\s\S]*?)</datafield>"#,
+            dans: xml
+        )
+    }
+
+    /// Toutes les valeurs d'un sous-champ dans un bloc UNIMARC.
+    private func sousChamps(_ code: String, dans bloc: String) -> [String] {
+        captures(
+            #"<subfield\s+code="\#(code)"[^>]*>([\s\S]*?)</subfield>"#,
+            dans: bloc
+        )
+        .map(deplier)
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty }
+    }
+
+    private func captures(_ motif: String, dans texte: String) -> [String] {
+        guard let expression = try? NSRegularExpression(pattern: motif) else { return [] }
+        let plage = NSRange(texte.startIndex..., in: texte)
+        return expression.matches(in: texte, range: plage).compactMap { resultat in
+            guard resultat.numberOfRanges > 1,
+                  let capture = Range(resultat.range(at: 1), in: texte)
+            else { return nil }
+            return String(texte[capture])
+        }
+    }
+
+    private func extraireAnnee(_ texte: String) -> Int? {
+        guard let plage = texte.range(
+            of: #"(?:18|19|20|21)[0-9]{2}"#,
+            options: .regularExpression
+        ) else { return nil }
+        return Int(texte[plage])
+    }
+
+    private func nombreDePages(_ texte: String) -> Int? {
+        let motif = #"([0-9]{1,5})\s*(?:p\.|pages?\b)"#
+        guard let expression = try? NSRegularExpression(
+            pattern: motif, options: .caseInsensitive
+        ),
+              let resultat = expression.firstMatch(
+                in: texte, range: NSRange(texte.startIndex..., in: texte)
+              ),
+              let capture = Range(resultat.range(at: 1), in: texte)
+        else { return nil }
+        return Int(texte[capture])
+    }
+
     /// Deux essais, jamais un seul.
     ///
     /// C'est le dernier recours de toute la chaîne : quand il échoue, le livre
@@ -252,12 +510,17 @@ struct BibliothequeNationaleProvider {
     /// frappe deux fois.
     private func charger(_ url: URL) async -> Data? {
         for essai in 0..<2 {
-            if essai > 0 { try? await Task.sleep(for: .milliseconds(400)) }
+            guard !Task.isCancelled else { return nil }
+            if essai > 0 {
+                try? await Task.sleep(for: .milliseconds(400))
+                guard !Task.isCancelled else { return nil }
+            }
             var requete = URLRequest(url: url)
             requete.timeoutInterval = 12
             guard let (donnees, reponse) = try? await Reseau.catalogues.data(for: requete),
                   (reponse as? HTTPURLResponse)?.statusCode == 200
             else { continue }
+            guard !Task.isCancelled else { return nil }
             return donnees
         }
         return nil
@@ -271,7 +534,7 @@ struct BibliothequeNationaleProvider {
         guard let debut = morceau.range(of: ">"),
               let fin = morceau.range(of: "</", options: .backwards)
         else { return nil }
-        return String(morceau[debut.upperBound..<fin.lowerBound])
+        return deplier(String(morceau[debut.upperBound..<fin.lowerBound]))
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -303,12 +566,59 @@ struct BibliothequeNationaleProvider {
     }
 
     /// Les catalogues parlent ISO 639-2 (« fre ») ; l'application, 639-1.
-    private func codeLangue(_ brut: String) -> String {
+    private func codeLangue(_ brut: String) -> String? {
         let table = [
-            "fre": "fr", "eng": "en", "spa": "es", "ger": "de", "ita": "it",
-            "jpn": "ja", "kor": "ko", "chi": "zh", "por": "pt", "dut": "nl",
-            "rus": "ru", "pol": "pl", "swe": "sv", "tur": "tr",
+            "fre": "fr", "fra": "fr", "eng": "en", "spa": "es",
+            "ger": "de", "deu": "de", "ita": "it", "por": "pt",
+            "dut": "nl", "nld": "nl", "swe": "sv", "dan": "da",
+            "nor": "no", "fin": "fi", "pol": "pl", "cze": "cs",
+            "ces": "cs", "hun": "hu", "rum": "ro", "ron": "ro",
+            "gre": "el", "ell": "el", "tur": "tr", "rus": "ru",
+            "ukr": "uk", "ara": "ar", "heb": "he", "hin": "hi",
+            "tha": "th", "vie": "vi", "ind": "id", "jpn": "ja",
+            "kor": "ko", "chi": "zh", "zho": "zh", "cat": "ca",
+            "baq": "eu", "eus": "eu",
+            // Noms employés par l'API de la Bibliothèque nationale polonaise.
+            // Ils sont repliés sans accents juste en dessous.
+            "francuski": "fr", "angielski": "en", "hiszpanski": "es",
+            "niemiecki": "de", "wloski": "it", "portugalski": "pt",
+            "niderlandzki": "nl", "szwedzki": "sv", "dunski": "da",
+            "norweski": "no", "finski": "fi", "polski": "pl",
+            "czeski": "cs", "wegierski": "hu", "rumunski": "ro",
+            "grecki": "el", "turecki": "tr", "rosyjski": "ru",
+            "ukrainski": "uk", "arabski": "ar", "hebrajski": "he",
+            "tajski": "th", "wietnamski": "vi", "indonezyjski": "id",
+            "japonski": "ja", "koreanski": "ko", "chinski": "zh",
+            "katalonski": "ca", "baskijski": "eu",
         ]
-        return table[brut.lowercased()] ?? String(brut.prefix(2))
+        let propre = brut.lowercased()
+            .folding(options: [.diacriticInsensitive, .widthInsensitive], locale: Locale(identifier: "pl"))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(whereSeparator: { $0 == "-" || $0 == "_" })
+            .first.map(String.init) ?? ""
+        if let code = table[propre] { return code }
+        return Langues.codes.contains(propre) ? propre : nil
+    }
+}
+
+/// Un scan en rafale ne doit pas devenir une attaque distribuée depuis chaque
+/// iPhone. Deux ISBN par seconde au maximum, puis Sudoc et le catalogue du pays
+/// travaillent en parallèle pour chacun.
+private actor CadenceBibliotheques {
+    static let partage = CadenceBibliotheques()
+    private var prochainDepart = Date.distantPast
+
+    func attendre() async -> Bool {
+        guard !Task.isCancelled else { return false }
+        let maintenant = Date()
+        let attente = max(0, prochainDepart.timeIntervalSince(maintenant))
+        prochainDepart = maintenant.addingTimeInterval(attente + 0.5)
+        guard attente > 0 else { return true }
+        do {
+            try await Task.sleep(for: .seconds(attente))
+            return !Task.isCancelled
+        } catch {
+            return false
+        }
     }
 }

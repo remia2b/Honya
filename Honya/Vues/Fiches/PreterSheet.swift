@@ -24,9 +24,12 @@ struct PreterSheet: View {
     let titre: String
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var contexte
+    @Query private var objectifs: [Objectif]
     @Query private var exemplaires: [Exemplaire]
     @Query private var tomes: [Tome]
     @State private var nom = ""
+    @State private var plusVisible = false
     @FocusState private var clavier: Bool
 
     /// Les emprunteurs connus, du plus récent au plus ancien, sans doublon.
@@ -42,10 +45,18 @@ struct PreterSheet: View {
             guard let nom = t.preteA else { return nil }
             return (nom, t.preteLe ?? .distantPast)
         }
-        return (depuisLivres + depuisTomes)
+        let actifs = (depuisLivres + depuisTomes)
             .sorted { $0.1 > $1.1 }
             .map(\.0)
-            .filter { vus.insert($0).inserted }
+        let memorises = objectifs.first?.emprunteursRecents ?? []
+        return (actifs + memorises)
+            .filter {
+                let cle = $0.folding(
+                    options: [.caseInsensitive, .diacriticInsensitive],
+                    locale: .current
+                )
+                return vus.insert(cle).inserted
+            }
     }
 
     var body: some View {
@@ -127,11 +138,23 @@ struct PreterSheet: View {
         .presentationDetents([.height(360)])
         .presentationDragIndicator(.visible)
         .onAppear { clavier = habitues.isEmpty }
+        .ecranHonyaPlus($plusVisible, verrou: .pret(titre: titre))
     }
 
     private func preter() {
         let propre = nom.trimmingCharacters(in: .whitespaces)
         guard !propre.isEmpty else { return }
+        // Le droit peut expirer pendant que cette feuille est ouverte.
+        guard Droits.partage.plus else {
+            plusVisible = true
+            return
+        }
+        let objectif = objectifs.first ?? Objectif.courant(dans: contexte)
+        var recents = objectif.emprunteursRecents.filter {
+            $0.caseInsensitiveCompare(propre) != .orderedSame
+        }
+        recents.insert(propre, at: 0)
+        objectif.emprunteursRecents = Array(recents.prefix(20))
         cible.confier(a: propre)
         dismiss()
     }

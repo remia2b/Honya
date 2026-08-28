@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 /// Fiche livre, calquée sur la page produit d'Apple Books : grande couverture
 /// au rendu de vrai livre, titre serif, auteur cliquable, carte d'informations
@@ -38,12 +39,20 @@ private struct ContenuFicheOeuvre: View {
     @State private var majPageVisible = false
     @State private var pretVisible = false
     @State private var plusVisible = false
+    @State private var plusEtagereVisible = false
     @State private var confirmerSuppression = false
     @State private var celebration = false
     @State private var etagereVisible = false
     @State private var resumeDeplie = false
+    @State private var selecteurCouvertureVisible = false
+    @State private var photoCouverture: PhotosPickerItem?
+    @State private var droits = Droits.partage
 
     private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
+
+    private var sessionsAutorisees: [SessionLecture] {
+        HistoriqueLecture.sessionsAutorisees(oeuvre.sessions, plus: droits.plus)
+    }
 
     /// Les autres œuvres du même auteur, pour l'étagère du bas.
     private var duMemeAuteur: [Oeuvre] {
@@ -67,6 +76,14 @@ private struct ContenuFicheOeuvre: View {
                 )
                 .padding(.top, 6)
 
+                if !CouverturesPersonnelles.estPersonnelle(oeuvre.couvertureAffichee),
+                   let attribution = oeuvre.attributionCouverture {
+                    Text(verbatim: attribution)
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.7))
+                        .multilineTextAlignment(.center)
+                }
+
                 blocTitre
 
                 carteInfosActions
@@ -81,7 +98,7 @@ private struct ContenuFicheOeuvre: View {
                     sectionEditeur(resume)
                 }
 
-                if !oeuvre.sessions.isEmpty {
+                if !sessionsAutorisees.isEmpty {
                     carteSessions
                 }
 
@@ -101,6 +118,11 @@ private struct ContenuFicheOeuvre: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar { barreActions }
+        .photosPicker(
+            isPresented: $selecteurCouvertureVisible,
+            selection: $photoCouverture,
+            matching: .images
+        )
         .sensoryFeedback(.success, trigger: celebration)
         .alerteNouvelleEtagere(.oeuvre(oeuvre), visible: $etagereVisible)
         .fullScreenCover(item: $cibleSession) { SessionLectureView(cible: $0) }
@@ -114,14 +136,24 @@ private struct ContenuFicheOeuvre: View {
             titre: oeuvre.titre(langue),
             couvertures: [oeuvre.couvertureAffichee].compactMap { $0 }
         ))
+        .ecranHonyaPlus($plusEtagereVisible, verrou: .etagere(
+            couvertures: [oeuvre.couvertureAffichee].compactMap { $0 }
+        ))
         .confirmationDialog(
             "Retirer « \(oeuvre.titre(langue)) » de la bibliothèque ?",
             isPresented: $confirmerSuppression,
             titleVisibility: .visible
         ) {
             Button("Retirer", role: .destructive) {
+                let photo = exemplaire.couverturePersonnelleURL
                 contexte.delete(oeuvre)
-                dismiss()
+                do {
+                    try contexte.save()
+                    CouverturesPersonnelles.supprimer(photo)
+                    dismiss()
+                } catch {
+                    contexte.rollback()
+                }
             }
         }
         .task {
@@ -134,6 +166,10 @@ private struct ContenuFicheOeuvre: View {
                   let couleur = CouleurCouverture.teinteDeFond(image)
             else { return }
             withAnimation(.easeOut(duration: 0.5)) { teinte = couleur }
+        }
+        .task(id: photoCouverture) {
+            guard let selection = photoCouverture else { return }
+            await enregistrerCouvertureChoisie(selection)
         }
     }
 
@@ -148,6 +184,7 @@ private struct ContenuFicheOeuvre: View {
 
     /// Prêter est un geste Honya+ ; rendre un livre ne l'est jamais.
     private func demanderPret() {
+        guard exemplaire.possede else { return }
         if Droits.partage.plus {
             pretVisible = true
         } else {
@@ -339,8 +376,9 @@ private struct ContenuFicheOeuvre: View {
     }
 
     private var carteSessions: some View {
-        let recentes = oeuvre.sessions.sorted { $0.debut > $1.debut }.prefix(3)
-        let totalMinutes = oeuvre.sessions.reduce(0) { $0 + $1.dureeSecondes } / 60
+        let autorisees = sessionsAutorisees
+        let recentes = autorisees.sorted { $0.debut > $1.debut }.prefix(3)
+        let totalMinutes = autorisees.reduce(0) { $0 + $1.dureeSecondes } / 60
         return carte {
             HStack(alignment: .lastTextBaseline) {
                 titreSerif("Sessions")
@@ -398,34 +436,36 @@ private struct ContenuFicheOeuvre: View {
             if let fin = exemplaire.dateFin {
                 rangee("Terminé le", valeur: fin.formatted(date: .abbreviated, time: .omitted))
             }
-            HStack {
-                Text("Prêté à").opacity(0.7)
-                Spacer()
-                if let preteA = exemplaire.preteA {
-                    VStack(alignment: .trailing, spacing: 1) {
-                        Text(preteA).fontWeight(.semibold)
-                        if let depuis = exemplaire.preteLe {
-                            Text("Depuis le \(depuis.formatted(date: .abbreviated, time: .omitted))")
-                                .font(.caption2)
-                                .opacity(0.65)
+            if exemplaire.possede || exemplaire.preteA != nil {
+                HStack {
+                    Text("Prêté à").opacity(0.7)
+                    Spacer()
+                    if let preteA = exemplaire.preteA {
+                        VStack(alignment: .trailing, spacing: 1) {
+                            Text(preteA).fontWeight(.semibold)
+                            if let depuis = exemplaire.preteLe {
+                                Text("Depuis le \(depuis.formatted(date: .abbreviated, time: .omitted))")
+                                    .font(.caption2)
+                                    .opacity(0.65)
+                            }
                         }
+                        Button("Rendu") {
+                            exemplaire.preteA = nil
+                            exemplaire.preteLe = nil
+                        }
+                            .font(.caption2.weight(.bold))
+                            .buttonStyle(.bordered)
+                            .tint(.white)
+                    } else {
+                        Button("Prêter…") { demanderPret() }
+                            .font(.caption.weight(.bold))
+                            .buttonStyle(.bordered)
+                            .tint(.white)
+                            .badgeCadenas(!Droits.partage.plus)
                     }
-                    Button("Rendu") {
-                        exemplaire.preteA = nil
-                        exemplaire.preteLe = nil
-                    }
-                        .font(.caption2.weight(.bold))
-                        .buttonStyle(.bordered)
-                        .tint(.white)
-                } else {
-                    Button("Prêter…") { demanderPret() }
-                        .font(.caption.weight(.bold))
-                        .buttonStyle(.bordered)
-                        .tint(.white)
-                        .badgeCadenas(!Droits.partage.plus)
                 }
+                .font(.caption)
             }
-            .font(.caption)
         }
     }
 
@@ -479,6 +519,24 @@ private struct ContenuFicheOeuvre: View {
 
             Menu {
                 Button {
+                    selecteurCouvertureVisible = true
+                } label: {
+                    Label("Modifier", systemImage: "photo.on.rectangle")
+                }
+                if exemplaire.couverturePersonnelleURL != nil {
+                    Button(role: .destructive) {
+                        retirerCouverturePersonnelle()
+                    } label: {
+                        Label("Retirer", systemImage: "photo.badge.minus")
+                    }
+                }
+            } label: {
+                Image(systemName: "photo")
+            }
+            .accessibilityLabel("Modifier")
+
+            Menu {
+                Button {
                     exemplaire.aSuivre.toggle()
                 } label: {
                     Label(
@@ -486,10 +544,16 @@ private struct ContenuFicheOeuvre: View {
                         systemImage: "text.badge.plus"
                     )
                 }
-                Button { demanderPret() } label: {
-                    LabelPlus(titre: "Prêter…", symbole: "person.badge.plus")
+                if exemplaire.possede {
+                    Button { demanderPret() } label: {
+                        LabelPlus(titre: "Prêter…", symbole: "person.badge.plus")
+                    }
                 }
-                MenuEtageres(cible: .oeuvre(oeuvre), creationVisible: $etagereVisible)
+                MenuEtageres(
+                    cible: .oeuvre(oeuvre),
+                    creationVisible: $etagereVisible,
+                    plusVisible: $plusEtagereVisible
+                )
                 Divider()
                 Button(role: .destructive) { confirmerSuppression = true } label: {
                     Label("Retirer de la bibliothèque", systemImage: "trash")
@@ -497,6 +561,37 @@ private struct ContenuFicheOeuvre: View {
             } label: {
                 Image(systemName: "ellipsis.circle.fill")
             }
+        }
+    }
+
+    private func enregistrerCouvertureChoisie(_ selection: PhotosPickerItem) async {
+        defer {
+            if photoCouverture == selection { photoCouverture = nil }
+        }
+        guard let donnees = try? await selection.loadTransferable(type: Data.self),
+              !Task.isCancelled,
+              photoCouverture == selection else { return }
+        let ancienne = exemplaire.couverturePersonnelleURL
+        guard let nouvelle = try? CouverturesPersonnelles.enregistrer(donnees) else { return }
+        exemplaire.couverturePersonnelleURL = nouvelle
+        do {
+            try contexte.save()
+            CouverturesPersonnelles.supprimer(ancienne)
+        } catch {
+            exemplaire.couverturePersonnelleURL = ancienne
+            CouverturesPersonnelles.supprimer(nouvelle)
+        }
+    }
+
+    private func retirerCouverturePersonnelle() {
+        let ancienne = exemplaire.couverturePersonnelleURL
+        guard CouverturesPersonnelles.estPersonnelle(ancienne) else { return }
+        exemplaire.couverturePersonnelleURL = nil
+        do {
+            try contexte.save()
+            CouverturesPersonnelles.supprimer(ancienne)
+        } catch {
+            exemplaire.couverturePersonnelleURL = ancienne
         }
     }
 
@@ -575,8 +670,7 @@ private struct MiseAJourPageSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Enregistrer") {
-                        exemplaire.pageCourante = Int(page)
-                        dismiss()
+                        enregistrerProgression()
                     }
                 }
                 ToolbarItem(placement: .cancellationAction) {
@@ -586,6 +680,25 @@ private struct MiseAJourPageSheet: View {
         }
         .presentationDetents([.height(300)])
         .onAppear { page = Double(exemplaire.pageCourante) }
+    }
+
+    private func enregistrerProgression() {
+        let nouvellePage = Int(page)
+        if let total = oeuvre.pages, total > 0, nouvellePage >= total {
+            dismiss()
+            surTermine()
+            return
+        }
+
+        exemplaire.pageCourante = nouvellePage
+        if nouvellePage > 0 {
+            // Une progression réelle signifie que le livre est repris, même
+            // s'il était auparavant en wishlist, abandonné ou marqué lu.
+            exemplaire.changerStatut(.enCours)
+        } else if exemplaire.statut == .enCours || exemplaire.statut == .lu {
+            exemplaire.changerStatut(.aLire)
+        }
+        dismiss()
     }
 }
 
@@ -605,6 +718,7 @@ struct ListeCitationsView: View {
     @State private var ajoutVisible = false
     @State private var texte = ""
     @State private var page = ""
+    @State private var plusApresFermeture = false
 
     var body: some View {
         List {
@@ -657,7 +771,11 @@ struct ListeCitationsView: View {
         .ecranHonyaPlus($plusVisible, verrou: .citation(
             couvertures: [oeuvre.couvertureAffichee].compactMap { $0 }
         ))
-        .sheet(isPresented: $ajoutVisible) {
+        .sheet(isPresented: $ajoutVisible, onDismiss: {
+            guard plusApresFermeture else { return }
+            plusApresFermeture = false
+            plusVisible = true
+        }) {
             NavigationStack {
                 Form {
                     Section("La phrase") {
@@ -674,6 +792,15 @@ struct ListeCitationsView: View {
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Ajouter") {
+                            // Le quota est relu au dernier geste : une feuille
+                            // ouverte avant une expiration ne doit pas contourner
+                            // la limite gratuite.
+                            guard Droits.partage.plus
+                                    || totalCitations < Limites.citations else {
+                                plusApresFermeture = true
+                                ajoutVisible = false
+                                return
+                            }
                             let citation = Citation(texte: texte, page: Int(page))
                             oeuvre.citations.append(citation)
                             texte = ""

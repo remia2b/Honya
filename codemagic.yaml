@@ -2,8 +2,8 @@
 # La simple vérification de compilation est faite gratuitement par GitHub Actions
 # (.github/workflows/build.yml) : Codemagic n'est sollicité que pour publier.
 #
-# Déclenchement : pousser un tag « v* » (ex. git tag v0.1 && git push origin v0.1),
-# ou lancer le workflow à la main depuis l'interface Codemagic.
+# Déclenchement : chaque push sur `main`, un tag « v* », ou un lancement
+# manuel depuis l'interface Codemagic. L'envoi vise TestFlight, jamais l'App Store.
 
 workflows:
   testflight:
@@ -15,13 +15,16 @@ workflows:
     # Cette clé porte l'Issuer ID + Key ID + .p8 et gère la signature.
     integrations:
       app_store_connect: Binjo ASC key
-    # Publier est un geste délibéré : seul un tag « v* » déclenche ce workflow.
-    # Les commits ordinaires sont vérifiés gratuitement par GitHub Actions.
-    #   git tag v0.2 && git push origin v0.2
-    # Un build reste lançable à la main depuis l'interface Codemagic.
+    # Honya est reliée à `main` dans Codemagic : chaque push produit le build
+    # TestFlight demandé par le propriétaire. Les tags `v*` restent acceptés
+    # pour les jalons explicites.
     triggering:
       events:
+        - push
         - tag
+      branch_patterns:
+        - pattern: main
+          include: true
       tag_patterns:
         - pattern: 'v*'
           include: true
@@ -31,7 +34,7 @@ workflows:
       groups:
         # Groupe de variables Codemagic contenant CERTIFICATE_PRIVATE_KEY_B64,
         # la clé privée du certificat de distribution déjà utilisé par Binjo.
-        # Absent ? Le build crée alors son propre certificat (voir l'étape Signature).
+        # Elle est obligatoire : le compte Apple ne peut plus créer de certificat.
         - signing
       vars:
         BUNDLE_ID: com.remiabbou.honya
@@ -40,7 +43,9 @@ workflows:
         script: |
           # Variables chiffrees Codemagic (groupe « signing »), ecrites dans
           # Secrets.swift sur la machine de build uniquement :
-          #   GOOGLE_BOOKS_API_KEY, SUPABASE_URL, SUPABASE_ANON_KEY
+          #   SUPABASE_URL, SUPABASE_ANON_KEY
+          # GOOGLE_BOOKS_API_KEY et les trois flags HONYA_* ne sont utilisables
+          # qu'après accord écrit/validation des conditions des fournisseurs.
           cat > Honya/Config/Secrets.swift <<SWIFT
           import Foundation
 
@@ -53,15 +58,40 @@ workflows:
           SWIFT
           echo "Google Books : ${#GOOGLE_BOOKS_API_KEY} caracteres."
           echo "Supabase URL : ${#SUPABASE_URL} caracteres, cle anon : ${#SUPABASE_ANON_KEY} caracteres."
-          if [ -z "${GOOGLE_BOOKS_API_KEY:-}" ]; then
-            echo "AVERTISSEMENT : GOOGLE_BOOKS_API_KEY absente - quota Google reduit."
+          if [ "${HONYA_GOOGLE_BOOKS_LICENSED:-NO}" = "YES" ] && [ -z "${GOOGLE_BOOKS_API_KEY:-}" ]; then
+            echo "ERREUR : Google Books est declare autorise mais sa cle API manque."
+            exit 1
           fi
           if [ -z "${SUPABASE_URL:-}" ] || [ -z "${SUPABASE_ANON_KEY:-}" ]; then
-            echo "AVERTISSEMENT : Supabase non configure - les comptes par e-mail"
-            echo "seront indisponibles (la connexion avec Apple continue de marcher)."
+            echo "ERREUR : Supabase non configure alors que la connexion par e-mail est visible."
+            exit 1
           fi
+
+          # Les réglages du projet restent NO par défaut. La CI ne les ouvre
+          # que si la variable sécurisée correspondante a été posée après
+          # validation juridique et mise en conformité de l'UX.
+          PBX=Honya.xcodeproj/project.pbxproj
+          for SOURCE in GOOGLE_BOOKS_LICENSED APPLE_BOOKS_PROMO_COMPLIANT ANILIST_LICENSED; do
+            case "$SOURCE" in
+              GOOGLE_BOOKS_LICENSED) VALUE="${HONYA_GOOGLE_BOOKS_LICENSED:-NO}" ;;
+              APPLE_BOOKS_PROMO_COMPLIANT) VALUE="${HONYA_APPLE_BOOKS_PROMO_COMPLIANT:-NO}" ;;
+              ANILIST_LICENSED) VALUE="${HONYA_ANILIST_LICENSED:-NO}" ;;
+            esac
+            if [ "$VALUE" = "YES" ]; then
+              if ! grep -q "INFOPLIST_KEY_HONYA_${SOURCE} = NO;" "$PBX"; then
+                echo "ERREUR : réglage HONYA_${SOURCE}=NO introuvable dans le projet."
+                exit 1
+              fi
+              sed -i '' "s/INFOPLIST_KEY_HONYA_${SOURCE} = NO;/INFOPLIST_KEY_HONYA_${SOURCE} = YES;/g" "$PBX"
+              if ! grep -q "INFOPLIST_KEY_HONYA_${SOURCE} = YES;" "$PBX"; then
+                echo "ERREUR : HONYA_${SOURCE} n'a pas été activé dans le projet."
+                exit 1
+              fi
+            fi
+          done
       - name: Signature (certificat + profil App Store)
         script: |
+          set -o pipefail
           keychain initialize
           # fetch-signing-files a besoin de la CLÉ PRIVÉE du certificat de distribution :
           # sans elle il ne télécharge aucun profil — sans message d'erreur — et l'archive
@@ -74,7 +104,8 @@ workflows:
             echo "   variables, groupe « signing », valeur = clé PEM encodée en base64."
             exit 1
           fi
-          echo "$CERTIFICATE_PRIVATE_KEY_B64" | base64 --decode > /tmp/cert_key
+          # Le runner est macOS : son utilitaire BSD emploie `-D` pour décoder.
+          printf '%s' "$CERTIFICATE_PRIVATE_KEY_B64" | /usr/bin/base64 -D > /tmp/cert_key
           openssl rsa -in /tmp/cert_key -noout -check
           echo "Clé privée chargée depuis le groupe « signing »."
           echo "=== Ce que la clé API voit sur le compte Apple ==="
@@ -102,14 +133,6 @@ workflows:
           echo "--- Certificats dans le trousseau ---"
           security find-identity -v -p codesigning 2>&1 | head -10 || true
 
-          # L'étape doit échouer ICI si rien n'a été installé : sinon l'erreur
-          # ressort plus loin à l'archive, sous une forme trompeuse.
-          if [ -z "$(find "$HOME/Library" -name '*.mobileprovision' 2>/dev/null)" ]; then
-            echo ""
-            echo "❌ Aucun profil installé : la cause est ci-dessus, dans la sortie de"
-            echo "   fetch-signing-files ou dans les droits de la clé API."
-            exit 1
-          fi
       - name: Inscrire le profil dans le projet Xcode
         script: |
           # « xcode-project use-profiles » n'écrit rien dans ce projet : il est généré
@@ -123,11 +146,28 @@ workflows:
           PROFILE=""
           while IFS= read -r candidate; do
             [ -f "$candidate" ] || continue
-            APP_ID=$(security cms -D -i "$candidate" 2>/dev/null \
+            PROFILE_PLIST=$(security cms -D -i "$candidate" 2>/dev/null) || continue
+            APP_ID=$(printf '%s' "$PROFILE_PLIST" \
               | plutil -extract Entitlements.application-identifier raw - 2>/dev/null || true)
-            case "$APP_ID" in
-              *"$BUNDLE_ID") PROFILE="$candidate"; break ;;
-            esac
+            case "$APP_ID" in *"$BUNDLE_ID") ;; *) continue ;; esac
+
+            # Un profil App Store n'embarque aucune liste d'appareils et son
+            # entitlement de débogage vaut false.
+            if printf '%s' "$PROFILE_PLIST" \
+              | plutil -extract ProvisionedDevices raw - >/dev/null 2>&1; then
+              continue
+            fi
+            GET_TASK_ALLOW=$(printf '%s' "$PROFILE_PLIST" \
+              | plutil -extract Entitlements.get-task-allow raw - 2>/dev/null || true)
+            [ "$GET_TASK_ALLOW" = "false" ] || continue
+
+            EXPIRATION=$(printf '%s' "$PROFILE_PLIST" \
+              | plutil -extract ExpirationDate raw - 2>/dev/null || true)
+            EXPIRATION_EPOCH=$(date -j -f "%Y-%m-%d %H:%M:%S %z" "$EXPIRATION" +%s 2>/dev/null || echo 0)
+            [ "$EXPIRATION_EPOCH" -gt "$(date +%s)" ] || continue
+
+            PROFILE="$candidate"
+            break
           done <<< "$(find "$HOME/Library" -name '*.mobileprovision' 2>/dev/null)"
 
           if [ -z "$PROFILE" ]; then
@@ -148,6 +188,10 @@ workflows:
           # Le format pbxproj accepte plusieurs réglages sur une même ligne.
           PBX=Honya.xcodeproj/project.pbxproj
           sed -i '' "s|CODE_SIGN_STYLE = Automatic;|CODE_SIGN_STYLE = Manual; CODE_SIGN_IDENTITY = \"Apple Distribution\"; PROVISIONING_PROFILE_SPECIFIER = \"$UUID\";|g" "$PBX"
+          if ! grep -q "PROVISIONING_PROFILE_SPECIFIER = \"$UUID\";" "$PBX"; then
+            echo "❌ Le profil n'a pas été inscrit dans les réglages Xcode."
+            exit 1
+          fi
 
           echo "--- Réglages de signature retenus par Xcode ---"
           xcodebuild -project Honya.xcodeproj -scheme Honya -showBuildSettings 2>/dev/null \
@@ -166,9 +210,11 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
-        # L'IPA est envoyé sur App Store Connect : il devient disponible pour le
-        # TEST INTERNE TestFlight sans revue Apple. On ne soumet pas au test externe
-        # (qui exigerait un formulaire d'infos beta et une revue).
+        # Le push `main` ou le tag de release téléverse l'IPA puis lance le
+        # post-traitement TestFlight. L'affectation à un groupe précis restera
+        # manuelle tant que son nom App Store Connect n'est pas versionné ici.
+        submit_to_testflight: true
+        submit_to_app_store: false
       email:
         recipients:
           - remiabbou@gmail.com

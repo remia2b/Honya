@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 /// La grille de tomes, façon Apple Books : chaque tome est un vrai livre avec
 /// sa propre couverture — lu, possédé ou manquant se lit d'un coup d'œil, et
@@ -123,7 +124,7 @@ private struct CaseTome: View {
             // Tant que la vraie couverture du tome n'est pas trouvée, un
             // placeholder généré : jamais la couverture du tome 1 dupliquée.
             CouvertureView(
-                urlString: tome.couvertureURL,
+                urlString: tome.couvertureAffichee,
                 titre: "\(Tomaison.decomposer(serie.nomAffiche(langue)).base)\nTome \(tome.numero)",
                 coins: 5,
                 manga: serie.type != .livre
@@ -133,7 +134,7 @@ private struct CaseTome: View {
             .overlay {
                 // Le pointillé ne sert qu'aux cases SANS couverture : posé
                 // par-dessus une vraie couverture, il salissait la grille.
-                if !tome.possede && tome.couvertureURL == nil {
+                if !tome.possede && tome.couvertureAffichee == nil {
                     RoundedRectangle(cornerRadius: 5, style: .continuous)
                         .strokeBorder(
                             .secondary.opacity(0.5),
@@ -175,7 +176,7 @@ private struct CaseTome: View {
                     .font(.caption2.weight(.semibold))
                     .monospacedDigit()
                     .foregroundStyle(tome.possede ? .primary : .secondary)
-                if let sortie = tome.dateSortie, sortie > Date() {
+                if let sortie = tome.dateSortie, DateCivile.estAVenir(sortie) {
                     Text(sortie, format: .dateTime.day().month())
                         .font(.system(size: 9, weight: .bold))
                         .foregroundStyle(Couleurs.accent)
@@ -198,16 +199,64 @@ private struct FeuilleTome: View {
     @Environment(\.modelContext) private var contexte
     @State private var pretVisible = false
     @State private var plusVisible = false
+    @State private var verrouPlus: Verrou?
+    @State private var selecteurCouvertureVisible = false
+    @State private var photoCouverture: PhotosPickerItem?
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
+                    HStack(alignment: .top, spacing: 14) {
+                        CouvertureView(
+                            urlString: tome.couvertureAffichee,
+                            titre: tome.titre ?? "Tome \(tome.numero)",
+                            auteur: serie.auteur,
+                            coins: 6,
+                            manga: serie.type != .livre
+                        )
+                        .frame(width: 76)
+
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(tome.titre ?? "Tome \(tome.numero)")
+                                .font(.titreOeuvre(19))
+                            if let auteur = serie.auteur, !auteur.isEmpty {
+                                Text(auteur)
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if let isbn = tome.isbn {
+                                LabeledContent("ISBN", value: isbn)
+                            }
+                            if let pages = tome.pages {
+                                LabeledContent("Pages", value: "\(pages)")
+                            }
+                            if let date = tome.dateSortie {
+                                LabeledContent(
+                                    "Date de sortie",
+                                    value: date.formatted(date: .abbreviated, time: .omitted)
+                                )
+                            }
+                        }
+                        .font(.caption)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Section {
                     Toggle(isOn: Binding(
                         get: { tome.possede },
                         set: { nouveau in
-                            tome.possede = nouveau
-                            if !nouveau { marquerLu(false) }
+                            if nouveau {
+                                guard autoriserPossession([tome]) else { return }
+                                tome.possede = true
+                            } else {
+                                tome.possede = false
+                                marquerLu(false)
+                                tome.abandonne = false
+                                tome.preteA = nil
+                                tome.preteLe = nil
+                            }
                         }
                     )) {
                         Label("Je le possède", systemImage: "books.vertical.fill")
@@ -216,7 +265,7 @@ private struct FeuilleTome: View {
 
                     Toggle(isOn: Binding(
                         get: { tome.lu },
-                        set: { marquerLu($0) }
+                        set: { _ = marquerLu($0) }
                     )) {
                         Label("Je l'ai lu", systemImage: "checkmark.circle.fill")
                     }
@@ -232,7 +281,17 @@ private struct FeuilleTome: View {
                 Section {
                     Toggle(isOn: Binding(
                         get: { tome.abandonne },
-                        set: { tome.abandonne = $0 }
+                        set: { abandonne in
+                            if abandonne, !autoriserPossession([tome]) { return }
+                            tome.abandonne = abandonne
+                            if abandonne {
+                                tome.possede = true
+                                marquerLu(false)
+                                serie.statutChoisi = .abandonne
+                            } else {
+                                serie.statutChoisi = nil
+                            }
+                        }
                     )) {
                         Label("Abandonné", systemImage: "xmark.circle")
                     }
@@ -249,12 +308,17 @@ private struct FeuilleTome: View {
                             .buttonStyle(.bordered)
                             .font(.caption.weight(.bold))
                         }
-                    } else {
+                    } else if tome.possede
+                                && tome.dateSortie.map({ DateCivile.estDisponible($0) }) != false {
                         Button {
                             // Prêter est un geste Honya+ ; rendre ne l'est jamais.
                             if Droits.partage.plus {
                                 pretVisible = true
                             } else {
+                                verrouPlus = .pret(
+                                    titre: tome.titre ?? "Tome \(tome.numero)",
+                                    couvertures: [tome.couvertureAffichee].compactMap { $0 }
+                                )
                                 plusVisible = true
                             }
                         } label: {
@@ -265,14 +329,20 @@ private struct FeuilleTome: View {
 
                 Section {
                     Button {
-                        appliquerJusquIci()
-                        dismiss()
+                        if appliquerJusquIci() { dismiss() }
                     } label: {
                         Label("Tout marquer lu jusqu'ici", systemImage: "text.badge.checkmark")
                     }
                     Button(role: .destructive) {
+                        let photo = tome.couverturePersonnelleURL
                         contexte.delete(tome)
-                        dismiss()
+                        do {
+                            try contexte.save()
+                            CouverturesPersonnelles.supprimer(photo)
+                            dismiss()
+                        } catch {
+                            contexte.rollback()
+                        }
                     } label: {
                         Label("Retirer ce tome", systemImage: "trash")
                     }
@@ -281,6 +351,25 @@ private struct FeuilleTome: View {
             .navigationTitle(tome.titre ?? "Tome \(tome.numero)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Menu {
+                        Button {
+                            selecteurCouvertureVisible = true
+                        } label: {
+                            Label("Modifier", systemImage: "photo.on.rectangle")
+                        }
+                        if tome.couverturePersonnelleURL != nil {
+                            Button(role: .destructive) {
+                                retirerCouverturePersonnelle()
+                            } label: {
+                                Label("Retirer", systemImage: "photo.badge.minus")
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "photo")
+                    }
+                    .accessibilityLabel("Modifier")
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("OK") { dismiss() }.fontWeight(.bold)
                 }
@@ -288,36 +377,108 @@ private struct FeuilleTome: View {
             .sheet(isPresented: $pretVisible) {
                 PreterSheet(cible: .tome(tome), titre: tome.titre ?? "Tome \(tome.numero)")
             }
-            .ecranHonyaPlus($plusVisible, verrou: .pret(
-                titre: tome.titre ?? "Tome \(tome.numero)",
-                couvertures: [tome.couvertureURL].compactMap { $0 }
-            ))
+            .ecranHonyaPlus(
+                $plusVisible,
+                verrou: verrouPlus ?? .pret(
+                    titre: tome.titre ?? "Tome \(tome.numero)",
+                    couvertures: [tome.couvertureAffichee].compactMap { $0 }
+                )
+            )
+            .photosPicker(
+                isPresented: $selecteurCouvertureVisible,
+                selection: $photoCouverture,
+                matching: .images
+            )
+            .task(id: photoCouverture) {
+                guard let selection = photoCouverture else { return }
+                await enregistrerCouvertureChoisie(selection)
+            }
         }
     }
 
-    private func marquerLu(_ valeur: Bool) {
+    @discardableResult
+    private func marquerLu(_ valeur: Bool) -> Bool {
+        if valeur, !autoriserPossession([tome]) { return false }
         tome.lu = valeur
         tome.dateLu = valeur ? Date() : nil
-        if valeur { tome.possede = true }
+        if valeur {
+            tome.possede = true
+            tome.abandonne = false
+        }
+        // Modifier la réalité de lecture invalide un statut de série choisi
+        // auparavant : `nil` laisse le modèle recalculer Lu / En cours / À lire.
+        serie.statutChoisi = nil
         BadgesEngine.evaluer(dans: contexte)
         if valeur, serie.estTerminee {
             dismiss()
             Celebrations.partage.feter("Série terminée !")
         }
+        return true
     }
 
-    private func appliquerJusquIci() {
-        for autre in serie.tomes where autre.numero <= tome.numero {
+    @discardableResult
+    private func appliquerJusquIci() -> Bool {
+        let cibles = serie.tomes.filter { $0.numero <= tome.numero }
+        guard autoriserPossession(cibles) else { return false }
+        for autre in cibles {
             autre.possede = true
+            autre.abandonne = false
             if !autre.lu {
                 autre.lu = true
                 autre.dateLu = Date()
             }
         }
+        serie.statutChoisi = nil
         BadgesEngine.evaluer(dans: contexte)
         if serie.estTerminee {
             Celebrations.partage.feter("Série terminée !")
         }
+        return true
+    }
+
+    private func enregistrerCouvertureChoisie(_ selection: PhotosPickerItem) async {
+        defer {
+            if photoCouverture == selection { photoCouverture = nil }
+        }
+        guard let donnees = try? await selection.loadTransferable(type: Data.self),
+              !Task.isCancelled,
+              photoCouverture == selection else { return }
+        let ancienne = tome.couverturePersonnelleURL
+        guard let nouvelle = try? CouverturesPersonnelles.enregistrer(donnees) else { return }
+        tome.couverturePersonnelleURL = nouvelle
+        do {
+            try contexte.save()
+            CouverturesPersonnelles.supprimer(ancienne)
+        } catch {
+            tome.couverturePersonnelleURL = ancienne
+            CouverturesPersonnelles.supprimer(nouvelle)
+        }
+    }
+
+    private func retirerCouverturePersonnelle() {
+        let ancienne = tome.couverturePersonnelleURL
+        guard CouverturesPersonnelles.estPersonnelle(ancienne) else { return }
+        tome.couverturePersonnelleURL = nil
+        do {
+            try contexte.save()
+            CouverturesPersonnelles.supprimer(ancienne)
+        } catch {
+            tome.couverturePersonnelleURL = ancienne
+        }
+    }
+
+    private func autoriserPossession(_ tomes: [Tome]) -> Bool {
+        guard ImportService.autorisePossession(
+            des: tomes, de: serie, dans: contexte
+        ) else {
+            verrouPlus = .bibliotheque(
+                couvertures: [tome.couvertureAffichee, serie.couvertureAffichee]
+                    .compactMap { $0 }
+            )
+            plusVisible = true
+            return false
+        }
+        return true
     }
 }
 
@@ -330,8 +491,11 @@ private struct FeuilleJusquA: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var contexte
     @State private var numero: Double = 1
+    @State private var plusVisible = false
 
-    private var maximum: Double { Double(max(serie.tomes.count, 1)) }
+    private var maximum: Double {
+        Double(max(serie.tomes.map(\.numero).max() ?? 0, 1))
+    }
 
     var body: some View {
         NavigationStack {
@@ -360,17 +524,22 @@ private struct FeuilleJusquA: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Appliquer") {
-                        appliquer()
-                        dismiss()
+                        if appliquer() { dismiss() }
                     }
                     .fontWeight(.bold)
                 }
             }
         }
         .onAppear {
-            let depart = reglage == .possedes ? serie.nbPossedes : serie.nbLus
+            let depart = serie.tomes
+                .filter { reglage == .possedes ? $0.possede : $0.lu }
+                .map(\.numero)
+                .max() ?? 1
             numero = Double(max(1, depart))
         }
+        .ecranHonyaPlus($plusVisible, verrou: .bibliotheque(
+            couvertures: [serie.couvertureAffichee].compactMap { $0 }
+        ))
     }
 
     private var explication: String {
@@ -382,20 +551,43 @@ private struct FeuilleJusquA: View {
         }
     }
 
-    private func appliquer() {
+    @discardableResult
+    private func appliquer() -> Bool {
         let seuil = Int(numero)
+        let cibles = serie.tomes.filter { $0.numero <= seuil }
+        let nombrePossedesProjete: Int
+        switch reglage {
+        case .possedes:
+            nombrePossedesProjete = cibles.count
+        case .lus:
+            nombrePossedesProjete = serie.tomes.filter {
+                $0.possede || $0.numero <= seuil
+            }.count
+        }
+        guard ImportService.autoriseNombrePossedesProjete(
+            nombrePossedesProjete, de: serie, dans: contexte
+        ) else {
+            plusVisible = true
+            return false
+        }
         for tome in serie.tomes {
             switch reglage {
             case .possedes:
                 tome.possede = tome.numero <= seuil
-                if !tome.possede, tome.lu {
-                    tome.lu = false
-                    tome.dateLu = nil
+                if !tome.possede {
+                    if tome.lu {
+                        tome.lu = false
+                        tome.dateLu = nil
+                    }
+                    tome.abandonne = false
+                    tome.preteA = nil
+                    tome.preteLe = nil
                 }
             case .lus:
                 let concerne = tome.numero <= seuil
                 if concerne {
                     tome.possede = true
+                    tome.abandonne = false
                     if !tome.lu { tome.dateLu = Date() }
                     tome.lu = true
                 } else if tome.lu {
@@ -404,9 +596,13 @@ private struct FeuilleJusquA: View {
                 }
             }
         }
+        if reglage == .lus {
+            serie.statutChoisi = nil
+        }
         BadgesEngine.evaluer(dans: contexte)
         if reglage == .lus, serie.estTerminee {
             Celebrations.partage.feter("Série terminée !")
         }
+        return true
     }
 }

@@ -72,7 +72,7 @@ struct Verrou {
     static func statistiques(couvertures: [String] = []) -> Verrou {
         Verrou(
             titre: "Vos semaines passées vous attendent",
-            detail: String(localized: "Tout est enregistré depuis le premier jour : records, humeurs, mois par mois. Honya+ ouvre l'historique complet."),
+            detail: String(localized: "Vos statistiques sur tout l'historique"),
             couvertures: couvertures,
             symbole: "chart.bar.fill"
         )

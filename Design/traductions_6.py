@@ -303,11 +303,6 @@ T = {
     "Créer un compte": {"nl": "Maak een account", "ko": "계정 만들기",
                         "zh-Hans": "创建账户", "tr": "Hesap oluştur",
                         "ru": "Создать учётную запись", "sv": "Skapa konto"},
-    "Continuer sans compte": {
-        "nl": "Ga door zonder account", "ko": "계정 없이 계속하기",
-        "zh-Hans": "不创建账户，直接使用", "tr": "Hesapsız devam et",
-        "ru": "Продолжить без учётной записи", "sv": "Fortsätt utan konto",
-    },
     "Connexion avec Apple": {"nl": "Log in met Apple", "ko": "Apple로 로그인",
                              "zh-Hans": "通过 Apple 登录", "tr": "Apple ile giriş yap",
                              "ru": "Вход с Apple", "sv": "Logga in med Apple"},

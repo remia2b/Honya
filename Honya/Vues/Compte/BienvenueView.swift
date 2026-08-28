@@ -15,6 +15,9 @@ struct BienvenueView: View {
     /// Ouvre le mot de passe oublié : « demande » à l'étape du courrier,
     /// « code » à l'étape de saisie.
     var surLOubli: String?
+    /// Reprise d'une suppression interrompue : le même compte uniquement,
+    /// sans possibilité d'en créer un autre.
+    var connexionSeulement = false
 
     @Environment(\.colorScheme) private var apparence
     @Environment(\.accessibilityReduceMotion) private var mouvementReduit
@@ -67,6 +70,16 @@ struct BienvenueView: View {
     /// change à l'écran à ce moment-là. La session, elle, s'ouvre au premier
     /// champ et ne se ferme qu'une fois la saisie réellement terminée.
     private var enSaisie: Bool { session.enSaisie }
+
+    private var proposerApple: Bool {
+        !connexionSeulement || compte.methodeReconnexionSuppression == .apple
+    }
+
+    private var proposerEmail: Bool {
+        // En cas d'ancien état incomplet, l'e-mail reste le seul chemin qui ne
+        // puisse pas créer silencieusement une nouvelle identité OIDC.
+        !connexionSeulement || compte.methodeReconnexionSuppression != .apple
+    }
 
     enum Mode: String, CaseIterable, Identifiable {
         case inscription = "Créer un compte"
@@ -181,6 +194,7 @@ struct BienvenueView: View {
         .task { await chargerLeMur() }
         .onAppear {
             withAnimation(.easeOut(duration: 0.7)) { apparu = true }
+            if connexionSeulement { mode = .connexion }
             if surLEmail { parEmail = true }
             if let surLOubli {
                 parEmail = true
@@ -256,13 +270,7 @@ struct BienvenueView: View {
 
         return VStack(spacing: Self.ecart) {
             ForEach(Array((jeu + jeu).enumerated()), id: \.offset) { _, vignette in
-                CouvertureView(
-                    urlString: vignette.url,
-                    titre: vignette.titre,
-                    coins: 5,
-                    manga: vignette.manga,
-                    cote: 400          // affichée sur ~120 points : inutile d'aller plus haut
-                )
+                vignetteDuMur(vignette)
                 // Hauteur imposée avec la largeur : CouvertureView porte un
                 // aspectRatio(.fit), et sans hauteur fixe la pile la ferait
                 // rétrécir en largeur pour tenir le ratio.
@@ -270,6 +278,51 @@ struct BienvenueView: View {
             }
         }
         .offset(y: position)
+    }
+
+    @ViewBuilder
+    private func vignetteDuMur(_ vignette: Vignette) -> some View {
+        if vignette.url == nil, vignette.id.hasPrefix("depart-") {
+            let graine = vignette.id.unicodeScalars.reduce(0) { $0 + Int($1.value) }
+            let teinte = Double(graine % 360) / 360
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(hue: teinte, saturation: 0.56, brightness: 0.74),
+                        Color(hue: (teinte + 0.12).truncatingRemainder(dividingBy: 1),
+                              saturation: 0.62, brightness: 0.34),
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                Circle()
+                    .stroke(.white.opacity(0.22), lineWidth: 10)
+                    .frame(width: 88, height: 88)
+                    .offset(x: CGFloat((graine % 5) * 7) - 16, y: -34)
+                Rectangle()
+                    .fill(.white.opacity(0.12))
+                    .frame(width: 160, height: 22)
+                    .rotationEffect(.degrees(Double((graine % 7) * 8 - 24)))
+                    .offset(y: 48)
+                Text("Honya")
+                    .font(.system(size: 15, weight: .semibold, design: .serif))
+                    .foregroundStyle(.white)
+                    .padding(9)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            }
+            .aspectRatio(2.0 / 3.0, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .shadow(color: .black.opacity(0.2), radius: 7, y: 2)
+            .accessibilityHidden(true)
+        } else {
+            CouvertureView(
+                urlString: vignette.url,
+                titre: vignette.titre,
+                coins: 5,
+                manga: vignette.manga,
+                cote: 400
+            )
+        }
     }
 
     private func vignettesDeLaColonne(_ index: Int, combien: Int) -> [Vignette] {
@@ -364,35 +417,46 @@ struct BienvenueView: View {
 
     private var entrees: some View {
         VStack(spacing: 12) {
-            SignInWithAppleButton(
-                .signIn,
-                onRequest: { compte.preparerDemandeApple($0) },
-                onCompletion: { traiterApple($0) }
-            )
-            .signInWithAppleButtonStyle(apparence == .dark ? .white : .black)
-            .frame(height: 50)
-            .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
-
-            Button {
-                erreur = nil
-                information = nil
-                marche = .adresse
-                parEmail = true
-            } label: {
-                Text("Continuer avec un e-mail")
-                    .font(.system(size: 17, weight: .semibold))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
-                    // Un matériau, pas une teinte : sur un mur de couvertures,
-                    // un fond à 6 % disparaissait et le bouton semblait n'être
-                    // que du texte posé là.
-                    .background(
-                        .regularMaterial,
-                        in: RoundedRectangle(cornerRadius: 15, style: .continuous)
-                    )
+            if connexionSeulement {
+                Text("Reconnectez-vous avec le compte dont la suppression a été demandée.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
             }
-            .buttonStyle(.plain)
 
+            if proposerApple {
+                SignInWithAppleButton(
+                    .signIn,
+                    onRequest: { compte.preparerDemandeApple($0) },
+                    onCompletion: { traiterApple($0) }
+                )
+                .signInWithAppleButtonStyle(apparence == .dark ? .white : .black)
+                .frame(height: 50)
+                .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+            }
+
+            if proposerEmail {
+                Button {
+                    erreur = nil
+                    information = nil
+                    marche = .adresse
+                    parEmail = true
+                } label: {
+                    Text("Continuer avec un e-mail")
+                        .font(.system(size: 17, weight: .semibold))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        // Un matériau, pas une teinte : sur un mur de couvertures,
+                        // un fond à 6 % disparaissait et le bouton semblait n'être
+                        // que du texte posé là.
+                        .background(
+                            .regularMaterial,
+                            in: RoundedRectangle(cornerRadius: 15, style: .continuous)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+            liensLegaux
         }
         .padding(.horizontal, 24)
         .padding(.bottom, 34)
@@ -456,6 +520,7 @@ struct BienvenueView: View {
             }
 
             liens
+            liensLegaux
         }
         .padding(20)
         // Une plaque sous tout le bloc : sans elle, sélecteur, champs et
@@ -529,7 +594,7 @@ struct BienvenueView: View {
             // connecter. Ici la pastille active porte la couleur de
             // l'application et du texte blanc.
             HStack(spacing: 4) {
-                ForEach(Mode.allCases) { cas in
+                ForEach(connexionSeulement ? [Mode.connexion] : Mode.allCases) { cas in
                     Button {
                         guard mode != cas else { return }
                         erreur = nil
@@ -710,6 +775,27 @@ struct BienvenueView: View {
         .padding(.top, 2)
     }
 
+    /// Accessible avant toute transmission d'adresse e-mail ou d'identite
+    /// Apple, comme l'exige une creation de compte transparente.
+    private var liensLegaux: some View {
+        HStack(spacing: 16) {
+            Link(
+                "Politique de confidentialité",
+                destination: URL(string: "https://www.honya.app/en/privacy/")!
+            )
+            Link(
+                "Conditions d’utilisation",
+                destination: URL(
+                    string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+                )!
+            )
+        }
+        .font(.caption2.weight(.medium))
+        .foregroundStyle(.secondary)
+        .multilineTextAlignment(.center)
+        .padding(.top, 2)
+    }
+
     /// Chaque marche redescend d'où elle vient.
     private func revenir() {
         switch marche {
@@ -782,34 +868,34 @@ struct BienvenueView: View {
         }
     }
 
-    /// Les couvertures de la toute première ouverture, avant tout réseau :
-    /// des valeurs sûres du catalogue français, romans et mangas mêlés. Dès la
-    /// deuxième ouverture, le tirage des tendances du pays prend la place.
+    /// Le premier mur est volontairement generique et dessine par Honya. Les
+    /// images promotionnelles de catalogues tiers ne peuvent pas servir a
+    /// promouvoir l'application elle-meme sans droits distincts.
     private static let jeuDeDepart: [Vignette] = [
-        Vignette(id: "depart-0", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication112/v4/df/c6/61/dfc661fb-7824-9cd8-7601-26b94a6439fb/9782824637167-001-x.jpeg/600x600bb.jpg", titre: "La femme de ménage", manga: false),
-        Vignette(id: "depart-1", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication124/v4/ec/92/42/ec9242c6-e6af-fbe7-1cc4-b4bb34f7758b/9782709641920-001-x.jpeg/600x600bb.jpg", titre: "Cinquante nuances de Grey", manga: false),
-        Vignette(id: "depart-2", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/0c/a9/46/0ca94621-e8a9-f304-80f2-f180f2f3aab7/9782755630756-001-x.jpeg/600x600bb.jpg", titre: "Jamais plus", manga: false),
-        Vignette(id: "depart-3", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/e1/bf/68/e1bf6862-6bbb-3b99-5a9d-866b4442b18a/9782755648720-001-x.jpeg/600x600bb.jpg", titre: "Verity", manga: false),
-        Vignette(id: "depart-4", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/aa/d1/29/aad129f2-b1dd-fa8f-5239-8e720646ef30/9782811235949-001-x.jpeg/600x600bb.jpg", titre: "Les Sept Maris d'Evelyn Hugo", manga: false),
-        Vignette(id: "depart-5", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/28/7a/85/287a858d-2b91-e220-79fd-3b5b935d6d86/9782709645126-001-x.jpeg/600x600bb.jpg", titre: "Da Vinci Code - version française", manga: false),
-        Vignette(id: "depart-6", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/2e/f9/30/2ef9305d-ed76-78c8-7619-415667064083/9781781105986.jpg/600x600bb.jpg", titre: "Harry Potter à L'école des Sorciers (Enhanced Edition)", manga: false),
-        Vignette(id: "depart-7", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication124/v4/0e/b4/1a/0eb41ac2-ddfa-004e-2f36-1486d87d2009/9782072431258.jpg/600x600bb.jpg", titre: "Le Petit Prince", manga: false),
-        Vignette(id: "depart-8", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication126/v4/d5/85/1a/d5851a16-5cd9-ced5-bb77-6e75c8c3b9ef/d1c368f5-a3e5-4d0e-85a6-8ffdf8952dc9_cover_image.png/600x600bb.jpg", titre: "1984", manga: false),
-        Vignette(id: "depart-9", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/57/7e/f0/577ef0d8-38fa-cf1a-ceba-2c0ead263f76/9782072376429.jpg/600x600bb.jpg", titre: "L'étranger", manga: false),
-        Vignette(id: "depart-10", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/eb/25/74/eb2574fd-be3b-1bff-cc40-7c9bab9bc6bc/9782221127483.jpg/600x600bb.jpg", titre: "Dune - Tome 1", manga: false),
-        Vignette(id: "depart-11", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/30/2b/a1/302ba156-ad04-ea54-8c30-397093599ef7/9782330071035.jpg/600x600bb.jpg", titre: "Le problème à trois corps", manga: false),
-        Vignette(id: "depart-12", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication114/v4/5f/31/34/5f3134d6-b6d6-fd37-8f6e-52562aa35615/9782823874778.jpg/600x600bb.jpg", titre: "Il était deux fois", manga: false),
-        Vignette(id: "depart-13", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication4/v4/dd/56/03/dd56030e-ff13-7028-0e6c-70d9af43fbd0/9782081345980.jpg/600x600bb.jpg", titre: "L'Alchimiste", manga: false),
-        Vignette(id: "depart-14", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/97/73/21/97732192-1702-3256-f28e-6c0ef0980bde/cover.jpg/600x600bb.jpg", titre: "Le Comte de Monte-Cristo - Alexandre Dumas", manga: false),
-        Vignette(id: "depart-15", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/cb/a4/22/cba4222a-e625-1802-e3e2-0d860ac012e9/9782331089893-001-x.jpeg/600x600bb.jpg", titre: "One Piece - Édition originale - Tome 113", manga: true),
-        Vignette(id: "depart-16", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication123/v4/fa/ad/7a/faad7a51-1b9b-f5ba-bef2-040b8e4527c2/9782809484069-001-x.jpeg/600x600bb.jpg", titre: "Demon Slayer T01", manga: true),
-        Vignette(id: "depart-17", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication124/v4/7a/7d/65/7a7d65b5-dd10-dda6-ad66-f1d63d4a28e7/9782820339744-001-x.jpeg/600x600bb.jpg", titre: "Chainsaw Man - Chapitre 1", manga: true),
-        Vignette(id: "depart-18", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication3/v4/36/16/d1/3616d14d-1dc4-2743-f255-a62236557967/9782811617462-X.jpg/600x600bb.jpg", titre: "L'Attaque des Titans T10", manga: true),
-        Vignette(id: "depart-19", url: "https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/0e/6f/82/0e6f8246-88ce-c868-8ae5-7fb070522b63/9782505032182.jpg/600x600bb.jpg", titre: "Death Note - Tome 1", manga: true),
+        Vignette(id: "depart-0", url: nil, titre: "Honya", manga: false),
+        Vignette(id: "depart-1", url: nil, titre: "Honya", manga: true),
+        Vignette(id: "depart-2", url: nil, titre: "Honya", manga: false),
+        Vignette(id: "depart-3", url: nil, titre: "Honya", manga: true),
+        Vignette(id: "depart-4", url: nil, titre: "Honya", manga: false),
+        Vignette(id: "depart-5", url: nil, titre: "Honya", manga: true),
+        Vignette(id: "depart-6", url: nil, titre: "Honya", manga: false),
+        Vignette(id: "depart-7", url: nil, titre: "Honya", manga: true),
+        Vignette(id: "depart-8", url: nil, titre: "Honya", manga: false),
+        Vignette(id: "depart-9", url: nil, titre: "Honya", manga: true),
+        Vignette(id: "depart-10", url: nil, titre: "Honya", manga: false),
+        Vignette(id: "depart-11", url: nil, titre: "Honya", manga: true),
+        Vignette(id: "depart-12", url: nil, titre: "Honya", manga: false),
+        Vignette(id: "depart-13", url: nil, titre: "Honya", manga: true),
+        Vignette(id: "depart-14", url: nil, titre: "Honya", manga: false),
+        Vignette(id: "depart-15", url: nil, titre: "Honya", manga: true),
+        Vignette(id: "depart-16", url: nil, titre: "Honya", manga: false),
+        Vignette(id: "depart-17", url: nil, titre: "Honya", manga: true),
+        Vignette(id: "depart-18", url: nil, titre: "Honya", manga: false),
+        Vignette(id: "depart-19", url: nil, titre: "Honya", manga: true),
     ]
 
     /// Le dernier tirage, gardé sur l'appareil pour l'ouverture suivante.
-    private static let cleCache = "murAccueil"
+    private static let cleCache = "murAccueilV2"
 
     private func poserDepuisCache() -> Bool {
         guard let donnees = UserDefaults.standard.data(forKey: Self.cleCache),
@@ -840,7 +926,13 @@ struct BienvenueView: View {
         case .success(let autorisation):
             guard let identite = autorisation.credential as? ASAuthorizationAppleIDCredential
             else { return }
-            Task { await compte.connecterAvecApple(identite) }
+            Task { @MainActor in
+                do {
+                    try await compte.connecterAvecApple(identite)
+                } catch {
+                    self.erreur = error.localizedDescription
+                }
+            }
         case .failure(let souci):
             // Une annulation n'est pas une erreur : on ne dit rien.
             let code = (souci as? ASAuthorizationError)?.code

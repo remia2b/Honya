@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// L'authentification Supabase en REST pur — aucune dépendance à greffer dans
@@ -5,31 +6,77 @@ import Foundation
 /// Supabase distinct de tout autre : base, utilisateurs et clés séparés).
 enum SupabaseAuth {
 
-    struct Session: Codable {
+    /// La langue du client est conservée dans `user_metadata` dès la création
+    /// du compte. Les modèles de courriel Supabase peuvent ainsi rendre leur
+    /// contenu avec `{{ .Data.language }}` au lieu d'imposer le français à
+    /// tous les lecteurs.
+    private struct CorpsInscription: Encodable, Sendable {
+        struct Profil: Encodable, Sendable {
+            let language: String
+        }
+
+        let email: String
+        let password: String
+        let data: Profil
+    }
+
+    struct Session: Codable, Sendable {
         let access_token: String
         let refresh_token: String
         let expires_at: Double?
         let user: Utilisateur?
     }
 
-    struct Utilisateur: Codable {
+    struct Utilisateur: Codable, Sendable {
         let id: String
         let email: String?
     }
 
+    struct SauvegardeBibliothequeDistante: Sendable {
+        let contenu: BibliothequeSnapshotV1
+        let version: Int
+        let empreinte: String
+        let revision: Int64
+        let modifie_le: String
+    }
+
+    private struct ReponseSauvegardeBibliotheque: Decodable, Sendable {
+        let contenu_base64: String
+        let version: Int
+        let empreinte: String
+        let revision: Int64
+        let modifie_le: String
+    }
+
     enum Souci: LocalizedError {
         case nonConfigure
+        /// Le serveur a explicitement refusé le jeton de renouvellement.
+        /// À distinguer d'une panne réseau : seul ce cas ferme la session.
+        case sessionInvalide
+        /// Réponse HTTP reçue et donc définitive, avec son statut conservé.
+        /// Les erreurs de transport restent des `URLError` et signalent une
+        /// issue ambiguë pour une opération idempotente.
+        case http(code: Int, message: String)
         /// Le compte existe mais son adresse n'a jamais été confirmée. Un cas
         /// à part : c'est le seul dont on sort en renvoyant un courrier.
         case adresseNonConfirmee
+        /// Le serveur possede une revision plus recente que celle lue par ce
+        /// client. Elle doit etre presentee au lecteur, jamais ecrasee.
+        case conflitSauvegarde
         case message(String)
 
         var errorDescription: String? {
             switch self {
             case .nonConfigure:
                 return String(localized: "Les comptes par adresse e-mail ne sont pas encore configurés dans cette version.")
+            case .sessionInvalide:
+                return String(localized: "La connexion n'a pas abouti. Réessayez dans un instant.")
+            case .http(_, let message):
+                return message
             case .adresseNonConfirmee:
                 return String(localized: "Confirmez d'abord votre adresse : un courrier vous attend.")
+            case .conflitSauvegarde:
+                return String(localized: "La sauvegarde a changé sur un autre appareil.")
             case .message(let texte):
                 return texte
             }
@@ -60,7 +107,11 @@ enum SupabaseAuth {
         let donnees = try await brut(
             chemin: "/auth/v1/signup?redirect_to=" + chiffrer(retourConfirmation),
             methode: "POST",
-            corps: ["email": email, "password": motDePasse],
+            corps: CorpsInscription(
+                email: email,
+                password: motDePasse,
+                data: .init(language: Langues.codeAppareil)
+            ),
             jeton: nil
         )
         // Deux réponses possibles, toutes deux des succès : la session
@@ -156,6 +207,23 @@ enum SupabaseAuth {
         )
     }
 
+    /// Demande a Supabase quelle identite porte reellement un jeton d'acces.
+    /// Les operations destructrices l'utilisent au dernier moment : un UUID
+    /// conserve localement ne suffit jamais a choisir le compte a supprimer.
+    static func lireUtilisateur(jeton: String) async throws -> Utilisateur {
+        let donnees = try await brutEncode(
+            chemin: "/auth/v1/user",
+            methode: "GET",
+            corps: Data(),
+            jeton: jeton
+        )
+        do {
+            return try JSONDecoder().decode(Utilisateur.self, from: donnees)
+        } catch {
+            throw Souci.message(String(localized: "Réponse inattendue du serveur."))
+        }
+    }
+
     /// Renvoie le courrier de confirmation d'inscription.
     ///
     /// Le premier courrier se perd, s'efface ou part dans les indésirables ;
@@ -172,18 +240,128 @@ enum SupabaseAuth {
     // MARK: - Déconnexion et suppression
 
     static func deconnecter(jeton: String) async {
-        _ = try? await brut(chemin: "/auth/v1/logout", methode: "POST", corps: [:], jeton: jeton)
+        _ = try? await brut(
+            chemin: "/auth/v1/logout",
+            methode: "POST",
+            corps: [String: String](),
+            jeton: jeton
+        )
     }
 
     /// Suppression réelle du compte côté serveur. S'appuie sur une fonction
     /// Postgres `supprimer_mon_compte()` en SECURITY DEFINER : le client n'a
     /// jamais besoin d'une clé d'administration.
-    static func supprimerCompte(jeton: String) async throws {
+    static func supprimerCompte(jeton: String, cle: UUID) async throws {
         _ = try await brut(
             chemin: "/rest/v1/rpc/supprimer_mon_compte",
             methode: "POST",
-            corps: [:],
+            corps: ["p_cle": cle.uuidString.lowercased()],
             jeton: jeton
+        )
+    }
+
+    /// Reçu sans donnée personnelle, consultable grâce à sa clé UUID
+    /// imprévisible. Il tranche une perte de réponse après le POST : `true`
+    /// signifie que suppression distante et reçu ont été validés dans la
+    /// même transaction PostgreSQL.
+    static func suppressionConfirmee(cle: UUID) async throws -> Bool {
+        let donnees = try await brut(
+            chemin: "/rest/v1/rpc/suppression_compte_confirmee",
+            methode: "POST",
+            corps: ["p_cle": cle.uuidString.lowercased()],
+            jeton: nil
+        )
+        do {
+            return try JSONDecoder().decode(Bool.self, from: donnees)
+        } catch {
+            throw Souci.message(String(localized: "Réponse inattendue du serveur."))
+        }
+    }
+
+    // MARK: - Sauvegarde de la bibliotheque
+
+    private struct CorpsSauvegardeBibliotheque: Encodable, Sendable {
+        let p_contenu: String
+        let p_version: Int
+        let p_empreinte: String
+        let p_revision_attendue: Int64
+    }
+
+    static func lireSauvegardeBibliotheque(
+        jeton: String
+    ) async throws -> SauvegardeBibliothequeDistante? {
+        let donnees = try await brut(
+            chemin: "/rest/v1/rpc/lire_ma_sauvegarde_bibliotheque",
+            methode: "POST",
+            corps: [String: String](),
+            jeton: jeton
+        )
+        if String(data: donnees, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) == "null" {
+            return nil
+        }
+        return try decoderEtVerifierSauvegarde(donnees)
+    }
+
+    static func enregistrerSauvegardeBibliotheque(
+        _ export: ExporteurBibliothequeSnapshotV1.Resultat,
+        revisionAttendue: Int64,
+        jeton: String
+    ) async throws -> SauvegardeBibliothequeDistante {
+        let donnees = try await brut(
+            chemin: "/rest/v1/rpc/enregistrer_ma_sauvegarde_bibliotheque",
+            methode: "POST",
+            corps: CorpsSauvegardeBibliotheque(
+                p_contenu: export.donnees.base64EncodedString(),
+                p_version: BibliothequeSnapshotV1.versionActuelle,
+                p_empreinte: export.empreinteSHA256,
+                p_revision_attendue: revisionAttendue
+            ),
+            jeton: jeton
+        )
+        return try decoderEtVerifierSauvegarde(donnees)
+    }
+
+    private static func decoderEtVerifierSauvegarde(
+        _ donnees: Data
+    ) throws -> SauvegardeBibliothequeDistante {
+        let filaire: ReponseSauvegardeBibliotheque
+        do {
+            filaire = try JSONDecoder().decode(
+                ReponseSauvegardeBibliotheque.self,
+                from: donnees
+            )
+        } catch {
+            throw Souci.message(String(localized: "Réponse inattendue du serveur."))
+        }
+        guard filaire.version == BibliothequeSnapshotV1.versionActuelle,
+              filaire.revision > 0,
+              filaire.contenu_base64.count <= 26_666_668,
+              let canoniques = Data(base64Encoded: filaire.contenu_base64),
+              canoniques.count <= 20_000_000
+        else { throw Souci.message(String(localized: "Réponse inattendue du serveur.")) }
+
+        let empreinte = SHA256.hash(data: canoniques)
+            .map { String(format: "%02x", $0) }
+            .joined()
+        guard empreinte == filaire.empreinte else {
+            throw Souci.message(String(localized: "Réponse inattendue du serveur."))
+        }
+        let contenu: BibliothequeSnapshotV1
+        do {
+            contenu = try RestaurateurBibliothequeSnapshotV1.decoder(canoniques)
+        } catch {
+            throw Souci.message(String(localized: "Réponse inattendue du serveur."))
+        }
+        guard contenu.version == filaire.version else {
+            throw Souci.message(String(localized: "Réponse inattendue du serveur."))
+        }
+        return SauvegardeBibliothequeDistante(
+            contenu: contenu,
+            version: filaire.version,
+            empreinte: filaire.empreinte,
+            revision: filaire.revision,
+            modifie_le: filaire.modifie_le
         )
     }
 
@@ -201,10 +379,24 @@ enum SupabaseAuth {
         }
     }
 
-    private static func brut(
+    private static func brut<Corps: Encodable & Sendable>(
         chemin: String,
         methode: String,
-        corps: [String: String],
+        corps: Corps,
+        jeton: String?
+    ) async throws -> Data {
+        try await brutEncode(
+            chemin: chemin,
+            methode: methode,
+            corps: JSONEncoder().encode(corps),
+            jeton: jeton
+        )
+    }
+
+    private static func brutEncode(
+        chemin: String,
+        methode: String,
+        corps: Data,
         jeton: String?
     ) async throws -> Data {
         guard configure, let url = URL(string: Secrets.supabaseURL + chemin) else {
@@ -218,7 +410,7 @@ enum SupabaseAuth {
             "Bearer \(jeton ?? Secrets.supabaseCleAnon)",
             forHTTPHeaderField: "Authorization"
         )
-        requete.httpBody = try JSONSerialization.data(withJSONObject: corps)
+        requete.httpBody = corps
         requete.timeoutInterval = 25
 
         let (donnees, reponse) = try await URLSession.shared.data(for: requete)
@@ -227,8 +419,13 @@ enum SupabaseAuth {
             // Le compte non confirmé se distingue : c'est le seul refus qui
             // se répare, en refaisant partir le courrier.
             let texte = String(data: donnees, encoding: .utf8)?.lowercased() ?? ""
+            if texte.contains("revision_conflict") { throw Souci.conflitSauvegarde }
             if texte.contains("not confirmed") { throw Souci.adresseNonConfirmee }
-            throw Souci.message(messageLisible(donnees, code: code))
+            if (code == 400 || code == 401), chemin.contains("grant_type=refresh_token") {
+                throw Souci.sessionInvalide
+            }
+            if code == 401, jeton != nil { throw Souci.sessionInvalide }
+            throw Souci.http(code: code, message: messageLisible(donnees, code: code))
         }
         return donnees
     }

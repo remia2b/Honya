@@ -28,22 +28,44 @@ enum ArtworkApple {
     }
 }
 
-// MARK: - Chargeur d'images de couvertures (mémoire + disque, hors ligne ensuite)
+// MARK: - Chargeur d'images de couvertures (mémoire + cache HTTP système)
 
 actor ImageCharge {
     static let partage = ImageCharge()
 
     private let memoire = NSCache<NSString, UIImage>()
-    private let dossier: URL
 
     init() {
-        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        dossier = caches.appendingPathComponent("Couvertures", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dossier, withIntermediateDirectories: true)
+        memoire.countLimit = 200
+        memoire.totalCostLimit = 80_000_000
+    }
+
+    func vider() {
+        memoire.removeAllObjects()
     }
 
     func uiImage(depuis chaine: String?, cote: Int = 1200) async -> UIImage? {
         guard var chaine, !chaine.isEmpty else { return nil }
+
+        // Une reference locale est autorisee AVANT le cache. Sans cet ordre,
+        // une image de A deja en memoire pourrait ressortir lorsque B presente
+        // par erreur la meme ancienne reference relative.
+        if CouverturesPersonnelles.estReferencePersonnelle(chaine) {
+            guard let urlLocale = await CouverturesPersonnelles.urlLecture(chaine) else {
+                return nil
+            }
+            let cle = Self.empreinte("locale|" + urlLocale.path)
+            if let enMemoire = memoire.object(forKey: cle as NSString) {
+                return enMemoire
+            }
+            guard let donnees = try? Data(contentsOf: urlLocale),
+                  let image = UIImage(data: donnees) else { return nil }
+            let pixels = Int(image.size.width * image.scale)
+                * Int(image.size.height * image.scale) * 4
+            memoire.setObject(image, forKey: cle as NSString, cost: pixels)
+            return image
+        }
+
         // Les URLs Google Books arrivent parfois en http.
         if chaine.hasPrefix("http://") {
             chaine = "https://" + chaine.dropFirst("http://".count)
@@ -58,22 +80,22 @@ actor ImageCharge {
         if let enMemoire = memoire.object(forKey: cle as NSString) {
             return enMemoire
         }
-        let fichier = dossier.appendingPathComponent(cle)
-        if let donnees = try? Data(contentsOf: fichier), let image = UIImage(data: donnees) {
-            memoire.setObject(image, forKey: cle as NSString)
-            return image
-        }
         // Certaines vignettes n'existent pas au calibre demandé : le serveur
         // répond alors autre chose qu'une image. On retombe sur l'adresse
         // d'origine plutôt que d'abandonner la couverture.
         let candidates = chaine == brute ? [chaine] : [chaine, brute]
         for candidate in candidates {
-            guard let url = URL(string: candidate),
-                  let (donnees, _) = try? await URLSession.shared.data(from: url),
-                  let image = UIImage(data: donnees)
-            else { continue }
-            try? donnees.write(to: fichier)
-            memoire.setObject(image, forKey: cle as NSString)
+            guard let url = URL(string: candidate) else { continue }
+            let donnees: Data?
+            if let (telechargees, _) = try? await URLSession.shared.data(from: url) {
+                donnees = telechargees
+            } else {
+                donnees = nil
+            }
+            guard let donnees, let image = UIImage(data: donnees) else { continue }
+            let pixels = Int(image.size.width * image.scale)
+                * Int(image.size.height * image.scale) * 4
+            memoire.setObject(image, forKey: cle as NSString, cost: pixels)
             return image
         }
         return nil
@@ -82,6 +104,158 @@ actor ImageCharge {
     private static func empreinte(_ chaine: String) -> String {
         let hachage = SHA256.hash(data: Data(chaine.utf8))
         return hachage.map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+// MARK: - Couvertures fournies par le lecteur
+
+/// Une édition rare peut être parfaitement identifiée par son ISBN sans que
+/// les catalogues autorisés exposent sa couverture. Honya conserve alors une
+/// photo choisie par le lecteur dans son conteneur privé, sans l'envoyer à un
+/// serveur ni la faire passer pour l'image d'une autre édition.
+enum CouverturesPersonnelles {
+    private static let prefixeLegacy = "honya-cover:"
+    private static let prefixeV2 = "honya-cover-v2:"
+
+    @MainActor
+    static func enregistrer(_ donnees: Data) throws -> String {
+        guard let identifiant = StockageCompte.partage.identifiantActif else {
+            throw Erreur.compteIndisponible
+        }
+        guard let image = UIImage(data: donnees) else { throw Erreur.imageInvalide }
+        let imageReduite = reduire(image)
+        guard let jpeg = imageReduite.jpegData(compressionQuality: 0.88) else {
+            throw Erreur.imageInvalide
+        }
+
+        let repertoire = try urlDossierActif(creer: true)
+        let url = repertoire
+            .appendingPathComponent(UUID().uuidString.lowercased())
+            .appendingPathExtension("jpg")
+        try jpeg.write(to: url, options: [.atomic, .completeFileProtection])
+        // Ne jamais persister l'URL absolue du sandbox : son UUID change lors
+        // d'une mise à jour App Store. Seul le nom relatif est stable.
+        return prefixeV2
+            + identifiant.uuidString.lowercased()
+            + "/"
+            + url.lastPathComponent
+    }
+
+    @MainActor
+    static func estPersonnelle(_ chaine: String?) -> Bool {
+        urlLecture(chaine) != nil
+    }
+
+    static func estReferencePersonnelle(_ chaine: String?) -> Bool {
+        chaine.flatMap(reference) != nil
+    }
+
+    /// Résout le nom relatif dans le conteneur courant. Les anciennes valeurs
+    /// `file://` de développement restent lisibles puis survivront au prochain
+    /// remplacement de photo sous le nouveau format stable.
+    @MainActor
+    static func urlLecture(_ chaine: String?) -> URL? {
+        guard let chaine, let reference = reference(chaine),
+              let repertoire = StockageCompte.partage.dossierCouverturesActif
+        else { return nil }
+
+        switch reference {
+        case .v2(let proprietaire, let nom):
+            guard StockageCompte.partage.identifiantActif == proprietaire else {
+                return nil
+            }
+            return repertoire.appendingPathComponent(nom, isDirectory: false)
+        case .legacy(let nom):
+            guard StockageCompte.partage.accepteReferencesCouverturesLegacy else {
+                return nil
+            }
+            // On reconstruit toujours le chemin sous le dossier autorise. Une
+            // ancienne URL absolue persiste seulement son nom de fichier.
+            return repertoire.appendingPathComponent(nom, isDirectory: false)
+        }
+    }
+
+    @MainActor
+    static func supprimer(_ chaine: String?) {
+        guard let url = urlLecture(chaine) else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
+
+    @MainActor
+    static func supprimerToutes() throws {
+        let url = try urlDossierActif(creer: false)
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        try FileManager.default.removeItem(at: url)
+    }
+
+    @MainActor
+    private static func urlDossierActif(creer: Bool) throws -> URL {
+        guard let url = StockageCompte.partage.dossierCouverturesActif else {
+            throw Erreur.dossierIndisponible
+        }
+        if creer {
+            try FileManager.default.createDirectory(
+                at: url, withIntermediateDirectories: true,
+                attributes: [.protectionKey: FileProtectionType.complete]
+            )
+        }
+        return url
+    }
+
+    private static func reduire(_ image: UIImage) -> UIImage {
+        let maximum: CGFloat = 1_800
+        let grandCote = max(image.size.width, image.size.height)
+        guard grandCote > maximum else { return image }
+        let facteur = maximum / grandCote
+        let taille = CGSize(
+            width: max(1, image.size.width * facteur),
+            height: max(1, image.size.height * facteur)
+        )
+        return UIGraphicsImageRenderer(size: taille).image { _ in
+            image.draw(in: CGRect(origin: .zero, size: taille))
+        }
+    }
+
+    private enum Reference {
+        case v2(UUID, String)
+        case legacy(String)
+    }
+
+    private static func reference(_ chaine: String) -> Reference? {
+        if chaine.hasPrefix(prefixeV2) {
+            let morceaux = chaine.dropFirst(prefixeV2.count).split(
+                separator: "/",
+                omittingEmptySubsequences: false
+            )
+            guard morceaux.count == 2,
+                  let proprietaire = UUID(uuidString: String(morceaux[0])),
+                  let nom = nomFichierValide(String(morceaux[1])) else { return nil }
+            return .v2(proprietaire, nom)
+        }
+        if chaine.hasPrefix(prefixeLegacy) {
+            guard let nom = nomFichierValide(
+                String(chaine.dropFirst(prefixeLegacy.count))
+            ) else { return nil }
+            return .legacy(nom)
+        }
+        if let url = URL(string: chaine), url.isFileURL,
+           url.deletingLastPathComponent().lastPathComponent == "Couvertures",
+           let nom = nomFichierValide(url.lastPathComponent) {
+            return .legacy(nom)
+        }
+        return nil
+    }
+
+    private static func nomFichierValide(_ nom: String) -> String? {
+        guard !nom.isEmpty,
+              !nom.contains("/"), !nom.contains("\\"),
+              (nom as NSString).pathExtension.lowercased() == "jpg"
+        else { return nil }
+        return nom
+    }
+
+    private enum Erreur: Error {
+        case imageInvalide, dossierIndisponible, compteIndisponible
     }
 }
 

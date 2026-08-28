@@ -5,9 +5,12 @@ import SwiftData
 /// Grille de tomes cochables (pattern « épisodes TV »), double progression
 /// possédés/lus, suivi de chapitres, prochaine sortie avec rappel.
 struct FicheSerieView: View {
-    /// Toutes les séries : le plafond d'alertes porte sur l'ensemble.
+    /// Toutes les séries : le plafond d'alertes porte sur le compte entier.
     @Query private var series: [Serie]
     @State private var plusVisible = false
+    @State private var plusAlerteVisible = false
+    @State private var plusEtagereVisible = false
+    @State private var droits = Droits.partage
     @Bindable var serie: Serie
 
     @Environment(\.modelContext) private var contexte
@@ -35,7 +38,7 @@ struct FicheSerieView: View {
                 .frame(maxWidth: 280)
                 menuStatut
                 carteTomes
-                if serie.rayonRefuse && !Droits.partage.plus {
+                if serie.rayonRefuse && !droits.plus {
                     invitationRayon
                 }
                 carteSortie
@@ -57,7 +60,11 @@ struct FicheSerieView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    MenuEtageres(cible: .serie(serie), creationVisible: $etagereVisible)
+                    MenuEtageres(
+                        cible: .serie(serie),
+                        creationVisible: $etagereVisible,
+                        plusVisible: $plusEtagereVisible
+                    )
                     Button {
                         Task { await actualiser() }
                     } label: {
@@ -78,29 +85,50 @@ struct FicheSerieView: View {
             titleVisibility: .visible
         ) {
             Button("Retirer", role: .destructive) {
+                let photos = serie.tomes.compactMap(\.couverturePersonnelleURL)
+                let rappel = NotificationsService.cibleAnnulation(pour: serie)
                 contexte.delete(serie)
-                dismiss()
+                do {
+                    try contexte.save()
+                    NotificationsService.annulerRappel(rappel)
+                    for photo in photos { CouverturesPersonnelles.supprimer(photo) }
+                    dismiss()
+                } catch {
+                    contexte.rollback()
+                }
             }
         }
         .alerteNouvelleEtagere(.serie(serie), visible: $etagereVisible)
         .fullScreenCover(item: $cibleSession) { SessionLectureView(cible: $0) }
-        .ecranHonyaPlus($plusVisible, verrou: serie.rayonRefuse
-            ? .serie(
-                nom: serie.nomAffiche(langue),
-                tomes: serie.tomesTotal ?? serie.tomes.count,
-                couvertures: couverturesDeLaSerie
-            )
-            : .alerte(
-                nom: serie.nomAffiche(langue),
-                couvertures: couverturesDeLaSerie
-            ))
+        .ecranHonyaPlus($plusVisible, verrou: .serie(
+            nom: serie.nomAffiche(langue),
+            tomes: serie.tomesTotal ?? serie.tomes.count,
+            couvertures: couverturesDeLaSerie
+        ))
+        .ecranHonyaPlus($plusAlerteVisible, verrou: .alerte(
+            nom: serie.nomAffiche(langue),
+            couvertures: couverturesDeLaSerie
+        ))
+        .ecranHonyaPlus($plusEtagereVisible, verrou: .etagere(
+            couvertures: couverturesDeLaSerie
+        ))
         .sheet(isPresented: $sortieVisible) {
             SortieSheet(serie: serie, langue: langue)
         }
         .onAppear(perform: synchroniserTomes)
-        .task {
-            if serie.couvertureLocaleURL == nil {
-                await EditionsLocales.rafraichirSerieComplete(serie, langue: langue)
+        .task(id: droits.plus) {
+            let jamaisEnrichie = !serie.rayonEnrichi && !serie.rayonRefuse
+            let essaiPerime = serie.dernierEssaiEditionLocale
+                .map { $0 < Date().addingTimeInterval(-24 * 60 * 60) }
+                ?? true
+            if serie.couvertureLocaleURL == nil
+                || jamaisEnrichie
+                || essaiPerime
+                || (droits.plus && serie.rayonRefuse) {
+                ResolveurTomes.reinitialiser(serie)
+                await EditionsLocales.rafraichirSerieComplete(
+                    serie, langue: langue, profonde: true
+                )
             }
         }
     }
@@ -108,45 +136,119 @@ struct FicheSerieView: View {
     /// Re-résout la série depuis AniList (auteur, tomes, résumé) et relance
     /// la recherche des éditions locales — répare les données mal héritées.
     private func actualiser() async {
+        // Conserver ici l'identifiant historique exact : l'actualisation peut
+        // modifier le nom ou ajouter l'identifiant AniList de la série.
+        if serie.rappelActive {
+            NotificationsService.annulerRappel(pour: serie)
+        }
         let reference = serie.nomRomaji ?? serie.noms["en"] ?? serie.nom
+        await AgregateurMetadonnees.partage.viderCache()
         let resultats = await AgregateurMetadonnees.partage.rechercherMangas(reference)
-        if let bon = resultats.first(where: { $0.idAniList == serie.idAniList })
-            ?? resultats.first(where: { $0.estSerie }) {
-            serie.nom = Tomaison.decomposer(bon.titre).base
-            serie.nomRomaji = bon.romaji
-            serie.auteur = bon.auteurs.first
-            serie.genres = bon.genres
-            serie.resume = bon.resume
-            serie.couvertureURL = bon.couvertureURL
+        if let bon = resultatCompatiblePourActualisation(dans: resultats) {
+            let nom = Tomaison.decomposer(bon.titre).base
+            if !nom.isEmpty { serie.nom = nom }
+            if let romaji = bon.romaji, !romaji.isEmpty {
+                serie.nomRomaji = romaji
+            }
+            for alias in bon.titresAlternatifs
+                where !serie.nomsAlternatifs.contains(alias) {
+                serie.nomsAlternatifs.append(alias)
+            }
+            for (code, nom) in bon.titresParLangue {
+                let base = Tomaison.decomposer(nom).base
+                if !base.isEmpty { serie.noms[code] = base }
+            }
+            if let auteur = bon.auteurs.first, !auteur.isEmpty {
+                serie.auteur = auteur
+            }
+            for genre in bon.genres where !serie.genres.contains(genre) {
+                serie.genres.append(genre)
+            }
+            if let resume = bon.resume, !resume.isEmpty { serie.resume = resume }
+            if let couverture = bon.couvertureURL { serie.couvertureURL = couverture }
             if let total = bon.tomesTotal { serie.tomesTotal = total }
-            serie.statutParution = bon.statutParution
+            if bon.statutParution != .inconnue {
+                serie.statutParution = bon.statutParution
+            }
             if serie.idAniList == nil { serie.idAniList = bon.idAniList }
         }
-        // Édition locale : nom, couverture et résumé dans la langue du lecteur.
-        serie.noms[langue] = nil
-        serie.couvertureLocaleURL = nil
-        serie.resumeLocal = nil
-        await EditionsLocales.rafraichirSerieComplete(serie, langue: langue)
-        synchroniserTomes()
-        // Les tomes gardent leurs états lu/possédé, mais leurs métadonnées
-        // héritées d'une autre édition (couverture VO ou anglaise, titre, ISBN)
-        // repartent à zéro : chacun retrouvera l'édition de la langue du lecteur.
-        for tome in serie.tomes {
-            tome.couvertureURL = nil
-            tome.titre = nil
-            tome.isbn = nil
-            tome.pages = nil
-        }
+        // Les nouvelles notices écrasent les champs qu'elles savent confirmer.
+        // On ne vide rien avant le réseau : une panne pendant « Actualiser » ne
+        // doit jamais faire disparaître les titres et couvertures déjà acquis.
         ResolveurTomes.reinitialiser(serie)
+        await EditionsLocales.rafraichirSerieComplete(
+            serie, langue: langue, profonde: true
+        )
+        synchroniserTomes()
+        if serie.rappelActive {
+            serie.rappelActive = await NotificationsService.planifierRappelSortie(
+                pour: serie, langue: langue
+            )
+        }
     }
 
-    /// Crée les cases manquantes si AniList annonce plus de tomes que la grille.
-    private func synchroniserTomes() {
-        guard let total = serie.tomesTotal, total > serie.tomes.count else { return }
-        let existants = Set(serie.tomes.map(\.numero))
-        for numero in 1...total where !existants.contains(numero) {
-            serie.tomes.append(Tome(numero: numero))
+    /// Une réponse proche dans les résultats n'est pas une identité. Si la
+    /// série porte déjà un identifiant AniList, lui seul est accepté. Pour une
+    /// ancienne série sans identifiant, le nom ET l'auteur doivent concorder ;
+    /// en l'absence d'auteur des deux côtés, seul le nom exact suffit.
+    private func resultatCompatiblePourActualisation(
+        dans resultats: [ResultatRecherche]
+    ) -> ResultatRecherche? {
+        if let identifiant = serie.idAniList {
+            return resultats.first {
+                $0.estSerie && $0.idAniList == identifiant
+            }
         }
+
+        let nomsSerie = ([serie.nom, serie.nomRomaji].compactMap { $0 })
+            + Array(serie.noms.values) + serie.nomsAlternatifs
+        let auteursSerie = [serie.auteur].compactMap { $0 }
+        return resultats.first { candidat in
+            guard candidat.estSerie else { return false }
+            let nomsCandidat = ([candidat.titre, candidat.titreOriginal, candidat.romaji]
+                .compactMap { $0 })
+                + Array(candidat.titresParLangue.values)
+                + candidat.titresAlternatifs
+            let titreCompatible = nomsSerie.contains { nomSerie in
+                nomsCandidat.contains { Tomaison.memeSerie($0, nomSerie) }
+            }
+            guard titreCompatible else { return false }
+            if auteursSerie.isEmpty || candidat.auteurs.isEmpty {
+                let clesSerie = Set(nomsSerie.map {
+                    TexteUtil.normaliser(Tomaison.decomposer($0).base)
+                })
+                return nomsCandidat.contains {
+                    clesSerie.contains(
+                        TexteUtil.normaliser(Tomaison.decomposer($0).base)
+                    )
+                }
+            }
+            return AuteursUtil.correspondent(candidat.auteurs, auteursSerie)
+        }
+    }
+
+    /// Retire les anciennes cases 1...N créées depuis le seul total AniList.
+    /// Les vrais volumes locaux portent au moins un titre, un ISBN, une date
+    /// ou une couverture ; les possessions du lecteur ne sont jamais touchées.
+    private func synchroniserTomes() {
+        if let sortie = serie.prochaineSortieDate,
+           !DateCivile.estAujourdhuiOuApres(sortie) {
+            if serie.rappelActive {
+                NotificationsService.annulerRappel(pour: serie)
+            }
+            serie.rappelActive = false
+            serie.prochaineSortieNumero = nil
+            serie.prochaineSortieDate = nil
+        }
+        let fantomes = serie.tomes.filter {
+            !$0.possede && !$0.lu && $0.titre == nil && $0.isbn == nil
+                && $0.couvertureURL == nil && $0.pages == nil
+                && $0.dateSortie == nil
+        }
+        for tome in fantomes {
+            contexte.delete(tome)
+        }
+        if !fantomes.isEmpty { serie.rayonComplet = false }
     }
 
     // MARK: - Bannière
@@ -188,6 +290,11 @@ struct FicheSerieView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
                         .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
+                }
+                if let attribution = serie.attributionCouvertureAffichee {
+                    Text(verbatim: attribution)
+                        .font(.system(size: 9))
+                        .foregroundStyle(.tertiary)
                 }
             }
             Spacer(minLength: 0)
@@ -296,21 +403,29 @@ struct FicheSerieView: View {
 
     private func basculerRappel() {
         if serie.rappelActive {
-            // Couper une alerte est toujours libre : on ne piège personne.
             serie.rappelActive = false
             NotificationsService.annulerRappel(pour: serie)
         } else {
-            let suivies = series.filter(\.rappelActive).count
-            guard Droits.partage.plus || suivies < Limites.alertesSortie else {
-                plusVisible = true
+            guard droits.plus
+                    || series.lazy.filter(\.rappelActive).count < Limites.alertesSortie
+            else {
+                plusAlerteVisible = true
                 return
             }
             Task { @MainActor in
                 guard await NotificationsService.demanderAutorisation() else { return }
-                serie.rappelActive = true
-                await NotificationsService.planifierRappelSortie(pour: serie, langue: langue)
+                serie.rappelActive = await NotificationsService.planifierRappelSortie(
+                    pour: serie, langue: langue
+                )
             }
         }
+    }
+
+    /// Une alerte existante reste libre à couper. Le cadenas n'apparaît que
+    /// sur le geste qui dépasserait la première série offerte.
+    private var alerteVerrouillee: Bool {
+        guard !droits.plus, !serie.rappelActive else { return false }
+        return series.lazy.filter(\.rappelActive).count >= Limites.alertesSortie
     }
 
     /// Le statut de la série se CHOISIT — il était seulement calculé, si bien
@@ -357,13 +472,6 @@ struct FicheSerieView: View {
         .buttonStyle(.plain)
     }
 
-    /// Une alerte de plus est-elle hors d'atteinte ? La série déjà suivie
-    /// garde sa cloche libre : on ne verrouille que ce qui bloquerait.
-    private var alerteVerrouillee: Bool {
-        guard !Droits.partage.plus, !serie.rappelActive else { return false }
-        return series.filter(\.rappelActive).count >= Limites.alertesSortie
-    }
-
     /// Quand le rayon automatique a été refusé, la fiche le dit clairement et
     /// propose de l'ouvrir — plutôt que de laisser croire à un catalogue vide.
     private var invitationRayon: some View {
@@ -402,7 +510,7 @@ struct FicheSerieView: View {
 
     /// Les trois premières couvertures de tomes, pour l'écran Honya+.
     private var couverturesDeLaSerie: [String] {
-        let tomes = serie.tomesTries.compactMap(\.couvertureURL)
+        let tomes = serie.tomesTries.compactMap(\.couvertureAffichee)
         return tomes.isEmpty
             ? [serie.couvertureAffichee].compactMap { $0 }
             : Array(tomes.prefix(3))
@@ -433,24 +541,36 @@ private struct SortieSheet: View {
     @State private var numero: Int = 1
     @State private var date: Date = .now
 
+    private var aujourdHui: Date { Calendar.current.startOfDay(for: .now) }
+
     var body: some View {
         NavigationStack {
             Form {
                 Stepper("Tome \(numero)", value: $numero, in: 1...500)
                     .monospacedDigit()
-                DatePicker("Date de sortie", selection: $date, displayedComponents: .date)
+                DatePicker(
+                    "Date de sortie",
+                    selection: $date,
+                    in: aujourdHui...,
+                    displayedComponents: .date
+                )
             }
             .navigationTitle("Prochaine sortie")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Enregistrer") {
+                        // L'identifiant historique contenait le numéro : il
+                        // faut l'annuler tant que l'ancien numéro est connu.
+                        if serie.rappelActive {
+                            NotificationsService.annulerRappel(pour: serie)
+                        }
                         serie.prochaineSortieNumero = numero
                         serie.prochaineSortieDate = date
                         if serie.rappelActive {
                             Task { @MainActor in
-                                NotificationsService.annulerRappel(pour: serie)
-                                await NotificationsService.planifierRappelSortie(pour: serie, langue: langue)
+                                serie.rappelActive = await NotificationsService
+                                    .planifierRappelSortie(pour: serie, langue: langue)
                             }
                         }
                         dismiss()
@@ -465,7 +585,7 @@ private struct SortieSheet: View {
         .onAppear {
             numero = serie.prochaineSortieNumero
                 ?? ((serie.tomes.map(\.numero).max() ?? 0) + 1)
-            date = serie.prochaineSortieDate ?? .now
+            date = max(serie.prochaineSortieDate ?? aujourdHui, aujourdHui)
         }
     }
 }

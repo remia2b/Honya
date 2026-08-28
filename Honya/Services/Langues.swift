@@ -37,7 +37,7 @@ enum Langues {
         return codes
             .map(LangueLecture.init(code:))
             .sorted {
-                if $0.code == appareil { return true }
+                if $0.code == appareil { return $1.code != appareil }
                 if $1.code == appareil { return false }
                 return $0.nomLocal.localizedCaseInsensitiveCompare($1.nomLocal) == .orderedAscending
             }
@@ -52,8 +52,7 @@ enum Langues {
         LangueLecture(code: code).nomNatif
     }
 
-    /// Storefront Apple Books du lecteur : la région de l'iPhone d'abord,
-    /// sinon le pays le plus naturel pour sa langue de lecture.
+    /// Storefront Apple Books associé à chaque langue de lecture.
     private static let boutiqueParLangue: [String: String] = [
         "fr": "FR", "en": "US", "ja": "JP", "es": "ES", "de": "DE",
         "it": "IT", "pt": "BR", "nl": "NL", "sv": "SE", "da": "DK",
@@ -63,25 +62,32 @@ enum Langues {
         "id": "ID", "ko": "KR", "zh": "CN", "ca": "ES", "eu": "ES",
     ]
 
-    /// La boutique du LECTEUR : son propre pays d'abord, pour ses propres
-    /// recherches. Un francophone installé au Canada doit voir la boutique
-    /// canadienne, pas la française.
+    /// La boutique de la LANGUE choisie dans Honya. La région courante ne doit
+    /// pas reprendre la main : si le lecteur demande l'édition japonaise sur
+    /// un iPhone français, il faut interroger le Japon, pas la France.
     static func storefront(pourLangue langue: String) -> String {
-        if let region = Locale.current.region?.identifier, region.count == 2 {
-            return region
+        let code = langue.lowercased()
+            .split(whereSeparator: { $0 == "-" || $0 == "_" })
+            .first
+            .map { String($0) } ?? langue.lowercased()
+        // Pour la langue principale de l'appareil, conserver son vrai marché :
+        // en-GB, fr-CA, fr-CH et pt-PT ne sont pas les éditions US/FR/BR.
+        if code == codeAppareil,
+           let region = Locale.current.region?.identifier,
+           region.count == 2 {
+            return region.uppercased()
         }
-        return boutiqueParLangue[langue] ?? "US"
+        return boutiqueParLangue[code] ?? "US"
     }
 
-    /// La boutique de l'ÉDITION, dictée par le groupe d'enregistrement de
-    /// l'ISBN.
+    /// La boutique de repli la plus plausible pour l'édition, estimée depuis
+    /// le groupe d'enregistrement de l'ISBN.
     ///
-    /// Pour un code-barres, c'est le code qui commande, jamais le réglage du
-    /// téléphone : il dit dans quel pays l'édition a paru, et seule cette
-    /// boutique-là la vend. On interrogeait la boutique du lecteur pour tout
-    /// ISBN — donc la boutique américaine pour un manga publié par Kazé en
-    /// France, qui ne l'a évidemment jamais eu. Le livre était déclaré
-    /// introuvable alors qu'Apple l'avait, à une lettre de pays près.
+    /// Ce groupe décrit une zone linguistique d'enregistrement, pas avec
+    /// certitude le pays de vente : le résultat reste donc un filet imparfait.
+    /// Il évite néanmoins de demander systématiquement la boutique américaine
+    /// pour un ISBN francophone ou japonais. La correspondance finale demeure
+    /// strictement contrôlée sur l'ISBN exact.
     static func storefrontEdition(_ isbn: String) -> String {
         if let langue = ISBNUtil.langueProbable(isbn),
            let pays = boutiqueParLangue[langue] {

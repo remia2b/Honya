@@ -7,7 +7,7 @@ import SwiftUI
 /// concernés, et une seule offre : une seule décision à prendre. Sans verrou —
 /// depuis les réglages — il déroule tout, avec les trois tarifs.
 ///
-/// Fermer l'écran propose la roue promotionnelle, une fois par personne.
+/// Les achats sont toujours effectués et validés par StoreKit.
 struct HonyaPlusView: View {
     var verrou: Verrou?
 
@@ -18,7 +18,6 @@ struct HonyaPlusView: View {
     @State private var boutique = Boutique.partage
     @State private var formuleChoisie: Boutique.Formule?
     @State private var toutVoir = false
-    @State private var roueVisible = false
     @State private var apparu = false
     /// De quoi garnir le rayon quand la bibliothèque est encore vide.
     @State private var tendances: [String] = []
@@ -60,6 +59,7 @@ struct HonyaPlusView: View {
         .task {
             // Le catalogue a pu être chargé au lancement ; on redemande si le
             // réseau manquait alors.
+            if !boutique.droitsVerifies { await boutique.relireLesDroits() }
             if boutique.articles.isEmpty { await boutique.charger() }
             formuleChoisie = formuleParDefaut
         }
@@ -67,9 +67,6 @@ struct HonyaPlusView: View {
             guard oeuvres.isEmpty else { return }
             let top = await Decouverte.classement(gratuits: false, langue: Langues.codeAppareil)
             tendances = top.compactMap(\.couvertureURL)
-        }
-        .fullScreenCover(isPresented: $roueVisible) {
-            RoueSheet { dismiss() }
         }
     }
 
@@ -216,14 +213,12 @@ struct HonyaPlusView: View {
         VStack(alignment: .leading, spacing: 13) {
             avantage("books.vertical.fill", "Séries automatiques sans limite",
                      "un tome ajouté, tout le rayon apparaît")
-            avantage("bell.badge.fill", "Alertes à chaque nouveau tome",
-                     "sur toutes vos séries, pas une seule")
-            avantage("barcode.viewfinder", "Scan illimité, étagères entières",
-                     "une rangée de codes-barres à la volée")
-            avantage("chart.bar.fill", "Tout votre historique de lecture",
-                     "records, heatmap de l'année, humeurs")
+            avantage("books.vertical.fill", "Votre collection dépasse le gratuit",
+                     "Rayons complets, bibliothèque sans plafond, historique entier.")
             avantage("heart.fill", "Prêts, citations et étagères",
                      "sans compteur qui vous arrête")
+            avantage("chart.bar.fill", "Tout votre historique de lecture",
+                     "Vos statistiques sur tout l'historique")
         }
         .padding(.horizontal, 28)
         .padding(.top, 20)
@@ -248,9 +243,9 @@ struct HonyaPlusView: View {
 
     // MARK: - Les tarifs
 
-    /// Ce que l'on met en avant : l'annuel, remisé si la roue l'a accordé.
+    /// Ce que l'on met en avant : l'abonnement annuel public.
     private var formuleParDefaut: Boutique.Formule {
-        boutique.formulesVisibles.contains(.annuelRemise) ? .annuelRemise : .annuel
+        .annuel
     }
 
     /// En contextuel, une seule décision à prendre — donc une seule offre.
@@ -281,18 +276,6 @@ struct HonyaPlusView: View {
         return formule.detail
     }
 
-    /// Le ruban ne promet des jours offerts que si l'App Store en propose
-    /// vraiment : une promesse d'essai non tenue fait refuser l'application.
-    private func ruban(_ formule: Boutique.Formule) -> String? {
-        guard let article = boutique.articles[formule] else {
-            return formule == .annuel ? String(localized: "7 jours offerts") : nil
-        }
-        guard let offre = article.subscription?.introductoryOffer,
-              offre.paymentMode == .freeTrial else { return nil }
-        let jours = offre.period.value * (offre.period.unit == .week ? 7 : 1)
-        return String(localized: "\(jours) jours offerts")
-    }
-
     private func tarif(_ formule: Boutique.Formule) -> some View {
         let choisi = formuleChoisie == formule
         return HStack {
@@ -317,17 +300,6 @@ struct HonyaPlusView: View {
                     lineWidth: choisi ? 2 : 1.5
                 )
         )
-        .overlay(alignment: .topLeading) {
-            if let ruban = ruban(formule) {
-                Text(ruban)
-                    .font(.system(size: 10.5, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 2)
-                    .background(Couleurs.accent, in: Capsule())
-                    .offset(x: 14, y: -9)
-            }
-        }
         .animation(.snappy(duration: 0.18), value: choisi)
     }
 
@@ -336,17 +308,35 @@ struct HonyaPlusView: View {
     /// L'intitulé dit exactement ce qui va être débité : « essayer
     /// gratuitement » sur une formule sans essai est un motif de refus.
     private var intituleAchat: String {
-        guard let formule = formuleChoisie else { return String(localized: "Continuer") }
-        if ruban(formule) != nil { return String(localized: "Commencer l'essai gratuit") }
+        if droits.plus || boutique.abonne {
+            return String(localized: "Votre abonnement est actif.")
+        }
+        guard let formule = formuleChoisie,
+              boutique.articles[formule] != nil else {
+            return String(localized: "Continuer")
+        }
+        if boutique.dureeEssai(formule) != nil {
+            return String(localized: "Commencer l'essai gratuit")
+        }
         return String(localized: "Continuer pour \(boutique.prix(formule))")
     }
 
     private var mentionAchat: String {
-        guard let formule = formuleChoisie else { return "" }
+        if droits.plus || boutique.abonne { return "" }
+        guard let formule = formuleChoisie,
+              boutique.articles[formule] != nil else { return "" }
         if formule == .vie { return String(localized: "Paiement unique, sans renouvellement.") }
-        return ruban(formule) != nil
-            ? String(localized: "Puis \(boutique.prix(formule)). Résiliable à tout moment.")
-            : String(localized: "Renouvelé automatiquement. Résiliable à tout moment.")
+        if let duree = boutique.dureeEssai(formule) {
+            return String(localized:
+                "Essai gratuit pendant \(duree), puis \(boutique.prix(formule)). Renouvelé automatiquement."
+            )
+        }
+        return String(localized: "Renouvelé automatiquement. Résiliable à tout moment.")
+    }
+
+    private var offreDisponible: Bool {
+        guard let formule = formuleChoisie else { return false }
+        return boutique.articles[formule] != nil
     }
 
     private var bouton: some View {
@@ -355,7 +345,7 @@ struct HonyaPlusView: View {
                 Task { await acheter() }
             } label: {
                 HStack(spacing: 8) {
-                    if boutique.achatEnCours != nil { ProgressView().tint(.white) }
+                    if boutique.operationEnCours { ProgressView().tint(.white) }
                     Text(intituleAchat)
                         .font(.system(size: 17, weight: .semibold))
                 }
@@ -365,8 +355,25 @@ struct HonyaPlusView: View {
                 .background(Couleurs.accent, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
             }
             .buttonStyle(.plain)
-            .disabled(boutique.achatEnCours != nil || formuleChoisie == nil)
-            .opacity(boutique.achatEnCours != nil ? 0.6 : 1)
+            .disabled(
+                boutique.operationEnCours || !boutique.droitsVerifies
+                    || formuleChoisie == nil || !offreDisponible
+                    || droits.plus || boutique.abonne
+            )
+            .opacity(
+                boutique.operationEnCours || !boutique.droitsVerifies
+                    || !offreDisponible || droits.plus || boutique.abonne
+                    ? 0.55 : 1
+            )
+
+            if !boutique.chargement, !offreDisponible,
+               !droits.plus, !boutique.abonne {
+                Text("Cette offre n'est pas disponible pour le moment.")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 9)
+            }
 
             if let souci = boutique.souci {
                 Text(souci)
@@ -398,7 +405,22 @@ struct HonyaPlusView: View {
             }
             .font(.system(size: 12.5))
             .tint(.secondary)
+            .disabled(boutique.operationEnCours || !boutique.droitsVerifies)
             .padding(.top, 7)
+
+            HStack(spacing: 16) {
+                Link(
+                    "Politique de confidentialité",
+                    destination: URL(string: "https://www.honya.app/en/privacy/")!
+                )
+                Link(
+                    "Conditions d’utilisation",
+                    destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+                )
+            }
+            .font(.system(size: 11.5))
+            .foregroundStyle(.secondary)
+            .padding(.top, 10)
         }
         .padding(.horizontal, 24)
         .padding(.top, 14)
@@ -407,14 +429,9 @@ struct HonyaPlusView: View {
     }
 
     private func acheter() async {
-        guard let formule = formuleChoisie else { return }
-        // Tant que les articles n'existent pas côté Apple, la version de test
-        // débloque localement plutôt que de laisser un bouton sans effet.
-        guard boutique.articles[formule] != nil else {
-            droits.activerEssai()
-            dismiss()
-            return
-        }
+        guard !droits.plus, !boutique.abonne,
+              let formule = formuleChoisie,
+              boutique.articles[formule] != nil else { return }
         if await boutique.acheter(formule) { dismiss() }
     }
 
@@ -422,17 +439,11 @@ struct HonyaPlusView: View {
         VStack {
             HStack {
                 Spacer()
-                Button {
-                    if RoueSheet.disponible {
-                        roueVisible = true
-                    } else {
-                        dismiss()
-                    }
-                } label: {
+                Button { dismiss() } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(.secondary)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
                         // Un fond translucide plutôt qu'une teinte : la croix
                         // se posait sur les couvertures et s'y perdait.
                         .background(.regularMaterial, in: Circle())

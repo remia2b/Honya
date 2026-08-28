@@ -279,6 +279,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Honya-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Honya;
+				INFOPLIST_KEY_HONYA_ANILIST_LICENSED = NO;
+				INFOPLIST_KEY_HONYA_APPLE_BOOKS_PROMO_COMPLIANT = NO;
+				INFOPLIST_KEY_HONYA_GOOGLE_BOOKS_LICENSED = NO;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Honya utilise l'appareil photo pour scanner le code-barres ISBN de vos livres.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -312,6 +315,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Honya-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Honya;
+				INFOPLIST_KEY_HONYA_ANILIST_LICENSED = NO;
+				INFOPLIST_KEY_HONYA_APPLE_BOOKS_PROMO_COMPLIANT = NO;
+				INFOPLIST_KEY_HONYA_GOOGLE_BOOKS_LICENSED = NO;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Honya utilise l'appareil photo pour scanner le code-barres ISBN de vos livres.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

@@ -2,7 +2,8 @@ import Foundation
 
 /// LA source pour les séries manga : titres officiels (natif / romaji / anglais),
 /// couvertures HD, nombre de tomes/chapitres, statut de parution.
-/// GraphQL public, sans clé (~90 requêtes/minute).
+/// GraphQL public, sans clé (30 requêtes/minute pendant la limitation
+/// temporaire annoncée par AniList).
 struct AniListProvider: MetadataProvider {
 
     func rechercher(_ requete: String, langue: String?) async throws -> [ResultatRecherche] {
@@ -16,7 +17,14 @@ struct AniListProvider: MetadataProvider {
         demande.setValue("application/json", forHTTPHeaderField: "Accept")
         demande.httpBody = try JSONSerialization.data(withJSONObject: corps)
 
-        let (donnees, _) = try await Reseau.catalogues.data(for: demande)
+        try await CadenceAniList.partage.attendre()
+        let (donnees, reponseHTTP) = try await Reseau.catalogues.data(for: demande)
+        if let http = reponseHTTP as? HTTPURLResponse, http.statusCode == 429 {
+            let secondes = http.value(forHTTPHeaderField: "Retry-After")
+                .flatMap(Double.init) ?? 60
+            await CadenceAniList.partage.bloquer(pendant: secondes)
+            throw URLError(.resourceUnavailable)
+        }
         let reponse = try JSONDecoder().decode(Reponse.self, from: donnees)
         return (reponse.data?.Page?.media ?? []).map { $0.enResultat() }
     }
@@ -30,10 +38,12 @@ struct AniListProvider: MetadataProvider {
         media(search: $recherche, type: MANGA, sort: SEARCH_MATCH) {
           id
           title { romaji english native }
+          synonyms
           coverImage { extraLarge large }
           volumes
           chapters
           status
+          countryOfOrigin
           genres
           description(asHtml: false)
           startDate { year }
@@ -58,10 +68,12 @@ struct AniListProvider: MetadataProvider {
     private struct Media: Decodable {
         let id: Int
         let title: Titre?
+        let synonyms: [String]?
         let coverImage: Couverture?
         let volumes: Int?
         let chapters: Int?
         let status: String?
+        let countryOfOrigin: String?
         let genres: [String]?
         let description: String?
         let startDate: DateDebut?
@@ -94,9 +106,19 @@ struct AniListProvider: MetadataProvider {
             )
             resultat.titreOriginal = natif ?? romaji
             resultat.romaji = romaji
+            resultat.titresAlternatifs = synonyms ?? []
             if let anglais { resultat.titresParLangue["en"] = anglais }
             else if let romaji { resultat.titresParLangue["en"] = romaji }
-            if let natif { resultat.titresParLangue["ja"] = natif }
+            if let natif {
+                let langueNative: String?
+                switch countryOfOrigin {
+                case "JP": langueNative = "ja"
+                case "KR": langueNative = "ko"
+                case "CN", "TW": langueNative = "zh"
+                default: langueNative = nil
+                }
+                if let langueNative { resultat.titresParLangue[langueNative] = natif }
+            }
             // Les crédits AniList mêlent mangaka et traducteurs : on ne garde
             // que la plume et le trait (Story / Art), jamais la traduction.
             let aretes = staff?.edges ?? []
@@ -124,6 +146,47 @@ struct AniListProvider: MetadataProvider {
             default: resultat.statutParution = .inconnue
             }
             return resultat
+        }
+    }
+}
+
+/// Une cadence globale évite le burst limiter et le plafond temporaire de
+/// 30 appels/minute. `Task.sleep` propage l'annulation : une ancienne frappe
+/// ne consomme jamais un appel après avoir été remplacée.
+private actor CadenceAniList {
+    static let partage = CadenceAniList()
+    private static let capacite = 1.0
+    private static let parSeconde = 30.0 / 60.0
+    private var jetons = capacite
+    private var derniereMesure = Date()
+
+    func attendre() async throws {
+        while true {
+            try Task.checkCancellation()
+            recharger()
+            if jetons >= 1 {
+                jetons -= 1
+                return
+            }
+            let manque = (1 - jetons) / Self.parSeconde
+            try await Task.sleep(for: .seconds(manque))
+        }
+    }
+
+    func bloquer(pendant secondes: TimeInterval) {
+        jetons = 0
+        derniereMesure = max(
+            derniereMesure,
+            Date().addingTimeInterval(max(0, secondes))
+        )
+    }
+
+    private func recharger() {
+        let maintenant = Date()
+        let ecoule = maintenant.timeIntervalSince(derniereMesure)
+        if ecoule > 0 {
+            jetons = min(Self.capacite, jetons + ecoule * Self.parSeconde)
+            derniereMesure = maintenant
         }
     }
 }

@@ -32,14 +32,36 @@ struct RechercheView: View {
     @State private var resultats: [ResultatRecherche] = []
     @State private var enChargement = false
     @State private var scannerVisible = false
+    @State private var ajoutManuelVisible = false
+    @State private var plusVisible = false
     @State private var ajoutes: Set<String> = []
     @State private var tendances: [ResultatRecherche] = []
     @FocusState private var champActif: Bool
 
     private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
-    private var langueEffective: String? {
-        toutesLangues ? nil : (langueChoisie ?? langue)
+    private var languesConfigurees: [String] {
+        let configurees = objectifs.first?.languesLecture ?? []
+        return configurees.isEmpty ? [langue] : configurees
     }
+    private var langueSelectionnee: String {
+        guard let langueChoisie, languesConfigurees.contains(langueChoisie) else {
+            return langue
+        }
+        return langueChoisie
+    }
+    private var langueEffective: String? {
+        // Une recherche manga doit toujours cibler une édition dans l'une
+        // des langues de lecture configurées. Le mode global « Toutes » reste
+        // disponible pour les livres et la recherche mixte.
+        if portee == .mangas || !toutesLangues {
+            return langueSelectionnee
+        }
+        return nil
+    }
+    /// Langue utilisée par les lignes et les fiches. En mode « toutes », la
+    /// langue principale reste le meilleur repli ; sinon le choix du menu doit
+    /// suivre jusqu'au dernier écran, pas seulement jusqu'à l'API.
+    private var langueAffichage: String { langueEffective ?? langue }
 
     var body: some View {
         NavigationStack {
@@ -65,10 +87,8 @@ struct RechercheView: View {
                     .pickerStyle(.segmented)
                     .padding(.horizontal, 20)
 
-                    if portee != .mangas {
-                        menuLangue
-                            .padding(.horizontal, 20)
-                    }
+                    menuLangue
+                        .padding(.horizontal, 20)
 
                     contenu
                         .padding(.horizontal, 20)
@@ -86,6 +106,23 @@ struct RechercheView: View {
                     portee = .tout
                 }
             }
+            .sheet(isPresented: $ajoutManuelVisible) {
+                AjoutManuelSheet(
+                    isbnInitial: ISBNUtil.canonique(texte) ?? "",
+                    titreInitial: ISBNUtil.canonique(texte) == nil ? texte : "",
+                    typeInitial: portee == .mangas ? .manga : .livre,
+                    langueInitiale: langueEffective ?? langue
+                ) { resultat in
+                    ajoutes.insert(resultat.id)
+                    // Une recherche ISBN ne peut plus retrouver localement le
+                    // livre par son titre. Après saisie, on montre donc la
+                    // fiche réellement créée plutôt qu'un ancien état vide.
+                    if ISBNUtil.canonique(texte) != nil {
+                        texte = resultat.titre
+                    }
+                }
+            }
+            .ecranHonyaPlus($plusVisible, verrou: .bibliotheque())
             .task(id: cleRecherche) {
                 await lancerRecherche()
             }
@@ -130,17 +167,23 @@ struct RechercheView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Menu {
-                ForEach(objectifs.first?.languesLecture ?? [Langues.codeAppareil], id: \.self) { code in
+                ForEach(languesConfigurees, id: \.self) { code in
                     Button(Langues.nom(code)) {
                         langueChoisie = code
                         toutesLangues = false
                     }
                 }
-                Divider()
-                Button("Toutes les langues") { toutesLangues = true }
+                if portee != .mangas {
+                    Divider()
+                    Button("Toutes les langues") { toutesLangues = true }
+                }
             } label: {
                 HStack(spacing: 4) {
-                    Text(toutesLangues ? "Toutes" : Langues.nom(langueEffective ?? langue))
+                    Text(
+                        toutesLangues && portee != .mangas
+                            ? String(localized: "Toutes les langues")
+                            : Langues.nom(langueEffective ?? langue)
+                    )
                     Image(systemName: "chevron.up.chevron.down")
                         .font(.system(size: 9, weight: .bold))
                 }
@@ -167,8 +210,17 @@ struct RechercheView: View {
         } else if texte.count < 2 {
             suggestions
         } else if resultats.isEmpty && trouvesLocalement.isEmpty {
-            ContentUnavailableView.search(text: texte)
-                .padding(.top, 30)
+            VStack(spacing: 14) {
+                ContentUnavailableView.search(text: texte)
+                Button {
+                    ajoutManuelVisible = true
+                } label: {
+                    Label("Ajouter un livre", systemImage: "square.and.pencil")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Couleurs.accent)
+            }
+            .padding(.top, 30)
         } else {
             LazyVStack(spacing: 8) {
                 if !trouvesLocalement.isEmpty {
@@ -182,16 +234,22 @@ struct RechercheView: View {
                 }
                 ForEach(resultats) { resultat in
                     NavigationLink {
-                        ApercuResultatView(resultat: resultat, langue: langue)
+                        ApercuResultatView(resultat: resultat, langue: langueAffichage)
                     } label: {
                         RangeeResultat(
                             resultat: resultat,
-                            langue: langue,
+                            langue: langueAffichage,
                             dejaAjoute: ajoutes.contains(resultat.id)
                                 || ImportService.existeDeja(resultat, dans: contexte)
                         ) { statut in
-                            ImportService.ajouter(resultat, statut: statut, dans: contexte)
-                            ajoutes.insert(resultat.id)
+                            switch ImportService.ajouter(
+                                resultat, statut: statut, dans: contexte
+                            ) {
+                            case .limiteAtteinte:
+                                plusVisible = true
+                            case .oeuvre, .serie, .dejaPresent:
+                                ajoutes.insert(resultat.id)
+                            }
                         }
                     }
                     .buttonStyle(.plain)
@@ -284,7 +342,7 @@ struct RechercheView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Scannez toute une étagère")
                         .font(.subheadline.weight(.bold))
-                    Text("Le code-barres au dos du livre suffit : titre, couverture et pages arrivent tout seuls, tome après tome.")
+                    Text("La recherche privilégie les éditions dans vos langues, et les titres s'affichent tels qu'ils sont officiellement publiés.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -302,11 +360,27 @@ struct RechercheView: View {
     // MARK: - Résultats locaux
 
     private var oeuvresLocales: [Oeuvre] {
-        texte.count >= 2 ? oeuvres.filter { $0.correspond(texte) } : []
+        guard texte.count >= 2 else { return [] }
+        return oeuvres.filter { oeuvre in
+            guard oeuvre.correspond(texte) else { return false }
+            switch portee {
+            case .tout: return true
+            case .livres: return oeuvre.type == .livre
+            case .mangas: return oeuvre.type != .livre
+            }
+        }
     }
 
     private var seriesLocales: [Serie] {
-        texte.count >= 2 ? series.filter { $0.correspond(texte) } : []
+        guard texte.count >= 2 else { return [] }
+        return series.filter { serie in
+            guard serie.correspond(texte) else { return false }
+            switch portee {
+            case .tout: return true
+            case .livres: return serie.type == .livre
+            case .mangas: return serie.type != .livre
+            }
+        }
     }
 
     private var trouvesLocalement: [String] {
@@ -322,7 +396,7 @@ struct RechercheView: View {
                     FicheOeuvreView(oeuvre: oeuvre)
                 } label: {
                     ligneLocale(
-                        titre: oeuvre.titre(langue),
+                        titre: oeuvre.titre(langueAffichage),
                         sousTitre: oeuvre.auteurPrincipal,
                         couverture: oeuvre.couvertureAffichee,
                         manga: oeuvre.type != .livre
@@ -335,7 +409,7 @@ struct RechercheView: View {
                     FicheSerieView(serie: serie)
                 } label: {
                     ligneLocale(
-                        titre: serie.nomAffiche(langue),
+                        titre: serie.nomAffiche(langueAffichage),
                         sousTitre: "\(serie.nbPossedes) possédés · \(serie.nbLus) lus",
                         couverture: serie.couvertureAffichee,
                         manga: serie.type != .livre
@@ -376,6 +450,7 @@ struct RechercheView: View {
     private func lancerRecherche() async {
         guard texte.count >= 2 else {
             resultats = []
+            enChargement = false
             return
         }
         // Anti-rebond : on attend que la frappe se calme.
@@ -383,19 +458,51 @@ struct RechercheView: View {
         guard !Task.isCancelled else { return }
 
         enChargement = true
-        defer { enChargement = false }
 
-        switch portee {
-        case .tout:
-            async let livres = AgregateurMetadonnees.partage.rechercherLivres(texte, langue: langueEffective)
-            async let mangas = AgregateurMetadonnees.partage.rechercherMangas(texte, langue: langue)
-            // Les séries d'abord : c'est ce qu'on cherche le plus souvent par leur nom.
-            resultats = await mangas + livres
-        case .livres:
-            resultats = await AgregateurMetadonnees.partage.rechercherLivres(texte, langue: langueEffective)
-        case .mangas:
-            resultats = await AgregateurMetadonnees.partage.rechercherMangas(texte, langue: langue)
+        // Un ISBN saisi au clavier mérite les mêmes garanties que la caméra :
+        // clé de contrôle valide, correspondance canonique exacte et aucune
+        // couverture empruntée à un autre tirage.
+        let nouveaux: [ResultatRecherche]
+        if let isbn = ISBNUtil.canonique(texte) {
+            guard let rapide = await AgregateurMetadonnees.partage.parISBN(isbn) else {
+                guard !Task.isCancelled, ISBNUtil.canonique(texte) == isbn else { return }
+                resultats = []
+                enChargement = false
+                return
+            }
+            guard !Task.isCancelled, ISBNUtil.canonique(texte) == isbn else { return }
+
+            // Même comportement que la caméra : la fiche identifiable paraît
+            // immédiatement, puis les catalogues nationaux complètent CET ISBN
+            // en arrière-plan (type, résumé, couverture exacte si disponible).
+            resultats = [rapide]
+            enChargement = false
+            let enrichi = await AgregateurMetadonnees.partage.enrichirFicheExacte(rapide)
+            guard !Task.isCancelled, ISBNUtil.canonique(texte) == isbn else { return }
+            ImportService.appliquerEnrichissementExact(enrichi, dans: contexte)
+            if enrichi != rapide { resultats = [enrichi] }
+            return
+        } else {
+            switch portee {
+            case .tout:
+                nouveaux = await AgregateurMetadonnees.partage
+                    .rechercherTout(texte, langue: langueEffective)
+            case .livres:
+                nouveaux = await AgregateurMetadonnees.partage
+                    .rechercherLivres(texte, langue: langueEffective)
+                    .filter { $0.type == .livre && !$0.estUnTome }
+            case .mangas:
+                nouveaux = await AgregateurMetadonnees.partage
+                    .rechercherMangas(texte, langue: langueSelectionnee)
+            }
         }
+
+        // `.task(id:)` annule l'ancienne frappe, mais les fournisseurs qui
+        // avaient déjà reçu leur requête peuvent encore répondre. Seule la
+        // recherche toujours courante a le droit de toucher l'écran.
+        guard !Task.isCancelled else { return }
+        resultats = nouveaux
+        enChargement = false
     }
 }
 
@@ -428,7 +535,8 @@ private struct RangeeResultat: View {
                         .lineLimit(1)
                 }
                 HStack(spacing: 4) {
-                    if let numero = Tomaison.decomposer(resultat.titre).numero, !resultat.estSerie {
+                    if resultat.estUnTome,
+                       let numero = Tomaison.decomposer(resultat.titre).numero {
                         Text("Tome \(numero)")
                             .font(.system(size: 9, weight: .heavy))
                             .padding(.horizontal, 6)

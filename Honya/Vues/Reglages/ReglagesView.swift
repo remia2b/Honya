@@ -4,14 +4,29 @@ import SwiftData
 struct ReglagesView: View {
     @Environment(\.modelContext) private var contexte
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var ouvrirURL
     @Query private var objectifs: [Objectif]
 
-    @AppStorage("apparence") private var apparence: ApparenceHonya = .systeme
+    @AppStorage("apparence", store: .standard)
+    private var apparence: ApparenceHonya = .systeme
     @State private var confirmerEffacement = false
     @State private var confirmerSuppressionCompte = false
+    @State private var suppressionEnCours = false
+    @State private var erreurSuppression: String?
     @State private var compte = Compte.partage
     @State private var plusVisible = false
     @State private var droits = Droits.partage
+    @State private var boutique = Boutique.partage
+    @State private var sauvegarde = SauvegardeCloud.partage
+
+    private var identifiantCompte: UUID? {
+        compte.identifiantServeur.flatMap { UUID(uuidString: $0) }
+    }
+
+    private var versionApplication: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+            ?? "—"
+    }
 
     // MARK: - Compte
 
@@ -22,7 +37,12 @@ struct ReglagesView: View {
     private var sectionAbonnement: some View {
         Section {
             Button {
-                plusVisible = true
+                if boutique.abonnementRenouvelableActif,
+                   let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                    ouvrirURL(url)
+                } else {
+                    plusVisible = true
+                }
             } label: {
                 HStack(spacing: 14) {
                     Image(systemName: droits.plus ? "checkmark.seal.fill" : "books.vertical.fill")
@@ -40,15 +60,22 @@ struct ReglagesView: View {
                         Text(verbatim: "Honya+")
                             .font(.system(size: 17, weight: .semibold, design: .serif))
                             .foregroundStyle(.primary)
-                        Text(droits.plus
-                             ? "Votre abonnement est actif."
-                             : "Rayons complets, alertes, historique entier.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        Group {
+                            if droits.plus, boutique.achatAVie {
+                                Text("Votre accès à vie est actif.")
+                            } else if droits.plus {
+                                Text("Votre abonnement est actif.")
+                            } else {
+                                Text("Rayons complets, bibliothèque sans plafond, historique entier.")
+                            }
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 0)
-                    if !droits.plus {
-                        Image(systemName: "chevron.right")
+                    if !droits.plus || boutique.abonnementRenouvelableActif {
+                        Image(systemName: boutique.abonnementRenouvelableActif
+                              ? "arrow.up.right" : "chevron.right")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.tertiary)
                     }
@@ -78,10 +105,11 @@ struct ReglagesView: View {
             } label: {
                 Label("Supprimer mon compte", systemImage: "person.crop.circle.badge.xmark")
             }
+            .disabled(suppressionEnCours)
         } header: {
             Text("Compte")
         } footer: {
-            Text("Se déconnecter garde votre bibliothèque sur cet appareil. Supprimer votre compte l'efface. Pour retirer Honya de votre identifiant Apple, allez dans Réglages > votre nom > Connexion avec Apple.")
+            Text("Se déconnecter garde votre bibliothèque locale et sa sauvegarde. Supprimer le compte efface les deux. Pour retirer Honya de votre identifiant Apple, allez dans Réglages > votre nom > Connexion avec Apple.")
         }
     }
 
@@ -112,8 +140,24 @@ struct ReglagesView: View {
                 }
 
                 Section("Données") {
-                    LabeledContent("Stockage", value: "Sur l'appareil")
-                    Text("La synchronisation iCloud (CloudKit) arrive dans une prochaine version — vos données restent à vous.")
+                    LabeledContent("Stockage") {
+                        Text("iPhone + compte Honya")
+                    }
+                    LabeledContent("Sauvegarde") {
+                        Text(libelleSauvegarde)
+                            .foregroundStyle(couleurSauvegarde)
+                    }
+                    Button("Sauvegarder maintenant") {
+                        guard let identifiantCompte else { return }
+                        Task {
+                            await sauvegarde.reessayer(
+                                compte: identifiantCompte,
+                                contexte: contexte
+                            )
+                        }
+                    }
+                    .disabled(identifiantCompte == nil || sauvegarde.operationEnCours)
+                    Text("La bibliothèque est sauvegardée dans votre compte Supabase. Une divergence entre deux appareils demande toujours votre choix avant remplacement.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Button("Tout effacer…", role: .destructive) {
@@ -123,8 +167,16 @@ struct ReglagesView: View {
 
                 Section("À propos") {
                     LabeledContent("Application", value: "Honya")
-                    LabeledContent("Version", value: "1.0")
-                    Text("Métadonnées : Google Books, Open Library, AniList. Les couvertures restent la propriété de leurs éditeurs.")
+                    LabeledContent("Version", value: versionApplication)
+                    Link(
+                        "Politique de confidentialité",
+                        destination: URL(string: "https://www.honya.app/en/privacy/")!
+                    )
+                    Link(
+                        "Conditions d’utilisation",
+                        destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+                    )
+                    Text("Métadonnées : Open Library et bibliothèques nationales. La provenance des couvertures soumises à attribution figure sur leur fiche.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -135,14 +187,38 @@ struct ReglagesView: View {
                 isPresented: $confirmerSuppressionCompte,
                 titleVisibility: .visible
             ) {
+                if boutique.abonnementRenouvelableActif {
+                    Button("Gérer l'abonnement Apple") {
+                        if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                            ouvrirURL(url)
+                        }
+                    }
+                }
                 Button("Supprimer définitivement", role: .destructive) {
                     Task {
-                        await compte.supprimerCompte(dans: contexte)
-                        dismiss()
+                        suppressionEnCours = true
+                        defer { suppressionEnCours = false }
+                        do {
+                            try await compte.supprimerCompte(dans: contexte)
+                            dismiss()
+                        } catch {
+                            erreurSuppression = error.localizedDescription
+                        }
                     }
                 }
             } message: {
-                Text("Votre bibliothèque, vos sessions, vos badges et vos étagères seront effacés. C'est sans retour.")
+                Text("Votre bibliothèque, vos sessions, vos badges et vos étagères seront effacés. C'est sans retour. Un abonnement Honya+ reste géré par Apple et doit être résilié séparément.")
+            }
+            .alert(
+                "Réglages",
+                isPresented: Binding(
+                    get: { erreurSuppression != nil },
+                    set: { if !$0 { erreurSuppression = nil } }
+                )
+            ) {
+                Button("Annuler", role: .cancel) { erreurSuppression = nil }
+            } message: {
+                Text(erreurSuppression ?? "")
             }
             .navigationTitle("Réglages")
             .navigationBarTitleDisplayMode(.inline)
@@ -163,6 +239,25 @@ struct ReglagesView: View {
                 // Garantit l'existence de l'objectif (premier lancement sans onboarding complet).
                 _ = Objectif.courant(dans: contexte)
             }
+        }
+    }
+
+    private var libelleSauvegarde: String {
+        switch sauvegarde.etat {
+        case .inactive: return String(localized: "Inactive")
+        case .synchronisation: return String(localized: "En cours…")
+        case .aJour: return String(localized: "À jour")
+        case .restauree: return String(localized: "Restaurée")
+        case .conflit: return String(localized: "Choix requis")
+        case .erreur: return String(localized: "Indisponible")
+        }
+    }
+
+    private var couleurSauvegarde: Color {
+        switch sauvegarde.etat {
+        case .aJour, .restauree: return .green
+        case .conflit, .erreur: return .orange
+        default: return .secondary
         }
     }
 
@@ -226,11 +321,43 @@ struct ReglagesView: View {
     private func toutEffacer() {
         do {
             try contexte.delete(model: Oeuvre.self)
+            try contexte.delete(model: Exemplaire.self)
             try contexte.delete(model: Serie.self)
+            try contexte.delete(model: Tome.self)
             try contexte.delete(model: SessionLecture.self)
+            try contexte.delete(model: Citation.self)
             try contexte.delete(model: BadgeGagne.self)
+            try contexte.delete(model: Collection.self)
+            // Les noms d'emprunteurs font partie des données de bibliothèque :
+            // « Tout effacer » ne doit laisser aucune donnée personnelle liée
+            // aux anciens prêts dans les suggestions.
+            for objectif in objectifs { objectif.emprunteursRecents = [] }
+            try contexte.save()
+            do {
+                try CouverturesPersonnelles.supprimerToutes()
+            } catch {
+                // La bibliothèque est déjà vide et ne peut plus être
+                // « rollbackée » après save(). Signaler le résidu permet de
+                // relancer Tout effacer et de retenter le nettoyage privé.
+                erreurSuppression = error.localizedDescription
+                return
+            }
+            NotificationsService.annulerTousLesRappelsSortie()
+            if let identifiantCompte {
+                Task {
+                    await sauvegarde.synchroniser(
+                        compte: identifiantCompte,
+                        contexte: contexte,
+                        forcer: true
+                    )
+                }
+            }
         } catch {
-            // L'effacement partiel est signalé au prochain lancement par l'état restant.
+            // Les suppressions forment une seule opération : si l'enregistrement
+            // échoue, on restaure le contexte au lieu de laisser une bibliothèque
+            // à moitié vidée.
+            contexte.rollback()
+            erreurSuppression = error.localizedDescription
         }
     }
 }

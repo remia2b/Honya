@@ -53,8 +53,13 @@ enum CibleEtagere {
 struct MenuEtageres: View {
     let cible: CibleEtagere
     @Binding var creationVisible: Bool
+    /// La feuille doit appartenir à l'écran stable qui porte le menu. Un
+    /// `Menu`/`contextMenu` est démonté dès le tap et ne peut pas présenter
+    /// fiablement sa propre sheet.
+    @Binding var plusVisible: Bool
 
     @Query(sort: \Collection.dateCreation, order: .reverse) private var collections: [Collection]
+    @State private var droits = Droits.partage
 
     var body: some View {
         Menu("Ranger dans une étagère") {
@@ -70,9 +75,17 @@ struct MenuEtageres: View {
             }
             if !collections.isEmpty { Divider() }
             Button {
-                creationVisible = true
+                if droits.plus || collections.count < Limites.etageres {
+                    creationVisible = true
+                } else {
+                    plusVisible = true
+                }
             } label: {
-                Label("Nouvelle étagère…", systemImage: "plus")
+                if !droits.plus && collections.count >= Limites.etageres {
+                    LabelPlus(titre: "Nouvelle étagère…", symbole: "plus")
+                } else {
+                    Label("Nouvelle étagère…", systemImage: "plus")
+                }
             }
         }
     }
@@ -85,7 +98,9 @@ struct AlerteNouvelleEtagere: ViewModifier {
     @Binding var visible: Bool
 
     @Environment(\.modelContext) private var contexte
+    @Query private var collections: [Collection]
     @State private var nom = ""
+    @State private var plusVisible = false
 
     func body(content: Content) -> some View {
         content.alert("Nouvelle étagère", isPresented: $visible) {
@@ -93,6 +108,10 @@ struct AlerteNouvelleEtagere: ViewModifier {
             Button("Créer") {
                 let propre = nom.trimmingCharacters(in: .whitespaces)
                 guard !propre.isEmpty else { return }
+                guard Droits.partage.plus || collections.count < Limites.etageres else {
+                    plusVisible = true
+                    return
+                }
                 let collection = Collection(nom: propre)
                 contexte.insert(collection)
                 cible.basculer(dans: collection)
@@ -102,6 +121,7 @@ struct AlerteNouvelleEtagere: ViewModifier {
         } message: {
             Text("« \(cible.nom) » y sera rangé aussitôt.")
         }
+        .ecranHonyaPlus($plusVisible, verrou: .etagere())
     }
 }
 

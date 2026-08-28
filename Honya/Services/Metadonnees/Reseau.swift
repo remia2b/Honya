@@ -19,8 +19,20 @@ enum Reseau {
         // Sans réseau, on le dit tout de suite au lieu d'attendre qu'il
         // revienne : le lecteur préfère « introuvable » à un écran qui tourne.
         reglages.waitsForConnectivity = false
-        // Scanner deux fois le même rayon ne doit pas repayer le trajet.
-        reglages.requestCachePolicy = .returnCacheDataElseLoad
+        // Une absence vieille de plusieurs semaines ne doit jamais condamner
+        // un livre qui vient d'entrer au catalogue. On revalide le cache auprès
+        // du fournisseur (ETag/Last-Modified) au lieu de resservir une réponse
+        // périmée indéfiniment.
+        reglages.requestCachePolicy = .reloadRevalidatingCacheData
+        // Open Library et les bibliothèques demandent aux applications de
+        // s'identifier ; cela évite aussi que les appels anonymes soient pris
+        // pour du trafic automatisé indésirable.
+        reglages.httpAdditionalHeaders = [
+            // Open Library accorde son plafond identifié uniquement à un
+            // nom d'application accompagné d'un vrai contact joignable.
+            "User-Agent": "Honya/1.0 (contact@honya.app)",
+            "From": "contact@honya.app",
+        ]
         reglages.httpMaximumConnectionsPerHost = 6
         return URLSession(configuration: reglages)
     }()

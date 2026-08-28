@@ -32,7 +32,10 @@ struct AccueilView: View {
     /// La série la plus récemment lue, quand aucun livre n'est en cours.
     private var serieEnCours: Serie? {
         series
-            .filter { $0.statut == .enCours || $0.prochainALire != nil }
+            // `prochainALire` décrit l'inventaire, pas l'intention actuelle :
+            // une série abandonnée, terminée ou remise en liste d'envies peut
+            // encore posséder un tome non lu. Seul son statut fait foi ici.
+            .filter { $0.statut == .enCours }
             .sorted { ($0.derniereLecture ?? $0.dateAjout) > ($1.derniereLecture ?? $1.dateAjout) }
             .first
     }
@@ -52,7 +55,11 @@ struct AccueilView: View {
 
     private var sortiesAVenir: [Serie] {
         series
-            .filter { ($0.prochaineSortieDate ?? .distantPast) >= Calendar.current.startOfDay(for: .now) }
+            .filter {
+                $0.prochaineSortieDate.map {
+                    DateCivile.estAujourdhuiOuApres($0)
+                } == true
+            }
             .sorted { ($0.prochaineSortieDate ?? .distantFuture) < ($1.prochaineSortieDate ?? .distantFuture) }
     }
 

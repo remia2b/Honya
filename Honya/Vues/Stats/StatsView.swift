@@ -8,11 +8,7 @@ import Charts
 /// étagères, sans que le lecteur n'ait rien à saisir.
 struct StatsView: View {
     @State private var plusVisible = false
-
-    /// Le minuteur n'est jamais coupé ; c'est sa mémoire qui est courte.
-    private var fenetre: Int {
-        Droits.partage.plus ? 30 : Limites.joursHistorique
-    }
+    @State private var droits = Droits.partage
 
     @Query private var sessions: [SessionLecture]
     @Query private var exemplaires: [Exemplaire]
@@ -25,7 +21,14 @@ struct StatsView: View {
     @State private var periode: StatsEngine.Periode = .semaine
 
     private var filtrees: [SessionLecture] {
-        StatsEngine.filtrer(sessions, periode: periode)
+        StatsEngine.filtrer(sessionsAutorisees, periode: periode)
+    }
+
+    /// En gratuit, les sessions anciennes restent enregistrées mais ne
+    /// nourrissent aucune statistique visible. Tous les calculs non verrouillés
+    /// passent par cette même fenêtre, pas seulement le graphique.
+    private var sessionsAutorisees: [SessionLecture] {
+        HistoriqueLecture.sessionsAutorisees(sessions, plus: droits.plus)
     }
 
     var body: some View {
@@ -42,6 +45,12 @@ struct StatsView: View {
                     .pickerStyle(.segmented)
                     .padding(.horizontal, 20)
                     .padding(.top, 4)
+                    .badgeCadenas(!droits.plus)
+                    .onChange(of: periode) { ancienne, nouvelle in
+                        guard !droits.plus, nouvelle != .semaine else { return }
+                        periode = ancienne
+                        plusVisible = true
+                    }
 
                     bandeTemps
                     bandeBibliotheque
@@ -67,7 +76,7 @@ struct StatsView: View {
     /// quelque chose, le cadenas dit comment l'ouvrir.
     @ViewBuilder
     private func sousVerrou<Contenu: View>(@ViewBuilder _ contenu: () -> Contenu) -> some View {
-        if Droits.partage.plus {
+        if droits.plus {
             contenu()
         } else {
             ZStack {
@@ -75,6 +84,7 @@ struct StatsView: View {
                     .blur(radius: 7)
                     .disabled(true)
                     .allowsHitTesting(false)
+                    .accessibilityHidden(true)
 
                 Button { plusVisible = true } label: {
                     VStack(spacing: 8) {
@@ -117,7 +127,7 @@ struct StatsView: View {
             }
             .padding(.horizontal, 20)
 
-            graphe14Jours
+            graphePeriode
                 .padding(.horizontal, 20)
 
             HStack(spacing: 0) {
@@ -126,7 +136,7 @@ struct StatsView: View {
                     StatsEngine.vitessePagesParHeure(filtrees).map { "\($0)" } ?? "—",
                     "pages / heure"
                 )
-                miniStat("\(StatsEngine.plusLongueSessionMinutes(sessions))", "record · min")
+                miniStat("\(StatsEngine.plusLongueSessionMinutes(filtrees))", "record · min")
             }
             .padding(.horizontal, 20)
 
@@ -139,23 +149,46 @@ struct StatsView: View {
         }
     }
 
-    private var graphe14Jours: some View {
-        Chart(StatsEngine.derniersJours(fenetre, sessions: sessions)) { jour in
+    private var graphePeriode: some View {
+        let granularite = periode.granulariteGraphique
+        let donnees = StatsEngine.donneesGraphique(periode: periode, sessions: filtrees)
+        return Chart(donnees) { point in
             BarMark(
-                x: .value("Jour", jour.date, unit: .day),
-                y: .value("Minutes", jour.minutes)
+                x: .value("Date", point.date, unit: granularite),
+                y: .value("Minutes", point.minutes)
             )
             .foregroundStyle(
-                Calendar.current.isDateInToday(jour.date)
+                Calendar.current.isDate(point.date, equalTo: .now, toGranularity: granularite)
                     ? Couleurs.accent
                     : Couleurs.accent.opacity(0.42)
             )
             .cornerRadius(3)
         }
         .chartXAxis {
-            AxisMarks(values: .automatic(desiredCount: 7)) { _ in
-                AxisGridLine().foregroundStyle(.clear)
-                AxisValueLabel(format: .dateTime.day(), centered: true)
+            switch periode {
+            case .semaine:
+                AxisMarks(values: .stride(by: .day)) { _ in
+                    AxisGridLine().foregroundStyle(.clear)
+                    AxisValueLabel(format: .dateTime.weekday(.narrow), centered: true)
+                }
+            case .mois:
+                AxisMarks(values: .automatic(desiredCount: 7)) { _ in
+                    AxisGridLine().foregroundStyle(.clear)
+                    AxisValueLabel(format: .dateTime.day(), centered: true)
+                }
+            case .annee:
+                AxisMarks(values: .stride(by: .month)) { _ in
+                    AxisGridLine().foregroundStyle(.clear)
+                    AxisValueLabel(format: .dateTime.month(.narrow), centered: true)
+                }
+            case .tout:
+                AxisMarks(values: .automatic(desiredCount: 6)) { _ in
+                    AxisGridLine().foregroundStyle(.clear)
+                    AxisValueLabel(
+                        format: .dateTime.month(.abbreviated).year(.twoDigits),
+                        centered: true
+                    )
+                }
             }
         }
         .chartYAxis {

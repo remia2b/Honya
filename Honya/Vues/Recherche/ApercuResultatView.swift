@@ -4,8 +4,6 @@ import SwiftData
 /// La fiche d'un titre qu'on n'a pas encore : on la consulte avant de décider,
 /// exactement comme la page produit d'Apple Books quand on vient de la recherche.
 struct ApercuResultatView: View {
-    @Query private var exemplaires: [Exemplaire]
-    @Query private var tousLesTomes: [Tome]
     @State private var plusVisible = false
     @State private var cibleExistante: CibleSession?
     @State private var verifie = false
@@ -119,7 +117,7 @@ struct ApercuResultatView: View {
                     if !resultat.genres.isEmpty {
                         ligne("Genres", resultat.genres.prefix(3).joined(separator: ", "))
                     }
-                    ligne("Source", resultat.source)
+                    ligne("Source", resultat.attributionCouverture ?? resultat.source)
                 }
             }
             .padding(.horizontal, 20)
@@ -237,6 +235,11 @@ struct ApercuResultatView: View {
                 } label: {
                     Label("À acheter", systemImage: "cart.fill")
                 }
+                Button {
+                    ajouter(.abandonne)
+                } label: {
+                    Label("Je l'ai abandonné", systemImage: "xmark.circle")
+                }
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "plus")
@@ -257,19 +260,17 @@ struct ApercuResultatView: View {
     }
 
     private func ajouter(_ statut: StatutLecture) {
-        // Le plafond porte sur la collection, jamais sur la consultation :
-        // tout ce qui est déjà rangé reste accessible et lisible.
-        guard Droits.partage.plus || tomesRanges < Limites.tomes else {
+        switch ImportService.ajouter(resultat, statut: statut, dans: contexte) {
+        case .limiteAtteinte:
             plusVisible = true
-            return
+        case .oeuvre, .serie, .dejaPresent:
+            withAnimation(.snappy) { ajoute = true }
         }
-        ImportService.ajouter(resultat, statut: statut, dans: contexte)
-        withAnimation(.snappy) { ajoute = true }
     }
 
     /// Ce que compte le plafond : les livres seuls et les tomes des séries.
     private var tomesRanges: Int {
-        exemplaires.count + tousLesTomes.count
+        ImportService.nombreRange(dans: contexte)
     }
 
     // MARK: - Aides

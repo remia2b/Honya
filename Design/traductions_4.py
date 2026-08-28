@@ -607,12 +607,6 @@ T = {
         "de": "Account erstellen oder anmelden", "it": "Crea un account o accedi",
         "pl": "Załóż konto lub zaloguj się", "ja": "アカウント作成またはサインイン",
     },
-    "Continuer sans compte": {
-        "en": "Continue without an account", "es": "Continuar sin cuenta",
-        "es-419": "Continuar sin cuenta", "pt-BR": "Continuar sem conta",
-        "de": "Ohne Account fortfahren", "it": "Continua senza account",
-        "pl": "Kontynuuj bez konta", "ja": "アカウントなしで続ける",
-    },
     "Utiliser une adresse e-mail": {
         "en": "Use an email address", "es": "Usar un correo electrónico",
         "es-419": "Usar un correo electrónico", "pt-BR": "Usar um e-mail",
@@ -703,16 +697,6 @@ T = {
         "it": "Le tue letture restano sul tuo dispositivo. Puoi eliminare l'account quando vuoi dalle Impostazioni.",
         "pl": "Twoje lektury zostają na urządzeniu. Konto możesz usunąć w każdej chwili w Ustawieniach.",
         "ja": "読書の記録は端末に残ります。アカウントは設定からいつでも削除できます。",
-    },
-    "Vous utilisez Honya sans compte : tout reste sur cet appareil.": {
-        "en": "You're using Honya without an account: everything stays on this device.",
-        "es": "Usas Honya sin cuenta: todo se queda en este dispositivo.",
-        "es-419": "Usas Honya sin cuenta: todo se queda en este dispositivo.",
-        "pt-BR": "Você usa o Honya sem conta: tudo fica neste aparelho.",
-        "de": "Du nutzt Honya ohne Account: Alles bleibt auf diesem Gerät.",
-        "it": "Usi Honya senza account: tutto resta su questo dispositivo.",
-        "pl": "Używasz Honya bez konta: wszystko zostaje na tym urządzeniu.",
-        "ja": "アカウントなしでHonyaを使っています。すべてこの端末に残ります。",
     },
     "Supprimer mon compte": {
         "en": "Delete my account", "es": "Eliminar mi cuenta", "es-419": "Eliminar mi cuenta",

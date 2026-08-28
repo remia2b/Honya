@@ -3,7 +3,7 @@ import SwiftData
 
 // MARK: - Énumérations du domaine
 
-enum TypeOeuvre: String, Codable, CaseIterable, Identifiable {
+enum TypeOeuvre: String, Codable, CaseIterable, Identifiable, Sendable {
     case livre, manga, bd
 
     var id: String { rawValue }
@@ -49,7 +49,7 @@ enum FormatLivre: String, Codable, CaseIterable, Identifiable {
     }
 }
 
-enum StatutParution: String, Codable {
+enum StatutParution: String, Codable, Sendable {
     case enCours, terminee, inconnue
 
     var libelle: String {
@@ -70,6 +70,9 @@ enum Moods {
 
 @Model
 final class Oeuvre {
+    /// Identité stable pour les futures sauvegardes cloud. Optionnelle afin
+    /// que l'ajout reste une migration légère pour les bibliothèques existantes.
+    var cloudID: UUID? = UUID()
     /// Titre dans la langue d'origine de l'œuvre.
     var titreOriginal: String = ""
     /// Titres OFFICIELS publiés, par code langue ("fr", "en", …). Jamais de traduction automatique.
@@ -84,10 +87,14 @@ final class Oeuvre {
     var resumeLocal: String?
     var anneePublication: Int?
     var pages: Int?
-    /// Couverture canonique GLOBALE : la même pour tout le monde (politique produit).
+    /// Couverture de repli globale, utilisée seulement sans édition plus précise.
     var couvertureCanoniqueURL: String?
     /// Couverture de l'édition dans la langue du lecteur (celle qu'il voit en librairie).
     var couvertureLocaleURL: String?
+    var attributionCouverture: String?
+    /// Évite de relancer tous les catalogues à chaque démarrage après une
+    /// absence de résultat. Un changement de langue remet cette date à zéro.
+    var dernierEssaiEditionLocale: Date?
     /// Identifiant de la source (volumeId Google Books, id AniList…), pour dédupliquer.
     var idExterne: String?
     var dateAjout: Date = Date()
@@ -122,8 +129,14 @@ final class Oeuvre {
 
     var auteurPrincipal: String { auteurs.first ?? "" }
 
-    /// Couverture affichée : l'édition locale d'abord, la canonique en repli.
-    var couvertureAffichee: String? { couvertureLocaleURL ?? couvertureCanoniqueURL }
+    /// Couverture affichée : l'exemplaire réellement scanné d'abord, puis
+    /// l'édition locale de la langue du lecteur, enfin le repli global.
+    var couvertureAffichee: String? {
+        exemplaire?.couverturePersonnelleURL
+            ?? exemplaire?.couvertureEditionURL
+            ?? couvertureLocaleURL
+            ?? couvertureCanoniqueURL
+    }
 
     var resumeAffiche: String? { resumeLocal ?? resume }
 
@@ -139,6 +152,7 @@ final class Oeuvre {
 
 @Model
 final class Exemplaire {
+    var cloudID: UUID? = UUID()
     var statutRaw: String = StatutLecture.aLire.rawValue
     var possede: Bool = true
     /// Note sur 10 (permet les demi-étoiles). nil = pas encore noté.
@@ -153,8 +167,11 @@ final class Exemplaire {
     /// ISBN de l'édition réellement possédée.
     var isbn: String?
     var langueEdition: String?
-    /// Couverture de l'édition scannée — stockée mais non affichée (politique couverture canonique).
+    /// Couverture de l'édition réellement scannée, prioritaire à l'affichage.
     var couvertureEditionURL: String?
+    /// Photo privée choisie par le lecteur, sans écraser la couverture
+    /// officielle de l'édition scannée.
+    var couverturePersonnelleURL: String?
     var dateAchat: Date?
     var dateDebut: Date?
     var dateFin: Date?
@@ -185,14 +202,28 @@ final class Exemplaire {
 
     /// Change le statut en tenant les dates à jour.
     func changerStatut(_ nouveau: StatutLecture) {
+        let etaitPossede = possede
         statut = nouveau
+        possede = nouveau != .wishlist
+        if !etaitPossede, possede, dateAchat == nil { dateAchat = Date() }
+        if nouveau != .lu { dateFin = nil }
         switch nouveau {
-        case .enCours where dateDebut == nil: dateDebut = Date()
+        case .aLire:
+            pageCourante = 0
+            dateDebut = nil
+        case .enCours where dateDebut == nil:
+            dateDebut = Date()
         case .lu:
             if dateFin == nil { dateFin = Date() }
             if let pages = oeuvre?.pages { pageCourante = pages }
-        case .wishlist: possede = false
-        default: break
+        case .wishlist:
+            pageCourante = 0
+            dateDebut = nil
+            dateAchat = nil
+            preteA = nil
+            preteLe = nil
+        case .abandonne, .enCours:
+            break
         }
     }
 }
@@ -201,9 +232,13 @@ final class Exemplaire {
 
 @Model
 final class Serie {
+    var cloudID: UUID? = UUID()
     var nom: String = ""
     /// Noms OFFICIELS par langue, même politique que les titres d'œuvres.
     var noms: [String: String] = [:]
+    /// Alias officiels sans langue garantie (synonymes de catalogue). Ils
+    /// relient notamment un titre traduit à son titre anglais ou japonais.
+    var nomsAlternatifs: [String] = []
     /// Translittération latine (romaji), lisible sans connaître le script d'origine.
     var nomRomaji: String?
     var auteur: String?
@@ -214,8 +249,10 @@ final class Serie {
     var resumeLocal: String?
     /// Couverture canonique globale de la série.
     var couvertureURL: String?
+    var attributionCouverture: String?
     /// Couverture de l'édition locale (Kana, Glénat… pour un lecteur français).
     var couvertureLocaleURL: String?
+    var dernierEssaiEditionLocale: Date?
     var tomesTotal: Int?
     var statutParutionRaw: String = StatutParution.inconnue.rawValue
     var chapitresLus: Int = 0
@@ -223,6 +260,9 @@ final class Serie {
     var prochaineSortieNumero: Int?
     var prochaineSortieDate: Date?
     var rappelActive: Bool = false
+    /// Identité persistante du rappel. Elle ne dépend ni du titre (modifiable
+    /// et localisé), ni du numéro du prochain tome (qui change à chaque sortie).
+    var identifiantRappelSortie: String?
     var idAniList: Int?
     var dateAjout: Date = Date()
 
@@ -256,25 +296,72 @@ final class Serie {
 
     /// Même logique que pour une œuvre : on cherche dans tous les noms connus.
     func correspond(_ requete: String) -> Bool {
-        let champs = noms.values + [nom, nomRomaji, auteur].compactMap { $0 }
+        let champs = Array(noms.values) + nomsAlternatifs
+            + [nom, nomRomaji, auteur].compactMap { $0 }
         return TexteUtil.contient(champs, requete)
     }
 
-    var couvertureAffichee: String? { couvertureLocaleURL ?? couvertureURL }
+    var couvertureAffichee: String? {
+        if let propre = couvertureLocaleURL ?? couvertureURL { return propre }
+        // Une série créée depuis le scan du tome 2 n'a pas forcément une
+        // image « série ». Sa première édition possédée est un meilleur
+        // représentant que le placeholder, sans recopier ni fausser la donnée.
+        return tomeCouvertureDeRepli?.couvertureAffichee
+    }
+
+    var attributionCouvertureAffichee: String? {
+        if couvertureLocaleURL != nil || couvertureURL != nil {
+            return attributionCouverture
+        }
+        guard let tome = tomeCouvertureDeRepli,
+              tome.couverturePersonnelleURL == nil else { return nil }
+        return tome.attributionCouverture
+    }
+
+    private var tomeCouvertureDeRepli: Tome? {
+        tomesTries.first { $0.possede && $0.couvertureAffichee != nil }
+            ?? tomesTries.first { $0.couvertureAffichee != nil }
+    }
 
     /// Statut CHOISI par le lecteur, qui prime sur celui déduit des tomes.
     /// Sans lui, « abandonné » n'existait nulle part pour une série : le
     /// calcul ne peut pas deviner qu'on a décidé d'arrêter.
     var statutManuelRaw: String?
+    /// Date civile du dernier choix. Une sortie annoncée après une déclaration
+    /// « Lu » peut ainsi rouvrir automatiquement la série le jour venu.
+    var statutManuelLe: Date?
 
     var statutChoisi: StatutLecture? {
-        get { statutManuelRaw.flatMap(StatutLecture.init(rawValue:)) }
-        set { statutManuelRaw = newValue?.rawValue }
+        get {
+            guard let choisi = statutManuelRaw.flatMap(StatutLecture.init(rawValue:))
+            else { return nil }
+            if choisi == .lu, let choisiLe = statutManuelLe {
+                let nouvelleSortieNonLue = tomes.contains { tome in
+                    guard !tome.lu, let sortie = tome.dateSortie else { return false }
+                    return DateCivile.estDisponible(sortie)
+                        && DateCivile.estApres(sortie, que: choisiLe)
+                }
+                if nouvelleSortieNonLue { return nil }
+            }
+            return choisi
+        }
+        set {
+            statutManuelRaw = newValue?.rawValue
+            statutManuelLe = newValue == nil ? nil : Date()
+        }
     }
 
     /// Vrai dès que Honya a posé le rayon entier de cette série. Sert de
-    /// compteur : le gratuit en remplit trois, pas davantage.
+    /// preuve que tous les numéros annoncés par le catalogue sont présents.
     var rayonComplet: Bool = false
+    /// Une passe d'enrichissement local a déjà abouti. Ce drapeau porte le
+    /// quota Honya+ séparément de `rayonComplet` : trouver trois tomes d'une
+    /// série en cours ne permet pas d'affirmer qu'il n'en existe que trois.
+    var rayonEnrichi: Bool = false
+    /// `true` si l'automatisation de ce rayon a été ouverte par Honya+.
+    /// Les cases déjà créées restent après expiration, mais les futures
+    /// ne sont plus matérialisées sauf si une place gratuite se libère.
+    var rayonHonyaPlus: Bool = false
     /// Vrai quand le rayon a été demandé mais refusé faute d'abonnement :
     /// la fiche propose alors de l'ouvrir.
     var rayonRefuse: Bool = false
@@ -297,8 +384,10 @@ final class Serie {
     /// Statut équivalent à celui d'un livre, déduit de l'état des tomes.
     /// C'est lui qui fait vivre les filtres de la bibliothèque pour les séries.
     var statut: StatutLecture {
-        // Un choix explicite prime toujours sur le calcul : on peut décider
-        // d'abandonner une série même si tous ses tomes sont possédés.
+        // Un choix explicitement affiché « Choisi par vous » est autoritaire.
+        // Sans cela, sélectionner « À lire » ou « Liste d'envies » pouvait
+        // laisser le libellé calculé « En cours », en contradiction directe
+        // avec le menu que le lecteur venait d'utiliser.
         if let statutChoisi { return statutChoisi }
         if estTerminee { return .lu }
         if nbLus > 0 || chapitresLus > 0 { return .enCours }
@@ -314,17 +403,26 @@ final class Serie {
 
     /// Tome à lire ensuite : le premier possédé mais pas encore lu.
     var prochainALire: Tome? {
-        tomesTries.first { $0.possede && !$0.lu }
+        tomesTries.first {
+            $0.possede && !$0.lu
+                && $0.dateSortie.map { DateCivile.estDisponible($0) } != false
+        }
     }
 
     /// Tomes déjà en rayon — une date de sortie future est une précommande.
     var tomesParus: [Tome] {
-        tomes.filter { ($0.dateSortie ?? .distantPast) <= Date() }
+        tomes.filter { $0.dateSortie.map { DateCivile.estDisponible($0) } != false }
     }
 
     /// Série terminée : tout ce qui est paru est lu. Un tome à paraître
     /// n'empêche pas de fêter — on ne peut pas lire l'avenir.
     var estTerminee: Bool {
+        // Un drapeau historique ne suffit pas : sans total annoncé par une
+        // source, trois résultats trouvés ne prouvent pas qu'il n'existe que
+        // trois tomes. La structure doit couvrir exactement l'intervalle connu.
+        guard let total = tomesTotal, total > 0 else { return false }
+        let numeros = Set(tomes.map(\.numero))
+        guard (1...total).allSatisfy({ numeros.contains($0) }) else { return false }
         let parus = tomesParus
         return !parus.isEmpty && parus.allSatisfy(\.lu)
     }
@@ -334,6 +432,7 @@ final class Serie {
 
 @Model
 final class Tome {
+    var cloudID: UUID? = UUID()
     /// À qui ce tome est prêté, et depuis quand. Un tome se prête comme un
     /// livre seul : c'est le même geste, il manquait sur les séries.
     var preteA: String?
@@ -348,12 +447,22 @@ final class Tome {
     var isbn: String?
     /// Chaque tome est un livre à part entière : son titre, sa couverture, ses pages.
     var titre: String?
+    /// Couverture fournie par les catalogues pour cette édition.
     var couvertureURL: String?
+    /// Photo privée choisie par le lecteur, prioritaire sans détruire l'URL
+    /// officielle : la retirer restaure immédiatement la couverture catalogue.
+    var couverturePersonnelleURL: String?
+    var attributionCouverture: String?
     var pages: Int?
+    /// Protège titre, pages et couverture saisis par le lecteur des purges de
+    /// métadonnées dérivées lors d'un changement de langue ou d'une migration.
+    var metadonneesManuelles: Bool = false
     /// Date de parution — future pour une précommande : le tome « à paraître ».
     var dateSortie: Date?
 
     var serie: Serie?
+
+    var couvertureAffichee: String? { couverturePersonnelleURL ?? couvertureURL }
 
     init(numero: Int, possede: Bool = false, lu: Bool = false) {
         self.numero = numero
@@ -366,6 +475,7 @@ final class Tome {
 
 @Model
 final class SessionLecture {
+    var cloudID: UUID? = UUID()
     var debut: Date = Date()
     var dureeSecondes: Int = 0
     var pagesLues: Int = 0
@@ -393,6 +503,7 @@ final class SessionLecture {
 
 @Model
 final class Citation {
+    var cloudID: UUID? = UUID()
     var texte: String = ""
     var page: Int?
     var dateAjout: Date = Date()
@@ -409,12 +520,17 @@ final class Citation {
 
 @Model
 final class Objectif {
+    var cloudID: UUID? = UUID()
     var minutesParJour: Int = 20
     var defiAnnuelLivres: Int = 26
     /// Langues de lecture préférées, codes ISO ("fr", "en"…). Pilote la recherche et l'affichage des titres.
     var languesLecture: [String] = []
     /// Types d'œuvres qui intéressent l'utilisateur (onboarding).
     var typesPreferes: [String] = [TypeOeuvre.livre.rawValue, TypeOeuvre.manga.rawValue]
+    /// Emprunteurs récents, du plus récent au plus ancien. Le prêt actif
+    /// reste porté par `Exemplaire` / `Tome` ; cette courte mémoire permet
+    /// seulement de reproposer une personne après la restitution du livre.
+    var emprunteursRecents: [String] = []
 
     init() {}
 
@@ -438,6 +554,7 @@ final class Objectif {
 
 @Model
 final class Collection {
+    var cloudID: UUID? = UUID()
     var nom: String = ""
     var symbole: String = "square.stack"
     var dateCreation: Date = Date()
@@ -526,6 +643,7 @@ enum CollectionAuto: String, CaseIterable, Identifiable {
 
 @Model
 final class BadgeGagne {
+    var cloudID: UUID? = UUID()
     var typeRaw: String = ""
     var date: Date = Date()
 

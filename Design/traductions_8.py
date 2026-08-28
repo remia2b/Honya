@@ -372,13 +372,6 @@ T = {
         "Okumaların cihazında kalır. Hesabını istediğin zaman Ayarlar'dan silebilirsin.",
         "Ваши записи о чтении остаются на устройстве. Учётную запись можно удалить в любой момент в настройках.",
         "Din läsning stannar på din enhet. Du kan radera ditt konto när som helst i Inställningar."),
-    "Vous utilisez Honya sans compte : tout reste sur cet appareil.": t(
-        "Je gebruikt Honya zonder account: alles blijft op dit apparaat.",
-        "계정 없이 Honya를 쓰고 있습니다. 모든 것은 이 기기에 남습니다.",
-        "你在不使用账户的情况下使用 Honya：一切都留在本机。",
-        "Honya'yı hesapsız kullanıyorsun: her şey bu cihazda kalır.",
-        "Вы пользуетесь Honya без учётной записи: всё остаётся на этом устройстве.",
-        "Du använder Honya utan konto: allt stannar på den här enheten."),
     "Rien n'est partagé, et votre compte s'efface d'un bouton.": t(
         "Er wordt niets gedeeld, en je account is met één knop weg.",
         "아무것도 공유되지 않으며, 계정은 버튼 하나로 사라집니다.",

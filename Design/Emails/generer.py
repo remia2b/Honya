@@ -157,7 +157,9 @@ BLOC_CODE = """              <tr>
               </tr>"""
 
 
-# Le lien du courrier pointe vers honya.app et non vers Supabase.
+# Le lien du courrier pointe vers le `redirect_to` validé par Supabase et non
+# vers Supabase lui-même. Le client choisit ainsi `/fr/` ou `/en/` selon la
+# langue de l'app, et la liste blanche Auth empêche toute destination externe.
 #
 # C'est ce qui permet au bouton d'ouvrir l'APPLICATION : un lien universel ne
 # se declenche que sur un clic direct, jamais au bout d'une redirection — et
@@ -165,8 +167,8 @@ BLOC_CODE = """              <tr>
 # recupere le jeton hache dans l'adresse et fait la verification elle-meme.
 # Si elle n'est pas installee, la page web du site prend le relais.
 def lien(type_):
-    return ("https://www.honya.app/fr/confirme/"
-            "?token_hash={{ .TokenHash }}&type=" + type_)
+    return ("{{ .RedirectTo }}"
+            "?token_hash={{ .TokenHash }}&amp;type=" + type_)
 
 
 MODELES = {

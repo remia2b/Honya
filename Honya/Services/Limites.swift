@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import SwiftUI
 
 /// Où s'arrête le gratuit.
@@ -9,11 +10,12 @@ import SwiftUI
 /// Principe de découpe : on ne taxe jamais le geste — lire, ranger à la main,
 /// terminer un livre — mais l'automatisation et la mémoire longue se paient.
 enum Limites {
-    /// Vingt fois le plafond de Bookly : un chiffre qu'on affiche fièrement.
+    /// Plafond gratuit de la bibliothèque ; les éléments existants restent
+    /// toujours consultables quand il est atteint.
     static let tomes = 200
     /// Rayons remplis automatiquement. Au-delà, on ajoute tome par tome.
     static let seriesCompletes = 3
-    /// De quoi comprendre que le scan est magique.
+    /// De quoi essayer le scan sur une vraie pile de livres avant Honya+.
     static let scans = 10
     static let etageres = 2
     static let citations = 5
@@ -29,36 +31,67 @@ enum Limites {
 
 // MARK: - Le compteur de scans
 
-/// Le seul quota qui ne se déduit pas des données : on compte les scans faits.
+/// Le seul quota qui ne se déduit pas des données : on compte les ISBN
+/// effectivement reconnus par la caméra. Une recherche sans résultat ou déjà
+/// présente dans le lot rend son crédit, et la saisie d'un ISBN au clavier
+/// reste gratuite.
 @Observable
 @MainActor
 final class CompteurScans {
     static let partage = CompteurScans()
 
+    /// Identifie le débit précis à rendre. La génération empêche une recherche
+    /// encore en vol de rembourser le compteur d'un autre compte après une
+    /// déconnexion/reconnexion.
+    struct Debit: Sendable {
+        fileprivate let identifiant: UUID?
+        fileprivate let generation: UUID
+    }
+
     private(set) var utilises: Int
+    private var preferences: UserDefaults?
+    private var generation = UUID()
+    private var debitsEnCours: Set<UUID> = []
 
     private init() {
-        utilises = UserDefaults.standard.integer(forKey: "scansUtilises")
+        utilises = 0
+    }
+
+    func activer(preferences: UserDefaults?) {
+        self.preferences = preferences
+        generation = UUID()
+        debitsEnCours.removeAll()
+        utilises = preferences?.integer(forKey: "scansUtilises") ?? 0
     }
 
     var reste: Int { Limites.reste(utilises, sur: Limites.scans) }
-
     var autorise: Bool { Droits.partage.plus || reste > 0 }
 
-    func enregistrer() {
-        guard !Droits.partage.plus else { return }
+    @discardableResult
+    func enregistrer() -> Debit {
+        guard !Droits.partage.plus else {
+            return Debit(identifiant: nil, generation: generation)
+        }
+        let identifiant = UUID()
+        debitsEnCours.insert(identifiant)
         utilises += 1
-        UserDefaults.standard.set(utilises, forKey: "scansUtilises")
+        preferences?.set(utilises, forKey: "scansUtilises")
+        return Debit(identifiant: identifiant, generation: generation)
     }
 
-    /// Rend le crédit d'un scan dont aucun catalogue n'a voulu.
-    ///
-    /// On ne fait pas payer une recherche qui n'a rien donné : le plafond
-    /// mesure le service rendu, pas les tentatives.
-    func rembourser() {
-        guard !Droits.partage.plus, utilises > 0 else { return }
+    func confirmer(_ debit: Debit) {
+        guard debit.generation == generation,
+              let identifiant = debit.identifiant else { return }
+        debitsEnCours.remove(identifiant)
+    }
+
+    func rembourser(_ debit: Debit) {
+        guard debit.generation == generation,
+              let identifiant = debit.identifiant,
+              debitsEnCours.remove(identifiant) != nil,
+              utilises > 0 else { return }
         utilises -= 1
-        UserDefaults.standard.set(utilises, forKey: "scansUtilises")
+        preferences?.set(utilises, forKey: "scansUtilises")
     }
 }
 

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Un point « jour » pour les graphiques.
+/// Un point temporel pour les graphiques : un jour ou un mois selon la période.
 struct DonneesJour: Identifiable {
     let date: Date
     let minutes: Int
@@ -50,10 +50,97 @@ enum StatsEngine {
         }
     }
 
+    // MARK: - Données du graphique par période
+
+    /// Les points du graphique principal couvrent exactement la période choisie.
+    /// La semaine et le mois restent détaillés par jour ; l'année et l'historique
+    /// complet sont regroupés par mois pour rester lisibles.
+    static func donneesGraphique(
+        periode: Periode,
+        sessions: [SessionLecture],
+        maintenant: Date = .now
+    ) -> [DonneesJour] {
+        switch periode {
+        case .semaine:
+            guard let intervalle = calendrier.dateInterval(of: .weekOfYear, for: maintenant)
+            else { return [] }
+            return pointsParJour(intervalle: intervalle, sessions: sessions)
+
+        case .mois:
+            guard let intervalle = calendrier.dateInterval(of: .month, for: maintenant)
+            else { return [] }
+            return pointsParJour(intervalle: intervalle, sessions: sessions)
+
+        case .annee:
+            guard let intervalle = calendrier.dateInterval(of: .year, for: maintenant)
+            else { return [] }
+            return pointsParMois(intervalle: intervalle, sessions: sessions)
+
+        case .tout:
+            guard let premiere = sessions.map(\.debut).min(),
+                  let dernierDebut = sessions.map(\.debut).max(),
+                  let debut = calendrier.dateInterval(of: .month, for: premiere)?.start,
+                  let debutDernierMois = calendrier.dateInterval(
+                    of: .month,
+                    for: max(maintenant, dernierDebut)
+                  )?.start,
+                  let fin = calendrier.date(byAdding: .month, value: 1, to: debutDernierMois)
+            else { return [] }
+            return pointsParMois(
+                intervalle: DateInterval(start: debut, end: fin),
+                sessions: sessions
+            )
+        }
+    }
+
+    private static func pointsParJour(
+        intervalle: DateInterval,
+        sessions: [SessionLecture]
+    ) -> [DonneesJour] {
+        var secondes: [Date: Int] = [:]
+        for session in sessions where intervalle.contains(session.debut) {
+            secondes[calendrier.startOfDay(for: session.debut), default: 0] += session.dureeSecondes
+        }
+
+        var resultat: [DonneesJour] = []
+        var date = calendrier.startOfDay(for: intervalle.start)
+        while date < intervalle.end {
+            resultat.append(DonneesJour(date: date, minutes: secondes[date, default: 0] / 60))
+            guard let suivante = calendrier.date(byAdding: .day, value: 1, to: date)
+            else { break }
+            date = suivante
+        }
+        return resultat
+    }
+
+    private static func pointsParMois(
+        intervalle: DateInterval,
+        sessions: [SessionLecture]
+    ) -> [DonneesJour] {
+        var secondes: [Date: Int] = [:]
+        for session in sessions where intervalle.contains(session.debut) {
+            guard let mois = calendrier.dateInterval(of: .month, for: session.debut)?.start
+            else { continue }
+            secondes[mois, default: 0] += session.dureeSecondes
+        }
+
+        var resultat: [DonneesJour] = []
+        var date = intervalle.start
+        while date < intervalle.end {
+            resultat.append(DonneesJour(date: date, minutes: secondes[date, default: 0] / 60))
+            guard let suivante = calendrier.date(byAdding: .month, value: 1, to: date)
+            else { break }
+            date = suivante
+        }
+        return resultat
+    }
+
     // MARK: - Série de jours (streak)
 
     static func joursActifs(_ sessions: [SessionLecture]) -> Set<Date> {
-        Set(sessions.map { calendrier.startOfDay(for: $0.debut) })
+        Set(sessions.lazy
+            .filter { $0.dureeSecondes > 0 }
+            .map { calendrier.startOfDay(for: $0.debut) })
     }
 
     /// Série de jours consécutifs, avec un joker : un trou d'un jour est pardonné
@@ -199,6 +286,13 @@ enum StatsEngine {
             case .mois: return String(localized: "Mois")
             case .annee: return String(localized: "Année")
             case .tout: return String(localized: "Tout")
+            }
+        }
+
+        var granulariteGraphique: Calendar.Component {
+            switch self {
+            case .semaine, .mois: return .day
+            case .annee, .tout: return .month
             }
         }
     }

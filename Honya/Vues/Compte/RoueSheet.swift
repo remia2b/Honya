@@ -301,8 +301,8 @@ struct RoueSheet: View {
 
             VStack(alignment: .leading, spacing: 13) {
                 gagne("books.vertical.fill", "Séries automatiques sans limite")
-                gagne("bell.badge.fill", "Alertes à chaque nouveau tome")
-                gagne("barcode.viewfinder", "Scan illimité, étagères entières")
+                gagne("books.vertical.fill", "Votre collection dépasse le gratuit")
+                gagne("heart.fill", "Prêts, citations et étagères")
                 gagne("chart.bar.fill", "Tout votre historique de lecture")
             }
             .padding(.top, 26)

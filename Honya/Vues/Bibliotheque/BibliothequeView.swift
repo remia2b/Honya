@@ -319,6 +319,7 @@ private struct CelluleLivre: View {
     @Environment(\.modelContext) private var contexte
     @State private var confirmerSuppression = false
     @State private var etagereVisible = false
+    @State private var plusEtagereVisible = false
 
     var body: some View {
         NavigationLink {
@@ -350,13 +351,23 @@ private struct CelluleLivre: View {
         .buttonStyle(.plain)
         .contextMenu { menuContextuel }
         .alerteNouvelleEtagere(.oeuvre(oeuvre), visible: $etagereVisible)
+        .ecranHonyaPlus($plusEtagereVisible, verrou: .etagere(
+            couvertures: [oeuvre.couvertureAffichee].compactMap { $0 }
+        ))
         .confirmationDialog(
             "Retirer « \(oeuvre.titre(langue)) » de la bibliothèque ?",
             isPresented: $confirmerSuppression,
             titleVisibility: .visible
         ) {
             Button("Retirer", role: .destructive) {
+                let photo = oeuvre.exemplaire?.couverturePersonnelleURL
                 contexte.delete(oeuvre)
+                do {
+                    try contexte.save()
+                    CouverturesPersonnelles.supprimer(photo)
+                } catch {
+                    contexte.rollback()
+                }
             }
         }
     }
@@ -381,7 +392,11 @@ private struct CelluleLivre: View {
                 systemImage: exemplaire.aSuivre ? "text.badge.minus" : "text.badge.plus"
             )
         }
-        MenuEtageres(cible: .oeuvre(oeuvre), creationVisible: $etagereVisible)
+        MenuEtageres(
+            cible: .oeuvre(oeuvre),
+            creationVisible: $etagereVisible,
+            plusVisible: $plusEtagereVisible
+        )
         Divider()
         Button(role: .destructive) {
             confirmerSuppression = true
@@ -540,15 +555,25 @@ private struct MenuSerie: ViewModifier {
     @Environment(\.modelContext) private var contexte
     @State private var confirmerSuppression = false
     @State private var etagereVisible = false
+    @State private var plusVisible = false
+    @State private var plusEtagereVisible = false
 
     func body(content: Content) -> some View {
         content
             .contextMenu {
-                MenuEtageres(cible: .serie(serie), creationVisible: $etagereVisible)
+                MenuEtageres(
+                    cible: .serie(serie),
+                    creationVisible: $etagereVisible,
+                    plusVisible: $plusEtagereVisible
+                )
                 if let prochain = serie.prochainALire {
                     Button {
                         prochain.lu = true
                         prochain.dateLu = Date()
+                        // Une nouvelle lecture rend caduc un ancien choix
+                        // manuel (Abandonné, Wishlist, etc.). Le statut peut
+                        // de nouveau suivre les tomes réellement lus.
+                        serie.statutChoisi = nil
                         BadgesEngine.evaluer(dans: contexte)
                         if serie.estTerminee {
                             Celebrations.partage.feter("Série terminée !")
@@ -557,8 +582,14 @@ private struct MenuSerie: ViewModifier {
                         Label("Tome \(prochain.numero) lu", systemImage: "checkmark.circle")
                     }
                 }
-                if !serie.estTerminee && !serie.tomesParus.isEmpty {
+                if serie.statut != .lu && !serie.tomesParus.isEmpty {
                     Button {
+                        guard ImportService.autorisePossession(
+                            des: serie.tomesParus, de: serie, dans: contexte
+                        ) else {
+                            plusVisible = true
+                            return
+                        }
                         for tome in serie.tomesParus {
                             tome.possede = true
                             if !tome.lu {
@@ -566,6 +597,9 @@ private struct MenuSerie: ViewModifier {
                                 tome.dateLu = Date()
                             }
                         }
+                        // Cette action est une déclaration explicite, même si
+                        // aucun catalogue autorisé ne connaît le total final.
+                        serie.statutChoisi = .lu
                         BadgesEngine.evaluer(dans: contexte)
                         Celebrations.partage.feter("Série terminée !")
                     } label: {
@@ -599,13 +633,28 @@ private struct MenuSerie: ViewModifier {
                 }
             }
             .alerteNouvelleEtagere(.serie(serie), visible: $etagereVisible)
+            .ecranHonyaPlus($plusVisible, verrou: .bibliotheque(
+                couvertures: [serie.couvertureAffichee].compactMap { $0 }
+            ))
+            .ecranHonyaPlus($plusEtagereVisible, verrou: .etagere(
+                couvertures: [serie.couvertureAffichee].compactMap { $0 }
+            ))
             .confirmationDialog(
                 "Retirer « \(serie.nomAffiche(langue)) » et tous ses tomes ?",
                 isPresented: $confirmerSuppression,
                 titleVisibility: .visible
             ) {
                 Button("Retirer", role: .destructive) {
+                    let photos = serie.tomes.compactMap(\.couverturePersonnelleURL)
+                    let rappel = NotificationsService.cibleAnnulation(pour: serie)
                     contexte.delete(serie)
+                    do {
+                        try contexte.save()
+                        NotificationsService.annulerRappel(rappel)
+                        for photo in photos { CouverturesPersonnelles.supprimer(photo) }
+                    } catch {
+                        contexte.rollback()
+                    }
                 }
             }
     }

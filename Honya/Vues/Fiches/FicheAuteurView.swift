@@ -9,6 +9,7 @@ struct FicheAuteurView: View {
 
     @Query private var oeuvres: [Oeuvre]
     @Query private var series: [Serie]
+    @State private var droits = Droits.partage
 
     private var sesOeuvres: [Oeuvre] {
         oeuvres.filter { $0.auteurs.contains { $0.localizedCaseInsensitiveContains(auteur) } }
@@ -23,9 +24,13 @@ struct FicheAuteurView: View {
             + sesSeries.reduce(0) { $0 + $1.nbLus }
     }
 
+    private var sessionsAutorisees: [SessionLecture] {
+        let sessions = sesOeuvres.flatMap(\.sessions) + sesSeries.flatMap(\.sessions)
+        return HistoriqueLecture.sessionsAutorisees(sessions, plus: droits.plus)
+    }
+
     private var minutes: Int {
-        (sesOeuvres.flatMap(\.sessions) + sesSeries.flatMap(\.sessions))
-            .reduce(0) { $0 + $1.dureeSecondes } / 60
+        sessionsAutorisees.reduce(0) { $0 + $1.dureeSecondes } / 60
     }
 
     var body: some View {

@@ -2,9 +2,8 @@ import SwiftUI
 import SwiftData
 
 /// La librairie de Honya : un étal vivant calqué sur l'onglet Librairie
-/// d'Apple Books — tendances du pays, rayons par genre, coups adaptés aux
-/// goûts du lecteur, précommandes et classements. Tout vient du catalogue
-/// Apple Books local ; chaque couverture ouvre la fiche d'aperçu.
+/// d'une librairie — tendances, rayons par genre, coups adaptés aux goûts du
+/// lecteur et précommandes. Chaque couverture ouvre la fiche d'aperçu.
 struct DecouverteView: View {
     @Query private var objectifs: [Objectif]
     @Query private var series: [Serie]
@@ -15,7 +14,9 @@ struct DecouverteView: View {
     @State private var rayons: [String: [ResultatRecherche]] = [:]
     @State private var aVenir: [ResultatRecherche] = []
     @State private var pourVous: [(ancre: String, resultats: [ResultatRecherche])] = []
-    @State private var chargementLance = false
+    @State private var chargementEnCours = false
+    @State private var chargementTermine = false
+    @State private var langueChargee = ""
 
     private var langue: String { objectifs.first?.languePrincipale ?? Langues.codeAppareil }
 
@@ -46,7 +47,11 @@ struct DecouverteView: View {
                     EnteteEcran(titre: "Découverte")
 
                     if toutEstVide {
-                        etalEnInstallation
+                        if chargementTermine {
+                            etalVide
+                        } else {
+                            etalEnInstallation
+                        }
                         BandeauPlus()
                             .padding(.horizontal, 20)
                             .padding(.top, 26)
@@ -74,7 +79,7 @@ struct DecouverteView: View {
             }
             .background(Color(uiColor: .systemBackground))
             .toolbar(.hidden, for: .navigationBar)
-            .task { await charger() }
+            .task(id: langue) { await charger() }
         }
     }
 
@@ -93,16 +98,53 @@ struct DecouverteView: View {
         .padding(.top, 130)
     }
 
+    private var etalVide: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "wifi.exclamationmark")
+                .font(.system(size: 30, weight: .semibold))
+                .foregroundStyle(.secondary)
+            Text("Aucun livre à afficher. Vérifiez votre connexion puis réessayez.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+            Button("Réessayer") {
+                Task { await charger() }
+            }
+            .buttonStyle(.bordered)
+            .disabled(chargementEnCours)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 32)
+        .padding(.top, 110)
+    }
+
     // MARK: - Chargement
 
     private func charger() async {
-        guard !chargementLance else { return }
-        chargementLance = true
+        let langueDemandee = langue
+        if chargementEnCours, langueChargee == langueDemandee { return }
+        if langueChargee != langueDemandee {
+            langueChargee = langueDemandee
+            tendances = []
+            gratuits = []
+            rayons = [:]
+            aVenir = []
+            pourVous = []
+        }
+        chargementEnCours = true
+        chargementTermine = false
+        defer {
+            if langueChargee == langueDemandee {
+                chargementEnCours = false
+                chargementTermine = true
+            }
+        }
 
         // Les classements d'abord : le flux RSS répond tout de suite.
-        async let payants = Decouverte.classement(gratuits: false, langue: langue)
-        async let libres = Decouverte.classement(gratuits: true, langue: langue)
+        async let payants = Decouverte.classement(gratuits: false, langue: langueDemandee)
+        async let libres = Decouverte.classement(gratuits: true, langue: langueDemandee)
         let (p, l) = await (payants, libres)
+        guard !Task.isCancelled, langueChargee == langueDemandee else { return }
         withAnimation(.easeOut) {
             tendances = p
             gratuits = l
@@ -111,14 +153,15 @@ struct DecouverteView: View {
         // Puis les rayons, un à un : la file d'attente du catalogue les espace,
         // les sections apparaissent au fil de l'eau (et restent en cache).
         for rayon in Self.rayonsCatalogue {
-            let bruts = await Decouverte.rayonBrut(rayon.terme, langue: langue)
+            let bruts = await Decouverte.rayonBrut(rayon.terme, langue: langueDemandee)
+            guard !Task.isCancelled, langueChargee == langueDemandee else { return }
             withAnimation(.easeOut) {
                 rayons[rayon.cle] = Decouverte.parSerie(bruts)
                 integrerAVenir(bruts)
             }
         }
 
-        await chargerPourVous()
+        await chargerPourVous(langue: langueDemandee)
     }
 
     private func integrerAVenir(_ bruts: [ResultatRecherche]) {
@@ -131,12 +174,13 @@ struct DecouverteView: View {
     /// « Dans vos goûts » : des ancres tirées de la bibliothèque (l'auteur de
     /// la série du moment, le genre le plus présent), sans jamais reproposer
     /// ce que le lecteur possède déjà.
-    private func chargerPourVous() async {
+    private func chargerPourVous(langue: String) async {
         let connues = basesBibliotheque
         var sections: [(ancre: String, resultats: [ResultatRecherche])] = []
         for (libelle, terme) in ancresGouts.prefix(2) {
             let resultats = Decouverte.parSerie(await Decouverte.rayonBrut(terme, langue: langue))
                 .filter { !connues.contains(TexteUtil.normaliser(Tomaison.decomposer($0.titre).base)) }
+            guard !Task.isCancelled, langueChargee == langue else { return }
             if resultats.count >= 4 {
                 sections.append((ancre: libelle, resultats: resultats))
             }
@@ -509,12 +553,28 @@ struct RayonCompletView: View {
     let langue: String
 
     @State private var resultats: [ResultatRecherche] = []
+    @State private var chargement = true
+    @State private var tentative = 0
 
     var body: some View {
         ScrollView {
-            if resultats.isEmpty {
+            if chargement {
                 ProgressView()
                     .padding(.top, 90)
+            } else if resultats.isEmpty {
+                VStack(spacing: 14) {
+                    ContentUnavailableView(
+                        "Rien ici pour l'instant",
+                        systemImage: "books.vertical",
+                        description: Text(
+                            "Aucun livre à afficher. Vérifiez votre connexion puis réessayez."
+                        )
+                    )
+                    Button("Réessayer") { tentative += 1 }
+                        .buttonStyle(.borderedProminent)
+                        .tint(Couleurs.accent)
+                }
+                .padding(.top, 36)
             } else {
                 LazyVGrid(
                     columns: Array(repeating: GridItem(.flexible(), spacing: 14), count: 3),
@@ -527,12 +587,12 @@ struct RayonCompletView: View {
                             VStack(spacing: 6) {
                                 CouvertureView(
                                     urlString: resultat.couvertureURL,
-                                    titre: resultat.titre,
+                                    titre: resultat.titreAffiche(langue),
                                     coins: 5,
                                     manga: resultat.type != .livre
                                 )
                                 .shadow(color: .black.opacity(0.3), radius: 7, y: 4)
-                                Text(resultat.titre)
+                                Text(resultat.titreAffiche(langue))
                                     .font(.caption2.weight(.semibold))
                                     .foregroundStyle(.primary)
                                     .lineLimit(2)
@@ -547,11 +607,14 @@ struct RayonCompletView: View {
         }
         .navigationTitle(titre)
         .navigationBarTitleDisplayMode(.large)
-        .task {
-            guard resultats.isEmpty else { return }
-            resultats = Decouverte.parSerie(
+        .task(id: tentative) {
+            chargement = true
+            let nouveaux = Decouverte.parSerie(
                 await Decouverte.rayonBrut(terme, langue: langue)
             )
+            guard !Task.isCancelled else { return }
+            resultats = nouveaux
+            chargement = false
         }
     }
 }

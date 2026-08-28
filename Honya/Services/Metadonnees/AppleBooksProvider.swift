@@ -29,25 +29,23 @@ struct AppleBooksProvider: Sendable {
         ]
         guard let url = composants.url else { return [] }
 
-        await FileAttenteApple.partage.attendre()
+        guard await FileAttenteApple.partage.attendre() else { return [] }
         let (donnees, _) = try await Reseau.catalogues.data(from: url)
         let reponse = try JSONDecoder().decode(Reponse.self, from: donnees)
-        return (reponse.results ?? []).compactMap { $0.enResultat(langue: langue) }
+        return (reponse.results ?? []).compactMap { $0.enResultat() }
     }
 
     /// Recherche par ISBN dans le catalogue du pays (les ebooks seulement).
     ///
-    /// Deux portes, car elles ne mènent pas au même index : `lookup` interroge
-    /// la table des identifiants, la recherche interroge le catalogue. Des
-    /// éditions absentes de la première se trouvent dans la seconde. Un
-    /// code-barres inconnu n'y ramène rien — vérifié — donc la seconde porte
-    /// n'invente jamais de livre.
+    /// `lookup` est la seule porte utilisée ici : elle garantit que la réponse
+    /// est rattachée à l'identifiant demandé. Une recherche libre du nombre
+    /// pouvait renvoyer un ebook voisin puis lui attribuer à tort l'ISBN papier.
     func parISBN(_ isbn: String, pays: String, langue: String) async -> ResultatRecherche? {
-        let propre = ISBNUtil.normaliser(isbn)
-        if let trouve = await parIdentifiant(propre, pays: pays, langue: langue) {
-            return trouve
-        }
-        return (try? await rechercher(propre, pays: pays, langue: langue, limite: 3))?.first
+        guard let propre = ISBNUtil.canonique(isbn),
+              var trouve = await parIdentifiant(propre, pays: pays, langue: langue)
+        else { return nil }
+        trouve.isbn = propre
+        return trouve
     }
 
     private func parIdentifiant(
@@ -60,11 +58,11 @@ struct AppleBooksProvider: Sendable {
         ]
         guard let url = composants.url else { return nil }
 
-        await FileAttenteApple.partage.attendre()
+        guard await FileAttenteApple.partage.attendre() else { return nil }
         guard let (donnees, _) = try? await Reseau.catalogues.data(from: url),
               let reponse = try? JSONDecoder().decode(Reponse.self, from: donnees)
         else { return nil }
-        return (reponse.results ?? []).first?.enResultat(langue: langue)
+        return (reponse.results ?? []).first?.enResultat()
     }
 
     // MARK: - Décodage
@@ -82,7 +80,7 @@ struct AppleBooksProvider: Sendable {
         let releaseDate: String?
         let genres: [String]?
 
-        func enResultat(langue: String) -> ResultatRecherche? {
+        func enResultat() -> ResultatRecherche? {
             guard let titre = trackName, !titre.isEmpty else { return nil }
 
             var resultat = ResultatRecherche(
@@ -93,13 +91,13 @@ struct AppleBooksProvider: Sendable {
             if let artistName, !artistName.isEmpty {
                 resultat.auteurs = [artistName]
             }
-            // Le storefront EST l'édition locale : ces résultats sont dans la
-            // langue du pays du lecteur.
-            resultat.langue = langue
+            // L'API garantit un storefront, pas la langue de chaque livre.
+            // Un résultat du store français peut être anglais : on ne lui
+            // attribue donc jamais la langue demandée sans donnée explicite.
             resultat.resume = description.map(TexteUtil.sansHTML)
             resultat.annee = TexteUtil.annee(releaseDate)
             if let releaseDate {
-                resultat.dateSortie = ISO8601DateFormatter().date(from: releaseDate)
+                resultat.dateSortie = DateCivile.depuisISO(releaseDate)
             }
             resultat.couvertureURL = artworkUrl100.map(Self.hauteResolution)
 
@@ -127,30 +125,33 @@ struct AppleBooksProvider: Sendable {
 actor FileAttenteApple {
     static let partage = FileAttenteApple()
 
-    /// Vingt appels par minute — mais pas un toutes les trois secondes.
-    ///
-    /// L'espacement rigide faisait payer trois secondes pleines au lecteur qui
-    /// scanne UN livre : la fiche partait aussitôt, puis la recherche de
-    /// couverture attendait son tour derrière elle. Or iTunes accepte très
-    /// bien une rafale tant que la moyenne tient. Le seau de jetons rend la
-    /// première poignée d'appels immédiate et ne fait patienter que celui qui
-    /// balaye une étagère entière — exactement l'inverse de ce qu'on avait.
-    private static let capacite = 8.0
+    /// Vingt appels par minute, avec un seul départ immédiat. Une capacité de
+    /// huit autorisait en pratique 27 appels dans la première minute ; Apple
+    /// documente une limite d'environ vingt, rafale comprise.
+    private static let capacite = 1.0
     private static let parSeconde = 20.0 / 60.0
 
     private var jetons = capacite
     private var derniereMesure = Date()
 
-    func attendre() async {
+    /// `false` signifie que la recherche a été remplacée pendant son
+    /// attente. Sans ce test, `Task.sleep` annulé échouait immédiatement et
+    /// la boucle tournait à vide jusqu'au prochain jeton.
+    func attendre() async -> Bool {
         while true {
+            guard !Task.isCancelled else { return false }
             recharger()
             if jetons >= 1 {
                 jetons -= 1
-                return
+                return true
             }
             // Le temps qu'il manque pour qu'un jeton retombe dans le seau.
             let manque = (1 - jetons) / Self.parSeconde
-            try? await Task.sleep(for: .seconds(min(manque, 3)))
+            do {
+                try await Task.sleep(for: .seconds(min(manque, 3)))
+            } catch {
+                return false
+            }
         }
     }
 

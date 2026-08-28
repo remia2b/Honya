@@ -298,6 +298,7 @@ private struct FinSessionSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Enregistrer", action: enregistrer)
                         .fontWeight(.bold)
+                        .disabled(secondes <= 0)
                 }
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Ignorer") {
@@ -366,6 +367,7 @@ private struct FinSessionSheet: View {
     // MARK: Enregistrement
 
     private func enregistrer() {
+        guard secondes > 0 else { return }
         let session = SessionLecture(debut: debut, dureeSecondes: secondes)
         session.mood = mood
 
@@ -385,6 +387,13 @@ private struct FinSessionSheet: View {
             session.pagesLues = pagesManga
             session.serie = serie
             serie.chapitresLus = max(serie.chapitresLus, chapitres)
+            // Démarrer une session reprend réellement la série : même sans
+            // chapitre renseigné (une session peut ne compter que des pages),
+            // elle doit apparaître dans « En cours ». Une série dont tous les
+            // tomes publiés sont déjà lus conserve néanmoins son état terminé.
+            // `nil` laisse une série terminée se recalculer : si un tome déjà
+            // annoncé paraît demain, elle quittera automatiquement « Lu ».
+            serie.statutChoisi = serie.estTerminee ? nil : .enCours
         }
 
         contexte.insert(session)

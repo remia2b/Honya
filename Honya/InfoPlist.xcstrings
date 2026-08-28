@@ -1,0 +1,26 @@
+{
+  "sourceLanguage" : "fr",
+  "strings" : {
+    "NSCameraUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : { "stringUnit" : { "state" : "translated", "value" : "Honya verwendet die Kamera, um den ISBN-Strichcode deiner Bücher zu scannen." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Honya uses the camera to scan the ISBN barcode on your books." } },
+        "es" : { "stringUnit" : { "state" : "translated", "value" : "Honya usa la cámara para escanear el código de barras ISBN de tus libros." } },
+        "es-419" : { "stringUnit" : { "state" : "translated", "value" : "Honya usa la cámara para escanear el código de barras ISBN de tus libros." } },
+        "fr" : { "stringUnit" : { "state" : "translated", "value" : "Honya utilise l’appareil photo pour scanner le code-barres ISBN de vos livres." } },
+        "it" : { "stringUnit" : { "state" : "translated", "value" : "Honya usa la fotocamera per scansionare il codice a barre ISBN dei tuoi libri." } },
+        "ja" : { "stringUnit" : { "state" : "translated", "value" : "Honyaは、本のISBNバーコードをスキャンするためにカメラを使用します。" } },
+        "ko" : { "stringUnit" : { "state" : "translated", "value" : "Honya는 책의 ISBN 바코드를 스캔하기 위해 카메라를 사용합니다." } },
+        "nl" : { "stringUnit" : { "state" : "translated", "value" : "Honya gebruikt de camera om de ISBN-streepjescode van je boeken te scannen." } },
+        "pl" : { "stringUnit" : { "state" : "translated", "value" : "Honya używa aparatu do skanowania kodu kreskowego ISBN na książkach." } },
+        "pt-BR" : { "stringUnit" : { "state" : "translated", "value" : "O Honya usa a câmera para escanear o código de barras ISBN dos seus livros." } },
+        "ru" : { "stringUnit" : { "state" : "translated", "value" : "Honya использует камеру для сканирования ISBN-штрихкода на ваших книгах." } },
+        "sv" : { "stringUnit" : { "state" : "translated", "value" : "Honya använder kameran för att skanna ISBN-streckkoden på dina böcker." } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "Honya, kitaplarınızdaki ISBN barkodunu taramak için kamerayı kullanır." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Honya 使用相机扫描图书上的 ISBN 条形码。" } }
+      }
+    }
+  },
+  "version" : "1.0"
+}

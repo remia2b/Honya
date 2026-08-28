@@ -9,8 +9,8 @@ import StoreKit
 /// faux dès le deuxième pays, et illégal dans plusieurs.
 ///
 /// Tant que les articles n'existent pas dans App Store Connect, `articles`
-/// reste vide : l'écran Honya+ le voit et retombe sur son affichage
-/// d'attente. Rien ne casse, rien ne ment.
+/// reste vide et l'achat est indisponible. Aucun tarif ni droit de secours
+/// n'est inventé localement.
 @Observable
 @MainActor
 final class Boutique {
@@ -56,9 +56,22 @@ final class Boutique {
     private(set) var articles: [Formule: Product] = [:]
     /// L'abonnement est-il actif — la seule question qui compte pour les vues.
     private(set) var abonne = false
+    /// Formule réellement reconnue par Apple, distincte du simple booléen :
+    /// un achat à vie n'est pas un abonnement à gérer dans Réglages.
+    private(set) var formuleActive: Formule?
+    private(set) var expiration: Date?
+    private(set) var droitsVerifies = false
     private(set) var chargement = true
     private(set) var achatEnCours: Formule?
+    private(set) var restaurationEnCours = false
+    private(set) var formulesAvecEssai: Set<Formule> = []
     private(set) var souci: String?
+
+    var operationEnCours: Bool { achatEnCours != nil || restaurationEnCours }
+    var achatAVie: Bool { abonne && formuleActive == .vie }
+    var abonnementRenouvelableActif: Bool {
+        abonne && formuleActive != nil && formuleActive != .vie
+    }
 
     /// Une veille qui tourne pour toute la durée de vie de l'application —
     /// elle n'est jamais annulée, la boutique étant un partagé unique.
@@ -68,6 +81,7 @@ final class Boutique {
     /// renouvellement. Sans cette veille, l'application ne l'apprendrait
     /// qu'au prochain lancement.
     private var veille: Task<Void, Never>?
+    private var veilleExpiration: Task<Void, Never>?
 
     private init() {
         veille = Task { [weak self] in
@@ -95,6 +109,15 @@ final class Boutique {
                 if let formule = Formule(rawValue: article.id) { table[formule] = article }
             }
             articles = table
+            var essais: Set<Formule> = []
+            for (formule, article) in table {
+                guard let abonnement = article.subscription,
+                      abonnement.introductoryOffer != nil,
+                      await abonnement.isEligibleForIntroOffer
+                else { continue }
+                essais.insert(formule)
+            }
+            formulesAvecEssai = essais
             souci = nil
         } catch {
             // Pas de message rouge pour autant : sans réseau, l'écran garde
@@ -109,13 +132,23 @@ final class Boutique {
     /// - Returns: vrai si l'abonnement est actif au retour.
     @discardableResult
     func acheter(_ formule: Formule) async -> Bool {
+        // Défense centrale : achat et restauration sont une seule file. Le
+        // MainActor réserve l'opération avant le premier `await`, donc deux
+        // taps rapides ne peuvent pas ouvrir deux feuilles StoreKit.
+        guard !operationEnCours else { return false }
+        achatEnCours = formule
+        defer { achatEnCours = nil }
+
+        if !droitsVerifies { await relireLesDroits() }
+        guard !abonne else {
+            souci = nil
+            return true
+        }
         guard let article = articles[formule] else {
             souci = String(localized: "Cette offre n'est pas disponible pour le moment.")
             return false
         }
         souci = nil
-        achatEnCours = formule
-        defer { achatEnCours = nil }
 
         do {
             switch try await article.purchase() {
@@ -147,8 +180,10 @@ final class Boutique {
     /// après une réinstallation. Obligatoire : l'App Store refuse une
     /// application qui vend un abonnement sans offrir de le restaurer.
     func restaurer() async {
+        guard !operationEnCours else { return }
         souci = nil
-        achatEnCours = nil
+        restaurationEnCours = true
+        defer { restaurationEnCours = false }
         do {
             try await AppStore.sync()
             await relireLesDroits()
@@ -166,14 +201,48 @@ final class Boutique {
     /// maintenant. On ne retient jamais « il a acheté » dans un fichier local
     /// — un abonnement expire, se rembourse, se résilie.
     func relireLesDroits() async {
-        var actif = false
+        var formuleTrouvee: Formule?
+        var expirationTrouvee: Date?
+        let maintenant = Date()
         for await resultat in Transaction.currentEntitlements {
             guard let transaction = try? Self.verifier(resultat) else { continue }
-            guard Formule(rawValue: transaction.productID) != nil else { continue }
-            if transaction.revocationDate == nil { actif = true }
+            guard let formule = Formule(rawValue: transaction.productID),
+                  transaction.revocationDate == nil
+            else { continue }
+            if let expiration = transaction.expirationDate,
+               expiration <= maintenant { continue }
+
+            // Le non-consommable à vie prime sur une ancienne souscription.
+            if formule == .vie
+                || formuleTrouvee == nil
+                || (formuleTrouvee != .vie
+                    && (transaction.expirationDate ?? .distantPast)
+                        > (expirationTrouvee ?? .distantPast)) {
+                formuleTrouvee = formule
+                expirationTrouvee = transaction.expirationDate
+            }
         }
+        let actif = formuleTrouvee != nil
+        formuleActive = formuleTrouvee
+        expiration = expirationTrouvee
         abonne = actif
         Droits.partage.appliquer(plus: actif)
+        droitsVerifies = true
+        programmerRelecture(a: expirationTrouvee)
+    }
+
+    private func programmerRelecture(a date: Date?) {
+        veilleExpiration?.cancel()
+        guard let date, date > Date() else {
+            veilleExpiration = nil
+            return
+        }
+        veilleExpiration = Task { [weak self] in
+            let attente = max(1, date.timeIntervalSinceNow + 1)
+            try? await Task.sleep(for: .seconds(attente))
+            guard !Task.isCancelled else { return }
+            await self?.relireLesDroits()
+        }
     }
 
     /// Une transaction non signée par Apple n'existe pas.
@@ -192,11 +261,13 @@ final class Boutique {
         }
     }
 
-    // MARK: - La remise de la roue
+    // MARK: - Ancienne remise de test
 
     private static let cleRemise = "remiseGagnee"
 
-    /// La roue a-t-elle été gagnée — donc le tarif réduit doit-il s'afficher.
+    /// Conservé uniquement pour que les anciens aperçus restent lisibles.
+    /// Une promotion App Store doit être configurée par Apple et ne peut pas
+    /// être accordée par un simple booléen local dans le parcours de vente.
     var remiseGagnee: Bool {
         UserDefaults.standard.bool(forKey: Self.cleRemise)
     }
@@ -205,18 +276,42 @@ final class Boutique {
         UserDefaults.standard.set(true, forKey: Self.cleRemise)
     }
 
-    // MARK: - Les montants affichés hors de l'écran d'abonnement
-
-    /// Les tarifs d'attente, le temps que les articles existent dans App Store
-    /// Connect. Ils ne servent qu'aux versions de test : dès que l'App Store
-    /// répond, ce sont ses prix qui s'affichent, dans la monnaie du lecteur.
-    private static let prixDAttente: [Formule: String] = [
-        .mensuel: "4,99 €", .annuel: "29,99 €",
-        .annuelRemise: "17,99 €", .vie: "69,99 €",
-    ]
+    // MARK: - Les montants affichés
 
     func prix(_ formule: Formule) -> String {
-        articles[formule]?.displayPrice ?? Self.prixDAttente[formule] ?? ""
+        articles[formule]?.displayPrice ?? "—"
+    }
+
+    /// Durée localisée d'un éventuel essai réellement offert et éligible.
+    func dureeEssai(_ formule: Formule) -> String? {
+        guard formulesAvecEssai.contains(formule),
+              let offre = articles[formule]?.subscription?.introductoryOffer,
+              offre.paymentMode == .freeTrial else { return nil }
+
+        let valeur = offre.period.value * offre.periodCount
+        var composants = DateComponents()
+        let unite: NSCalendar.Unit
+        switch offre.period.unit {
+        case .day:
+            composants.day = valeur
+            unite = .day
+        case .week:
+            composants.weekOfMonth = valeur
+            unite = .weekOfMonth
+        case .month:
+            composants.month = valeur
+            unite = .month
+        case .year:
+            composants.year = valeur
+            unite = .year
+        @unknown default:
+            return nil
+        }
+        let format = DateComponentsFormatter()
+        format.allowedUnits = unite
+        format.unitsStyle = .full
+        format.maximumUnitCount = 1
+        return format.string(from: composants)
     }
 
     /// La remise réelle, en pourcentage entier, déduite des deux prix.
@@ -227,16 +322,14 @@ final class Boutique {
     var pourcentageRemise: Int {
         guard let plein = articles[.annuel]?.price,
               let reduit = articles[.annuelRemise]?.price,
-              plein > 0 else { return 40 }
+              plein > 0 else { return 0 }
         let taux = (plein - reduit) / plein * 100
         return Int(NSDecimalNumber(decimal: taux).doubleValue.rounded())
     }
 
-    /// Les formules à montrer, remise comprise si elle a été gagnée. Si le
-    /// tarif réduit n'existe pas encore côté App Store, l'annuel plein reste
-    /// en place : jamais de trou dans la liste.
+    /// La promotion issue de l'ancienne roue n'entre plus dans le parcours
+    /// d'achat. Les offres visibles sont exclusivement les produits publics.
     var formulesVisibles: [Formule] {
-        guard remiseGagnee, articles[.annuelRemise] != nil else { return Formule.auCatalogue }
-        return [.mensuel, .annuelRemise, .vie]
+        Formule.auCatalogue
     }
 }

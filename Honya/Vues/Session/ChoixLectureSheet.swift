@@ -42,7 +42,7 @@ struct ChoixLectureSheet: View {
     /// message « ajoutez un livre », alors que l'accueil affichait justement
     /// ces séries en « En ce moment ».
     private var seriesALire: [Serie] {
-        series.filter { $0.statut != .enCours && $0.prochainALire != nil }
+        series.filter { $0.statut == .aLire && $0.prochainALire != nil }
     }
 
     var body: some View {
