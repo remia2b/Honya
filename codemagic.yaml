@@ -124,8 +124,6 @@ workflows:
             --create 2>&1 | tee /tmp/fetch.log
 
           keychain add-certificates
-          # Génère aussi ~/export_options.json, dont build-ipa a besoin pour l'export.
-          xcode-project use-profiles --project Honya.xcodeproj || true
 
           echo "=== Résultat ==="
           echo "--- Profils installés ---"
@@ -133,13 +131,8 @@ workflows:
           echo "--- Certificats dans le trousseau ---"
           security find-identity -v -p codesigning 2>&1 | head -10 || true
 
-      - name: Inscrire le profil dans le projet Xcode
+      - name: Configurer le profil dans le projet Xcode
         script: |
-          # « xcode-project use-profiles » n'écrit rien dans ce projet : il est généré
-          # à la main au format « dossiers synchronisés » (objectVersion 70). Sans
-          # PROVISIONING_PROFILE_SPECIFIER, l'archive s'arrête sur « requires a
-          # provisioning profile ». On applique donc les réglages nous-mêmes, à partir
-          # du profil réellement installé à l'étape précédente.
           # Le dossier des profils a changé avec Xcode 16 (~/Library/Developer/Xcode/
           # UserData/… au lieu de ~/Library/MobileDevice/…) : on cherche par contenu
           # plutôt que par chemin, ce qui reste vrai quelle que soit la version.
@@ -175,17 +168,14 @@ workflows:
           NAME=$(printf '%s' "$PROFILE_PLIST" | plutil -extract Name raw -)
           echo "Profil retenu : $NAME ($UUID)"
 
-          # `xcode-project use-profiles` peut laisser le style sur Automatic ou
-          # le passer sur Manual selon sa version. On remplace donc les deux
-          # formes et on écrit le nom ET l'UUID réellement lus dans le profil.
-          PBX=Honya.xcodeproj/project.pbxproj
-          sed -i '' -E "s|CODE_SIGN_STYLE = (Automatic|Manual);.*|CODE_SIGN_STYLE = Manual; CODE_SIGN_IDENTITY = \"Apple Distribution\"; PROVISIONING_PROFILE_SPECIFIER = \"$NAME\"; PROVISIONING_PROFILE = \"$UUID\";|g" "$PBX"
-          if ! grep -Fq "PROVISIONING_PROFILE_SPECIFIER = \"$NAME\";" "$PBX" \
-             || ! grep -Fq "PROVISIONING_PROFILE = \"$UUID\";" "$PBX"; then
-            echo "❌ Le profil n'a pas été inscrit dans les réglages Xcode."
-            grep -n "CODE_SIGN_STYLE\|PROVISIONING_PROFILE" "$PBX" || true
-            exit 1
-          fi
+          # Méthode officielle Codemagic : fournir explicitement l'unique
+          # profil déjà validé, ainsi que la méthode d'archive. La commande
+          # configure les variantes SDK et génère ~/export_options.plist.
+          xcode-project use-profiles \
+            --project Honya.xcodeproj \
+            --profile "$PROFILE" \
+            --archive-method app-store \
+            --code-signing-setup-verbose-logging
 
           echo "--- Réglages de signature retenus par Xcode ---"
           xcodebuild -project Honya.xcodeproj -scheme Honya -showBuildSettings 2>/dev/null \
@@ -197,7 +187,8 @@ workflows:
         script: |
           xcode-project build-ipa \
             --project Honya.xcodeproj \
-            --scheme Honya
+            --scheme Honya \
+            --export-options-plist "$HOME/export_options.plist"
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
