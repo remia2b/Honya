@@ -8,6 +8,34 @@ import Foundation
 /// données doivent provenir de la même édition publiée.
 struct OpenLibraryProvider: MetadataProvider {
 
+    /// Activité récente de la communauté Open Library, mais uniquement parmi
+    /// les œuvres qui possèdent une édition dans la langue demandée. Une seule
+    /// requête groupée suffit ; le choix final reste celui d'une édition
+    /// cohérente (titre, langue et couverture issus du même livre physique).
+    func tendances(
+        langue: String,
+        limite: Int = 24
+    ) async throws -> [ResultatRecherche] {
+        let code = Self.codeLangueBase(langue)
+        guard let marc = Self.versMARC[code] else { return [] }
+        // Même garde-fou que le rayon Trending officiel d'Open Library : une
+        // activité récente mesurable, au moins quatre journaux de lecture et
+        // aucune couverture signalée par la modération.
+        let requete = [
+            "trending_score_hourly_sum:[1 TO *]",
+            "readinglog_count:[4 TO *]",
+            "language:\(marc)",
+            "-subject:\"content_warning:cover\"",
+        ].joined(separator: " ")
+        let reponse = try await rechercherAPI(
+            requete,
+            langueInterface: code,
+            limite: min(max(limite, 1), 50),
+            tri: "trending"
+        )
+        return Self.resultats(de: reponse, langueDemandee: code)
+    }
+
     func rechercher(_ requete: String, langue: String?) async throws -> [ResultatRecherche] {
         let langueDemandee = langue.map(Self.codeLangueBase)
         var requeteFiltree = requete
@@ -115,7 +143,8 @@ struct OpenLibraryProvider: MetadataProvider {
         _ requete: String,
         langueInterface: String?,
         limite: Int,
-        page: Int = 1
+        page: Int = 1,
+        tri: String? = nil
     ) async throws -> ReponseRecherche {
         var composants = URLComponents(string: "https://openlibrary.org/search.json")!
         var parametres = [
@@ -137,6 +166,9 @@ struct OpenLibraryProvider: MetadataProvider {
             // Deux lettres ici, conformément à la Search API. Ce paramètre ne
             // remplace jamais le filtre MARC ajouté à `q` ci-dessus.
             parametres.append(URLQueryItem(name: "lang", value: langueInterface))
+        }
+        if let tri {
+            parametres.append(URLQueryItem(name: "sort", value: tri))
         }
         composants.queryItems = parametres
         guard let url = composants.url else { return ReponseRecherche(docs: []) }
@@ -245,6 +277,7 @@ struct OpenLibraryProvider: MetadataProvider {
         resultat.langue = langueEdition
         if let coverId = edition.cover_i {
             resultat.couvertureURL = "https://covers.openlibrary.org/b/id/\(coverId)-L.jpg"
+            resultat.attributionCouverture = "Open Library"
         }
         if let langueEdition {
             resultat.titresParLangue[langueEdition] = titre

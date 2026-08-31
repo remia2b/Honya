@@ -8,6 +8,27 @@ enum Decouverte {
 
     // MARK: - Suggestions localisées
 
+    /// Livres qui montent réellement en ce moment dans l'activité Open
+    /// Library, résolus vers une édition de la langue du lecteur. Le signal de
+    /// popularité est mondial ; les rayons thématiques ci-dessous réinjectent
+    /// ensuite les catalogues et éditions propres à son marché.
+    static func tendances(langue: String) async -> [ResultatRecherche] {
+        let code = langue.lowercased()
+            .split(whereSeparator: { $0 == "-" || $0 == "_" })
+            .first.map(String.init) ?? langue.lowercased()
+        let cle = "tendances|" + code
+        if let connues = await CacheRecherche.partage.lire(cle) {
+            return connues
+        }
+        let brutes = (try? await OpenLibraryProvider().tendances(
+            langue: code,
+            limite: 24
+        )) ?? []
+        let presentees = Array(parSerie(brutes).prefix(18))
+        await CacheRecherche.partage.ecrire(cle, presentees)
+        return presentees
+    }
+
     /// Un étal vivant construit uniquement avec des éditions dont la langue est
     /// explicitement celle du lecteur. `gratuits` sépare simplement deux jeux
     /// de requêtes afin que l'accueil obtienne un mur varié ; aucune notion de

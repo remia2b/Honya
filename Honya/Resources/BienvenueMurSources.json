@@ -8,6 +8,8 @@
   "licenseUrl": "https://www.etalab.gouv.fr/licence-ouverte-open-licence/",
   "downloadUrlTemplate": "https://openapi.bnf.fr/couverture/image/image/recupererImage?EAN={isbn}&couverture=1&taille=originale",
   "compositeSha256": "6BF11E957BDFCE06AF6A1DC8EA66E9606169EE859F84395814E43BC1E61C5C3E",
+  "animatedTileAssetPrefix": "BienvenueMur-fr-",
+  "animatedTilePixels": "430x645@3x",
   "records": [
     { "ark": "ark:/12148/cb47685427g", "title": "Zhara", "isbn": "979-10-363-6185-2" },
     { "ark": "ark:/12148/cb435860287", "title": "Les chroniques de Conan", "isbn": "978-2-8094-3018-9" },

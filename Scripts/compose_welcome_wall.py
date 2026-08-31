@@ -8,6 +8,7 @@ remain explicit outside image processing.
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageOps
@@ -19,6 +20,8 @@ COLUMNS = 3
 GAP = 9
 RADIUS = 12
 STARTS = (-54, -222, -116)
+TILE_WIDTH = 430
+TILE_HEIGHT = 645
 
 
 def cover_tile(source: Image.Image, width: int, height: int) -> Image.Image:
@@ -84,13 +87,52 @@ def compose(inputs: list[Path], output: Path) -> None:
     )
 
 
+def export_asset_tiles(inputs: list[Path], asset_catalog: Path) -> None:
+    """Export the same licensed covers as independently animatable assets."""
+    for index, path in enumerate(inputs, start=1):
+        asset_name = f"BienvenueMur-fr-{index:02d}"
+        imageset = asset_catalog / f"{asset_name}.imageset"
+        imageset.mkdir(parents=True, exist_ok=True)
+
+        with Image.open(path) as source:
+            tile = cover_tile(source, TILE_WIDTH, TILE_HEIGHT)
+        tile.save(
+            imageset / f"{asset_name}.jpg",
+            format="JPEG",
+            quality=92,
+            subsampling=0,
+            optimize=True,
+            progressive=False,
+        )
+
+        contents = {
+            "images": [
+                {"idiom": "universal", "scale": "1x"},
+                {"idiom": "universal", "scale": "2x"},
+                {
+                    "filename": f"{asset_name}.jpg",
+                    "idiom": "universal",
+                    "scale": "3x",
+                },
+            ],
+            "info": {"author": "xcode", "version": 1},
+        }
+        (imageset / "Contents.json").write_text(
+            json.dumps(contents, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("input_directory", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--tiles-asset-catalog", type=Path)
     args = parser.parse_args()
     inputs = sorted(args.input_directory.glob("wall-*.jpg"))
     compose(inputs, args.output)
+    if args.tiles_asset_catalog:
+        export_asset_tiles(inputs, args.tiles_asset_catalog)
 
 
 if __name__ == "__main__":

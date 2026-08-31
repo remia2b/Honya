@@ -85,10 +85,22 @@ struct BienvenueView: View {
             limite: 9,
             migrerDepuisURLCache: false
         )
-        _vignettes = State(initialValue: contenu?.vignettes ?? [])
-        _imagesMur = State(initialValue: contenu?.images ?? [:])
+        let code = Langues.codeAppareil.lowercased()
+            .split(whereSeparator: { $0 == "-" || $0 == "_" })
+            .first.map(String.init) ?? Langues.codeAppareil.lowercased()
+        let embarque = contenu == nil && code == "fr"
+            ? Self.murFrancaisEmbarque()
+            : nil
+        _vignettes = State(
+            initialValue: contenu?.vignettes ?? embarque?.vignettes ?? []
+        )
+        _imagesMur = State(
+            initialValue: contenu?.images ?? embarque?.images ?? [:]
+        )
         _cleMurAffichee = State(
-            initialValue: contenu == nil ? nil : cle
+            initialValue: contenu != nil
+                ? cle
+                : (embarque == nil ? nil : Self.cleMurFrancaisEmbarque)
         )
     }
 
@@ -136,12 +148,63 @@ struct BienvenueView: View {
     private static let colonnes = 3
     private static let ecart: CGFloat = 4
     private static let marge: CGFloat = 0
+    private static let cleMurFrancaisEmbarque = "murEmbarque.fr"
     /// Les colonnes ne démarrent pas au même endroit, sinon les couvertures
     /// forment des rangées bien alignées et le mur perd sa vie. Exprimé en
     /// fraction d'une couverture, jamais plus d'une : au-delà, la boucle
     /// laisserait le bas de l'écran à découvert.
     private static let departs: [CGFloat] = [-0.06, -0.34, -0.16]
     private static let durees: [Double] = [66, 78, 58]
+
+    /// Les quinze couvertures BnF du premier lancement restent séparées dans
+    /// l'asset catalog. Elles peuvent donc dériver comme le mur réseau, tout en
+    /// étant déjà présentes et décodées avant le premier rendu.
+    private static func murFrancaisEmbarque() -> (
+        vignettes: [VignetteMurBienvenue],
+        images: [String: UIImage]
+    )? {
+        let livres: [(titre: String, manga: Bool)] = [
+            ("Zhara", false),
+            ("Les chroniques de Conan", false),
+            ("Dragon Ball Z", true),
+            ("Amazing Fantasy 1000", false),
+            ("Fragments d'amour", true),
+            ("Kirby Fantasy", true),
+            ("Comics", false),
+            ("Briselames", false),
+            ("Marvel Comics", true),
+            ("Avengers", false),
+            ("Thor", false),
+            ("Le cœur d'une tueuse", false),
+            ("Kirby Fantasy", true),
+            ("Sherlock Holmes", false),
+            ("Scarlet", false),
+        ]
+        var vignettes: [VignetteMurBienvenue] = []
+        var images: [String: UIImage] = [:]
+
+        for (offset, livre) in livres.enumerated() {
+            let asset = String(
+                format: "BienvenueMur-fr-%02d",
+                offset + 1
+            )
+            guard let brute = UIImage(named: asset) else { continue }
+            let image = brute.preparingForDisplay() ?? brute
+            let cle = "asset://" + asset
+            vignettes.append(
+                .init(
+                    id: cle,
+                    url: cle,
+                    titre: livre.titre,
+                    manga: livre.manga,
+                    attribution: "Bibliothèque nationale de France · 2026-08-31"
+                )
+            )
+            images[cle] = image
+        }
+        guard vignettes.count >= 9 else { return nil }
+        return (vignettes, images)
+    }
 
     private var langue: String {
         objectifs.first?.languePrincipale ?? Langues.codeAppareil
@@ -232,12 +295,9 @@ struct BienvenueView: View {
             }
         }
         .task(id: cleCacheMur) {
-            let cleDemandee = cleCacheMur
-            // Un changement de langue/storefront ne doit jamais laisser le
-            // mur précédent visible pendant que le nouveau se prépare.
-            if cleMurAffichee != cleDemandee {
-                poser([], images: [:], cle: nil)
-            }
+            // `fondMur` masque lui-même tout snapshot d'une autre locale. On
+            // conserve donc les pixels en mémoire sans vider le mur embarqué :
+            // le mouvement ne s'interrompt jamais pendant le rafraîchissement.
             await chargerLeMur()
         }
         .onAppear {
@@ -271,7 +331,10 @@ struct BienvenueView: View {
 
     @ViewBuilder
     private var fondMur: some View {
-        if cleMurAffichee == cleCacheMur, !vignettes.isEmpty {
+        let snapshotLocalise = cleMurAffichee == cleCacheMur
+        let embarqueFrancais = cleMurAffichee == Self.cleMurFrancaisEmbarque
+            && codeLangueMur == "fr"
+        if (snapshotLocalise || embarqueFrancais), !vignettes.isEmpty {
             mur
         } else {
             GeometryReader { geo in
@@ -943,19 +1006,24 @@ struct BienvenueView: View {
             // Les deux classements couvrent ensemble les six suggestions
             // localisees de `Decouverte`, sans ajouter une requete brute que
             // certains catalogues prendraient pour un titre litteral.
+            async let tendances = Decouverte.tendances(langue: langueDemandee)
             async let payants = Decouverte.classement(
                 gratuits: false, langue: langueDemandee
             )
             async let libres = Decouverte.classement(
                 gratuits: true, langue: langueDemandee
             )
-            let lots = await (payants, libres)
+            let lots = await (tendances, payants, libres)
             guard !Task.isCancelled else { return }
-            let tirage = lots.0 + lots.1
+            let tirage = selectionPourMur(
+                tendances: lots.0,
+                premierRayon: lots.1,
+                secondRayon: lots.2
+            )
             guard !tirage.isEmpty else { continue }
 
             var vues = Set<String>()
-            let jeu = tirage.shuffled().compactMap {
+            let jeu = tirage.compactMap {
                 resultat -> VignetteMurBienvenue? in
                 // Uniquement de vraies couvertures : une case de remplacement
                 // au milieu des tendances se verrait tout de suite.
@@ -994,6 +1062,67 @@ struct BienvenueView: View {
                 return
             }
         }
+    }
+
+    /// La grande majorité du mur suit l'activité récente. Quatre places
+    /// maximum élargissent ensuite vers mangas, BD et grands genres locaux,
+    /// uniquement si elles sont nécessaires. L'ordre de rang est conservé :
+    /// aucun `shuffle` ne transforme un vrai classement en hasard.
+    private func selectionPourMur(
+        tendances: [ResultatRecherche],
+        premierRayon: [ResultatRecherche],
+        secondRayon: [ResultatRecherche]
+    ) -> [ResultatRecherche] {
+        let cible = 18
+        let cibleTendances = min(14, tendances.count)
+        var resultat: [ResultatRecherche] = []
+        var identifiants = Set<String>()
+        var series = Set<String>()
+        var comptesAuteurs: [String: Int] = [:]
+
+        func ajouter(_ candidat: ResultatRecherche) {
+            guard resultat.count < cible,
+                  !identifiants.contains(candidat.id) else { return }
+            let serie = TexteUtil.normaliser(
+                Tomaison.decomposer(candidat.titre).base
+            )
+            guard serie.isEmpty || !series.contains(serie) else { return }
+
+            // Deux couvertures maximum par auteur : le classement reste vrai,
+            // mais une seule saga ne peut pas avaler tout le décor.
+            let auteur = candidat.auteurs.first.map(TexteUtil.normaliser) ?? ""
+            if !auteur.isEmpty {
+                guard comptesAuteurs[auteur, default: 0] < 2 else { return }
+            }
+
+            identifiants.insert(candidat.id)
+            if !serie.isEmpty { series.insert(serie) }
+            if !auteur.isEmpty { comptesAuteurs[auteur, default: 0] += 1 }
+            resultat.append(candidat)
+        }
+
+        for tendance in tendances where resultat.count < cibleTendances {
+            ajouter(tendance)
+        }
+
+        // Les deux catalogues thématiques sont intercalés pour ne pas remplir
+        // les dernières cases avec un seul genre ou un seul fournisseur.
+        let profondeur = max(premierRayon.count, secondRayon.count)
+        for rang in 0..<profondeur where resultat.count < cible {
+            if premierRayon.indices.contains(rang) {
+                ajouter(premierRayon[rang])
+            }
+            if resultat.count < cible, secondRayon.indices.contains(rang) {
+                ajouter(secondRayon[rang])
+            }
+        }
+
+        // Si les catalogues locaux sont maigres, compléter avec la suite du
+        // vrai classement plutôt que d'inventer ou de répéter des titres.
+        for tendance in tendances where resultat.count < cible {
+            ajouter(tendance)
+        }
+        return resultat
     }
 
     /// Charge et décode les images avant de rendre une seule case. Les URL en
@@ -1064,23 +1193,6 @@ struct BienvenueView: View {
     private func garder(_ jeu: [VignetteMurBienvenue], cle: String) {
         if let donnees = try? JSONEncoder().encode(jeu) {
             UserDefaults.standard.set(donnees, forKey: cle)
-        }
-    }
-
-    /// Pose métadonnées ET pixels dans la même transaction, sans fondu. Une
-    /// case du mur n'existe donc jamais avant sa vraie image.
-    private func poser(
-        _ jeu: [VignetteMurBienvenue],
-        images: [String: UIImage],
-        cle: String?
-    ) {
-        var transaction = Transaction()
-        transaction.disablesAnimations = true
-        withTransaction(transaction) {
-            imagesMur = images
-            vignettes = jeu
-            cleMurAffichee = cle
-            if !jeu.isEmpty { debutMur = Date() }
         }
     }
 
