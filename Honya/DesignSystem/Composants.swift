@@ -13,12 +13,26 @@ struct CouvertureView: View {
     /// Côté de la vignette demandée au serveur, en pixels. La valeur par défaut
     /// convient à une fiche ; une grille de vignettes doit demander moins.
     var cote: Int = 1200
+    /// Une image déjà décodée peut être fournie par les écrans qui doivent
+    /// apparaître sans aucun passage par la couverture générée. Les autres
+    /// usages conservent leur chargement asynchrone habituel.
+    var imagePrechargee: UIImage? = nil
 
-    @State private var image: UIImage?
+    @State private var imageChargee: UIImage?
+    /// Associe le pixel chargé à l'URL qui l'a demandé. Sans ce témoin, une
+    /// cellule SwiftUI réutilisée pouvait montrer brièvement l'ancienne image
+    /// pendant que la nouvelle URL se chargeait.
+    @State private var urlImageChargee: String?
+
+    private var imageAffichee: UIImage? {
+        if let imagePrechargee { return imagePrechargee }
+        guard urlImageChargee == urlString else { return nil }
+        return imageChargee
+    }
 
     var body: some View {
         ZStack {
-            if let image {
+            if let image = imageAffichee {
                 Color.clear
                     .overlay(
                         Image(uiImage: image)
@@ -100,7 +114,17 @@ struct CouvertureView: View {
         ))
         .shadow(color: .black.opacity(0.18), radius: 7, x: 0, y: 2)
         .task(id: urlString) {
-            image = await ImageCharge.partage.uiImage(depuis: urlString, cote: cote)
+            guard imagePrechargee == nil else {
+                imageChargee = nil
+                urlImageChargee = nil
+                return
+            }
+            imageChargee = nil
+            urlImageChargee = nil
+            let image = await ImageCharge.partage.uiImage(depuis: urlString, cote: cote)
+            guard !Task.isCancelled else { return }
+            imageChargee = image
+            urlImageChargee = urlString
         }
         .accessibilityLabel(Text(titre))
     }

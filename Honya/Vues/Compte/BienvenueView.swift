@@ -26,6 +26,9 @@ struct BienvenueView: View {
 
     @State private var compte = Compte.partage
     @State private var vignettes: [Vignette] = []
+    /// Le mur n'est publié qu'avec des pixels déjà décodés. Conserver les
+    /// UIImage ici empêche le premier rendu factice de `CouvertureView`.
+    @State private var imagesMur: [String: UIImage] = [:]
     @State private var apparu = false
     /// Origine locale de la derive. Une date absolue faisait commencer le mur
     /// a un endroit arbitraire de sa boucle a chaque apparition.
@@ -223,7 +226,9 @@ struct BienvenueView: View {
             }
         }
         .task(id: cleCacheMur) {
-            debutMur = Date()
+            // Un changement de langue/storefront ne doit jamais laisser le
+            // mur précédent visible pendant que le nouveau se prépare.
+            poser([], images: [:])
             await chargerLeMur()
         }
         .onAppear {
@@ -321,56 +326,34 @@ struct BienvenueView: View {
 
     @ViewBuilder
     private func vignetteDuMur(_ vignette: Vignette) -> some View {
-        if vignette.url == nil, vignette.id.hasPrefix("depart-") {
-            let graine = vignette.id.unicodeScalars.reduce(0) { $0 + Int($1.value) }
-            let teinte = Double(graine % 360) / 360
-            ZStack {
-                LinearGradient(
-                    colors: [
-                        Color(hue: teinte, saturation: 0.56, brightness: 0.74),
-                        Color(hue: (teinte + 0.12).truncatingRemainder(dividingBy: 1),
-                              saturation: 0.62, brightness: 0.34),
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-                Circle()
-                    .stroke(.white.opacity(0.22), lineWidth: 10)
-                    .frame(width: 88, height: 88)
-                    .offset(x: CGFloat((graine % 5) * 7) - 16, y: -34)
-                Rectangle()
-                    .fill(.white.opacity(0.12))
-                    .frame(width: 160, height: 22)
-                    .rotationEffect(.degrees(Double((graine % 7) * 8 - 24)))
-                    .offset(y: 48)
-                Text("Honya")
-                    .font(.system(size: 15, weight: .semibold, design: .serif))
-                    .foregroundStyle(.white)
-                    .padding(9)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            }
-            .aspectRatio(2.0 / 3.0, contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-            .shadow(color: .black.opacity(0.2), radius: 7, y: 2)
-            .accessibilityHidden(true)
-        } else {
+        if let url = vignette.url, let image = imagesMur[url] {
             CouvertureView(
                 urlString: vignette.url,
                 titre: vignette.titre,
                 coins: 5,
                 manga: vignette.manga,
-                cote: 400
+                cote: 700,
+                imagePrechargee: image
             )
             // Le mur est un decor : VoiceOver doit atteindre directement le
-            // titre et les choix de connexion, pas enumerer 24 couvertures.
+            // titre et les choix de connexion, pas enumerer le mur.
             .accessibilityHidden(true)
+        } else {
+            // Une URL morte ou une image non décodable n'a jamais droit à une
+            // couverture inventée sur la page qui présente l'application.
+            Color.clear
+                .aspectRatio(2.0 / 3.0, contentMode: .fit)
+                .accessibilityHidden(true)
         }
     }
 
     private func vignettesDeLaColonne(_ index: Int, combien: Int) -> [Vignette] {
         guard !vignettes.isEmpty else { return [] }
         return (0..<combien).map { rang in
-            vignettes[(index * combien + rang) % vignettes.count]
+            // Distribuer horizontalement d'abord : avec seulement trois
+            // couvertures valides, chaque colonne reçoit ainsi la sienne au
+            // lieu d'afficher les trois mêmes rangées parfaitement alignées.
+            vignettes[(rang * Self.colonnes + index) % vignettes.count]
         }
     }
 
@@ -834,7 +817,7 @@ struct BienvenueView: View {
                 )
             }
             if !attributionsMur.isEmpty {
-                // Une mention consolidee, pas 24 credits repetes par le mur.
+                // Une mention consolidee, pas un credit repete sur chaque case.
                 // La provenance et la date viennent telles quelles du
                 // fournisseur afin de respecter sa licence dans toute langue.
                 Text(verbatim: attributionsMur.joined(separator: " · "))
@@ -884,23 +867,35 @@ struct BienvenueView: View {
     // MARK: - Les couvertures du mur
 
     private func chargerLeMur() async {
-        let besoin = 24
+        let besoin = 18
+        // Une vraie couverture par colonne suffit pour composer le décor :
+        // les colonnes savent répéter le jeu. Ce seuil bas garde donc le mur
+        // disponible dans les langues dont les catalogues sont moins fournis.
+        let minimumPresentable = 3
         let langueDemandee = langue
+        let cleDemandee = cleCacheMur
         let codeLangue = langueDemandee.lowercased()
             .split(whereSeparator: { $0 == "-" || $0 == "_" })
             .first.map(String.init) ?? langueDemandee.lowercased()
 
-        // JAMAIS d'ecran nu, pas meme a la toute premiere ouverture : le mur
-        // local de cette langue/storefront apparait sans reseau. Les vraies
-        // couvertures remplacent ensuite ce jeu DANS l'ouverture courante.
-        if !poserDepuisCache() {
-            poser(Self.jeuDeDepart)
-        }
+        // Le cache contient les métadonnées du mur, pas ses pixels. On décode
+        // donc d'abord les images hors écran ; le premier frame du mur est
+        // déjà entièrement réel, même lorsque URLCache répond très vite.
+        let cacheUtilisable = await poserDepuisCache(
+            cle: cleDemandee,
+            minimum: minimumPresentable,
+            limite: besoin
+        )
+        guard !Task.isCancelled, cleDemandee == cleCacheMur else { return }
 
         for essai in 0..<3 {
-            if Task.isCancelled { return }
+            if Task.isCancelled || cleDemandee != cleCacheMur { return }
             if essai > 0 {
-                try? await Task.sleep(for: .seconds(Double(essai + 1)))
+                do {
+                    try await Task.sleep(for: .seconds(Double(essai + 1)))
+                } catch {
+                    return
+                }
             }
 
             // Les deux classements couvrent ensemble les six suggestions
@@ -937,60 +932,122 @@ struct BienvenueView: View {
                 )
             }
             if !jeu.isEmpty {
-                let nouveauMur = Array(jeu.prefix(besoin))
-                garder(nouveauMur)
-                poser(nouveauMur)
+                let candidat = Array(jeu.prefix(besoin))
+                let pret = await precharger(candidat, limite: besoin)
+                guard !Task.isCancelled, cleDemandee == cleCacheMur else { return }
+                guard pret.vignettes.count >= minimumPresentable else { continue }
+
+                // Un cache déjà affiché reste stable pendant cette ouverture :
+                // les nouvelles tendances seront le premier mur du prochain
+                // lancement, sans second remplacement visible.
+                garder(pret.vignettes, cle: cleDemandee)
+                if !cacheUtilisable {
+                    poser(pret.vignettes, images: pret.images)
+                }
                 return
             }
         }
     }
 
-    /// Le premier mur est volontairement generique et dessine par Honya. Les
-    /// images promotionnelles de catalogues tiers ne peuvent pas servir a
-    /// promouvoir l'application elle-meme sans droits distincts.
-    private static let jeuDeDepart: [Vignette] = [
-        Vignette(id: "depart-0", url: nil, titre: "Honya", manga: false),
-        Vignette(id: "depart-1", url: nil, titre: "Honya", manga: true),
-        Vignette(id: "depart-2", url: nil, titre: "Honya", manga: false),
-        Vignette(id: "depart-3", url: nil, titre: "Honya", manga: true),
-        Vignette(id: "depart-4", url: nil, titre: "Honya", manga: false),
-        Vignette(id: "depart-5", url: nil, titre: "Honya", manga: true),
-        Vignette(id: "depart-6", url: nil, titre: "Honya", manga: false),
-        Vignette(id: "depart-7", url: nil, titre: "Honya", manga: true),
-        Vignette(id: "depart-8", url: nil, titre: "Honya", manga: false),
-        Vignette(id: "depart-9", url: nil, titre: "Honya", manga: true),
-        Vignette(id: "depart-10", url: nil, titre: "Honya", manga: false),
-        Vignette(id: "depart-11", url: nil, titre: "Honya", manga: true),
-        Vignette(id: "depart-12", url: nil, titre: "Honya", manga: false),
-        Vignette(id: "depart-13", url: nil, titre: "Honya", manga: true),
-        Vignette(id: "depart-14", url: nil, titre: "Honya", manga: false),
-        Vignette(id: "depart-15", url: nil, titre: "Honya", manga: true),
-        Vignette(id: "depart-16", url: nil, titre: "Honya", manga: false),
-        Vignette(id: "depart-17", url: nil, titre: "Honya", manga: true),
-        Vignette(id: "depart-18", url: nil, titre: "Honya", manga: false),
-        Vignette(id: "depart-19", url: nil, titre: "Honya", manga: true),
-    ]
-
-    private func poserDepuisCache() -> Bool {
-        guard let donnees = UserDefaults.standard.data(forKey: cleCacheMur),
+    private func poserDepuisCache(
+        cle: String,
+        minimum: Int,
+        limite: Int
+    ) async -> Bool {
+        guard let donnees = UserDefaults.standard.data(forKey: cle),
               let jeu = try? JSONDecoder().decode([Vignette].self, from: donnees),
               !jeu.isEmpty
         else { return false }
-        poser(jeu)
+
+        let pret = await precharger(jeu, limite: limite)
+        guard !Task.isCancelled,
+              cle == cleCacheMur,
+              pret.vignettes.count >= minimum else {
+            return false
+        }
+        garder(pret.vignettes, cle: cle)
+        poser(pret.vignettes, images: pret.images)
         return true
     }
 
-    private func garder(_ jeu: [Vignette]) {
+    /// Charge et décode les images avant de rendre une seule case. Les URL en
+    /// échec sont retirées : le mur ne passe jamais par le fallback graphique
+    /// de `CouvertureView`.
+    private func precharger(
+        _ jeu: [Vignette],
+        limite: Int
+    ) async -> (vignettes: [Vignette], images: [String: UIImage]) {
+        var vues = Set<String>()
+        let urls = Array(jeu.compactMap(\.url).filter {
+            !$0.isEmpty && vues.insert($0).inserted
+        }.prefix(limite))
+        guard !urls.isEmpty else { return ([], [:]) }
+
+        let images = await withTaskGroup(
+            of: (String?, UIImage?).self,
+            returning: [String: UIImage].self
+        ) { groupe in
+            for url in urls {
+                groupe.addTask {
+                    guard !Task.isCancelled else { return (url, nil) }
+                    let image = await ImageCharge.partage.uiImage(
+                        depuis: url, cote: 700
+                    )
+                    guard !Task.isCancelled else { return (url, nil) }
+                    return (url, image)
+                }
+            }
+            // Une image distante muette ne doit pas retenir les autres hors
+            // écran pendant le délai de 60 s de URLSession.shared.
+            // Après six secondes, on compose avec les vraies images déjà
+            // décodées et on annule proprement le reste.
+            groupe.addTask {
+                try? await Task.sleep(for: .seconds(6))
+                return (nil, nil)
+            }
+
+            var chargees: [String: UIImage] = [:]
+            var restantes = urls.count
+            for await (url, image) in groupe {
+                guard let url else {
+                    groupe.cancelAll()
+                    break
+                }
+                restantes -= 1
+                if let image {
+                    chargees[url] = image
+                }
+                if restantes == 0 {
+                    groupe.cancelAll()
+                    break
+                }
+            }
+            return chargees
+        }
+        guard !Task.isCancelled else { return ([], [:]) }
+
+        let pretes = Array(jeu.filter { vignette in
+            vignette.url.map { images[$0] != nil } == true
+        }.prefix(limite))
+        return (pretes, images)
+    }
+
+    private func garder(_ jeu: [Vignette], cle: String) {
         if let donnees = try? JSONEncoder().encode(jeu) {
-            UserDefaults.standard.set(donnees, forKey: cleCacheMur)
+            UserDefaults.standard.set(donnees, forKey: cle)
         }
     }
 
-    /// Pose le mur d'un coup, sans fondu : l'apparition progressive créait un
-    /// état intermédiaire où les couvertures traversaient le voile à moitié
-    /// posé — l'écran semblait s'assombrir petit à petit.
-    private func poser(_ jeu: [Vignette]) {
-        vignettes = jeu
+    /// Pose métadonnées ET pixels dans la même transaction, sans fondu. Une
+    /// case du mur n'existe donc jamais avant sa vraie image.
+    private func poser(_ jeu: [Vignette], images: [String: UIImage]) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            imagesMur = images
+            vignettes = jeu
+            if !jeu.isEmpty { debutMur = Date() }
+        }
     }
 
     // MARK: - Actions
