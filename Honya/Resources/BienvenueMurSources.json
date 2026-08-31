@@ -1,0 +1,28 @@
+{
+  "asset": "BienvenueMur-fr",
+  "language": "fr",
+  "source": "Bibliothèque nationale de France",
+  "sourcePage": "https://api.bnf.fr/fr/api-service-couvertures-du-catalogue-general",
+  "retrievedAt": "2026-08-31",
+  "license": "Licence ouverte de l'État",
+  "licenseUrl": "https://www.etalab.gouv.fr/licence-ouverte-open-licence/",
+  "downloadUrlTemplate": "https://openapi.bnf.fr/couverture/image/image/recupererImage?EAN={isbn}&couverture=1&taille=originale",
+  "compositeSha256": "6BF11E957BDFCE06AF6A1DC8EA66E9606169EE859F84395814E43BC1E61C5C3E",
+  "records": [
+    { "ark": "ark:/12148/cb47685427g", "title": "Zhara", "isbn": "979-10-363-6185-2" },
+    { "ark": "ark:/12148/cb435860287", "title": "Les chroniques de Conan", "isbn": "978-2-8094-3018-9" },
+    { "ark": "ark:/12148/cb45147361w", "title": "Dragon Ball Z", "isbn": "978-2-344-01770-8" },
+    { "ark": "ark:/12148/cb472361991", "title": "Amazing fantasy 1000", "isbn": "979-10-391-1623-7" },
+    { "ark": "ark:/12148/cb423817619", "title": "Fragments d'amour", "isbn": "978-2-35180-380-6" },
+    { "ark": "ark:/12148/cb47577022r", "title": "Kirby fantasy", "isbn": "978-2-302-10032-9" },
+    { "ark": "ark:/12148/cb45381001x", "title": "Comics", "isbn": "978-2-258-14435-4" },
+    { "ark": "ark:/12148/cb48760419j", "title": "Briselames", "isbn": "978-2-488640-06-0" },
+    { "ark": "ark:/12148/cb47500875d", "title": "Marvel comics", "isbn": "979-10-391-2822-3" },
+    { "ark": "ark:/12148/cb45841704x", "title": "Avengers", "isbn": "978-2-01-711105-4" },
+    { "ark": "ark:/12148/cb43706042g", "title": "Thor", "isbn": "978-2-01-203621-5" },
+    { "ark": "ark:/12148/cb43743516d", "title": "Le coeur d'une tueuse", "isbn": "978-2-8094-3598-6" },
+    { "ark": "ark:/12148/cb48539828t", "title": "Kirby fantasy", "isbn": "978-2-302-10033-6" },
+    { "ark": "ark:/12148/cb42651384r", "title": "Sherlock Holmes", "isbn": "978-2-302-02004-7" },
+    { "ark": "ark:/12148/cb426101368", "title": "Scarlet", "isbn": "978-2-8094-2252-8" }
+  ]
+}

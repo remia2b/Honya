@@ -6,9 +6,9 @@ import SwiftUI
 /// en serif, et deux chemins pour entrer — l'identifiant Apple, ou une adresse
 /// e-mail.
 ///
-/// Cette page ne se voit qu'une fois, avant d'entrer : le mur est un tirage
-/// aléatoire des livres en tendance dans le pays du lecteur, rien de plus.
-/// Sans réseau, l'écran reste net — titre et boutons, pas de mur.
+/// Cette page ne se voit qu'une fois, avant d'entrer. Un mur local est affiché
+/// dès le premier frame ; les tendances de la langue du lecteur préparent en
+/// arrière-plan le snapshot du prochain lancement.
 struct BienvenueView: View {
     /// Ouvre directement le formulaire, pour les aperçus et les captures.
     var surLEmail = false
@@ -25,10 +25,13 @@ struct BienvenueView: View {
     @Query private var objectifs: [Objectif]
 
     @State private var compte = Compte.partage
-    @State private var vignettes: [Vignette] = []
+    @State private var vignettes: [VignetteMurBienvenue] = []
     /// Le mur n'est publié qu'avec des pixels déjà décodés. Conserver les
     /// UIImage ici empêche le premier rendu factice de `CouvertureView`.
     @State private var imagesMur: [String: UIImage] = [:]
+    /// Clé exacte (langue + storefront) des pixels déjà visibles. Elle évite
+    /// d'effacer puis de recharger le même mur à chaque reconstruction SwiftUI.
+    @State private var cleMurAffichee: String?
     @State private var apparu = false
     /// Origine locale de la derive. Une date absolue faisait commencer le mur
     /// a un endroit arbitraire de sa boucle a chaque apparition.
@@ -61,6 +64,33 @@ struct BienvenueView: View {
     @State private var confirmationAttendue = false
     @State private var code = ""
     @State private var nouveauMotDePasse = ""
+
+    init(
+        surLEmail: Bool = false,
+        surLOubli: String? = nil,
+        connexionSeulement: Bool = false
+    ) {
+        self.surLEmail = surLEmail
+        self.surLOubli = surLOubli
+        self.connexionSeulement = connexionSeulement
+
+        let cle = Self.cleCacheMur(pour: Langues.codeAppareil)
+        // Neuf images suffisent largement aux trois colonnes et bornent le
+        // coût du décodage synchrone avant le premier frame. L'ancien cache
+        // HTTP n'est jamais migré ici : une migration lourde sur le thread
+        // principal retarderait précisément l'écran que ce cache accélère.
+        let contenu = CacheMurBienvenue.charger(
+            cle: cle,
+            minimum: 3,
+            limite: 9,
+            migrerDepuisURLCache: false
+        )
+        _vignettes = State(initialValue: contenu?.vignettes ?? [])
+        _imagesMur = State(initialValue: contenu?.images ?? [:])
+        _cleMurAffichee = State(
+            initialValue: contenu == nil ? nil : cle
+        )
+    }
 
     /// L'écran est-il à l'étroit : clavier ouvert, ou formulaire long.
     ///
@@ -101,32 +131,6 @@ struct BienvenueView: View {
         }
     }
 
-    /// Une case du mur. Le titre ne sert que si l'image manque — `CouvertureView`
-    /// dessine alors une couverture, plutôt qu'un rectangle vide.
-    private struct Vignette: Identifiable, Hashable, Codable {
-        let id: String
-        let url: String?
-        let titre: String
-        let manga: Bool
-        /// Conserve la provenance avec le cache. Le mur ne transforme jamais
-        /// une image issue d'une source ouverte en visuel « sans auteur ».
-        let attribution: String?
-
-        init(
-            id: String,
-            url: String?,
-            titre: String,
-            manga: Bool,
-            attribution: String? = nil
-        ) {
-            self.id = id
-            self.url = url
-            self.titre = titre
-            self.manga = manga
-            self.attribution = attribution
-        }
-    }
-
     // Trois colonnes qui se recouvrent : le nombre de couvertures par colonne
     // se déduit de la hauteur de l'écran, il n'est pas figé.
     private static let colonnes = 3
@@ -147,6 +151,10 @@ struct BienvenueView: View {
     /// peuvent avoir des titres et couvertures differents. Le souvenir du mur
     /// est donc cloisonne par langue ET par storefront, comme le catalogue.
     private var cleCacheMur: String {
+        Self.cleCacheMur(pour: langue)
+    }
+
+    private static func cleCacheMur(pour langue: String) -> String {
         let code = langue.lowercased()
             .split(whereSeparator: { $0 == "-" || $0 == "_" })
             .first.map(String.init) ?? langue.lowercased()
@@ -154,31 +162,29 @@ struct BienvenueView: View {
         return "murAccueilV3.\(code).\(storefront)"
     }
 
+    private var codeLangueMur: String {
+        langue.lowercased()
+            .split(whereSeparator: { $0 == "-" || $0 == "_" })
+            .first.map(String.init) ?? langue.lowercased()
+    }
+
     var body: some View {
         ZStack {
             Color(uiColor: .systemBackground).ignoresSafeArea()
 
-            if !vignettes.isEmpty {
-                // Le mur reste derrière l'écran e-mail : c'est la même page,
-                // pas un formulaire posé sur du vide.
-                //
-                // `.keyboard` explicitement : à l'ouverture du clavier, iOS
-                // rétrécit la zone sûre et le décor se serait redimensionné
-                // avec le formulaire. Le fond doit rester immobile.
-                mur
-                    .ignoresSafeArea()
-                    .ignoresSafeArea(.keyboard)
-                voile
-                    .ignoresSafeArea()
-                    .ignoresSafeArea(.keyboard)
-                    .animation(.snappy(duration: 0.28), value: alEtroit)
-            }
+            // Le mur reste derrière l'écran e-mail : c'est la même page,
+            // pas un formulaire posé sur du vide. `.keyboard` explicitement :
+            // le fond ne doit jamais se redimensionner avec le formulaire.
+            fondMur
+                .ignoresSafeArea()
+                .ignoresSafeArea(.keyboard)
+            voile
+                .ignoresSafeArea()
+                .ignoresSafeArea(.keyboard)
+                .animation(.snappy(duration: 0.28), value: alEtroit)
 
-            // L'écran vit dans le contrôleur qui ancre au guide clavier
-            // d'Apple — voir AncrageClavier.swift : l'évitement SwiftUI y est
-            // coupé, et la position se fige une fois le clavier posé. Les
-            // deux ignoresSafeArea rendent bien TOUT l'écran au contrôleur ;
-            // à l'intérieur, c'est UIKit qui place le contenu.
+            // UIKit ancre le contenu au guide clavier d'Apple ; SwiftUI reçoit
+            // tout l'écran, sans négocier sa hauteur avec le clavier.
             AncrageClavier(
                 phase: session.phase,
                 fermetureVoulue: { session.phase != .active },
@@ -226,13 +232,20 @@ struct BienvenueView: View {
             }
         }
         .task(id: cleCacheMur) {
+            let cleDemandee = cleCacheMur
             // Un changement de langue/storefront ne doit jamais laisser le
             // mur précédent visible pendant que le nouveau se prépare.
-            poser([], images: [:])
+            if cleMurAffichee != cleDemandee {
+                poser([], images: [:], cle: nil)
+            }
             await chargerLeMur()
         }
         .onAppear {
-            withAnimation(.easeOut(duration: 0.7)) { apparu = true }
+            if mouvementReduit {
+                apparu = true
+            } else {
+                withAnimation(.easeOut(duration: 0.7)) { apparu = true }
+            }
             if connexionSeulement { mode = .connexion }
             if surLEmail { parEmail = true }
             if let surLOubli {
@@ -255,6 +268,30 @@ struct BienvenueView: View {
     }
 
     // MARK: - Le mur
+
+    @ViewBuilder
+    private var fondMur: some View {
+        if cleMurAffichee == cleCacheMur, !vignettes.isEmpty {
+            mur
+        } else {
+            GeometryReader { geo in
+                Image("BienvenueMur-fr")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    // Hors français, le filet reste un vrai mur mais aucun
+                    // titre d'une mauvaise langue n'est lisible. Le snapshot
+                    // localisé et net prendra la relève au prochain lancement.
+                    .scaleEffect(codeLangueMur == "fr" ? 1 : 1.04)
+                    .blur(
+                        radius: codeLangueMur == "fr" ? 0 : 16,
+                        opaque: true
+                    )
+                    .clipped()
+                    .accessibilityHidden(true)
+            }
+        }
+    }
 
     /// Chaque colonne dérive à sa vitesse, en sens alterné.
     ///
@@ -325,7 +362,7 @@ struct BienvenueView: View {
     }
 
     @ViewBuilder
-    private func vignetteDuMur(_ vignette: Vignette) -> some View {
+    private func vignetteDuMur(_ vignette: VignetteMurBienvenue) -> some View {
         if let url = vignette.url, let image = imagesMur[url] {
             CouvertureView(
                 urlString: vignette.url,
@@ -347,7 +384,10 @@ struct BienvenueView: View {
         }
     }
 
-    private func vignettesDeLaColonne(_ index: Int, combien: Int) -> [Vignette] {
+    private func vignettesDeLaColonne(
+        _ index: Int,
+        combien: Int
+    ) -> [VignetteMurBienvenue] {
         guard !vignettes.isEmpty else { return [] }
         return (0..<combien).map { rang in
             // Distribuer horizontalement d'abord : avec seulement trois
@@ -821,8 +861,8 @@ struct BienvenueView: View {
                 // La provenance et la date viennent telles quelles du
                 // fournisseur afin de respecter sa licence dans toute langue.
                 Text(verbatim: attributionsMur.joined(separator: " · "))
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(.secondary.opacity(0.82))
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -833,6 +873,11 @@ struct BienvenueView: View {
     }
 
     private var attributionsMur: [String] {
+        let snapshotLocaliseActif = cleMurAffichee == cleCacheMur
+            && !vignettes.isEmpty
+        if !snapshotLocaliseActif {
+            return ["Source : Bibliothèque nationale de France · 2026-08-31"]
+        }
         var vues = Set<String>()
         return vignettes.compactMap(\.attribution).filter { attribution in
             !attribution.isEmpty && vues.insert(attribution).inserted
@@ -878,14 +923,11 @@ struct BienvenueView: View {
             .split(whereSeparator: { $0 == "-" || $0 == "_" })
             .first.map(String.init) ?? langueDemandee.lowercased()
 
-        // Le cache contient les métadonnées du mur, pas ses pixels. On décode
-        // donc d'abord les images hors écran ; le premier frame du mur est
-        // déjà entièrement réel, même lorsque URLCache répond très vite.
-        let cacheUtilisable = await poserDepuisCache(
-            cle: cleDemandee,
-            minimum: minimumPresentable,
-            limite: besoin
-        )
+        // Le snapshot durable a déjà été chargé dans `init`, avant le premier
+        // rendu. S'il n'existait pas, le mur BnF embarqué reste affiché pour
+        // TOUTE cette ouverture : aucune arrivée réseau ne remplace le fond
+        // sous les yeux du lecteur. Les tendances servent uniquement au
+        // prochain lancement.
         guard !Task.isCancelled, cleDemandee == cleCacheMur else { return }
 
         for essai in 0..<3 {
@@ -913,7 +955,8 @@ struct BienvenueView: View {
             guard !tirage.isEmpty else { continue }
 
             var vues = Set<String>()
-            let jeu = tirage.shuffled().compactMap { resultat -> Vignette? in
+            let jeu = tirage.shuffled().compactMap {
+                resultat -> VignetteMurBienvenue? in
                 // Uniquement de vraies couvertures : une case de remplacement
                 // au milieu des tendances se verrait tout de suite.
                 guard let langueResultat = resultat.langue else { return nil }
@@ -923,7 +966,7 @@ struct BienvenueView: View {
                 guard codeResultat == codeLangue,
                       let url = resultat.couvertureURL,
                       vues.insert(url).inserted else { return nil }
-                return Vignette(
+                return VignetteMurBienvenue(
                     id: resultat.id,
                     url: url,
                     titre: resultat.titreAffiche(langueDemandee),
@@ -941,42 +984,28 @@ struct BienvenueView: View {
                 // les nouvelles tendances seront le premier mur du prochain
                 // lancement, sans second remplacement visible.
                 garder(pret.vignettes, cle: cleDemandee)
-                if !cacheUtilisable {
-                    poser(pret.vignettes, images: pret.images)
-                }
+                CacheMurBienvenue.programmerEnregistrement(
+                    cle: cleDemandee,
+                    vignettes: pret.vignettes,
+                    images: pret.images,
+                    minimum: minimumPresentable,
+                    limite: besoin
+                )
                 return
             }
         }
-    }
-
-    private func poserDepuisCache(
-        cle: String,
-        minimum: Int,
-        limite: Int
-    ) async -> Bool {
-        guard let donnees = UserDefaults.standard.data(forKey: cle),
-              let jeu = try? JSONDecoder().decode([Vignette].self, from: donnees),
-              !jeu.isEmpty
-        else { return false }
-
-        let pret = await precharger(jeu, limite: limite)
-        guard !Task.isCancelled,
-              cle == cleCacheMur,
-              pret.vignettes.count >= minimum else {
-            return false
-        }
-        garder(pret.vignettes, cle: cle)
-        poser(pret.vignettes, images: pret.images)
-        return true
     }
 
     /// Charge et décode les images avant de rendre une seule case. Les URL en
     /// échec sont retirées : le mur ne passe jamais par le fallback graphique
     /// de `CouvertureView`.
     private func precharger(
-        _ jeu: [Vignette],
+        _ jeu: [VignetteMurBienvenue],
         limite: Int
-    ) async -> (vignettes: [Vignette], images: [String: UIImage]) {
+    ) async -> (
+        vignettes: [VignetteMurBienvenue],
+        images: [String: UIImage]
+    ) {
         var vues = Set<String>()
         let urls = Array(jeu.compactMap(\.url).filter {
             !$0.isEmpty && vues.insert($0).inserted
@@ -1032,7 +1061,7 @@ struct BienvenueView: View {
         return (pretes, images)
     }
 
-    private func garder(_ jeu: [Vignette], cle: String) {
+    private func garder(_ jeu: [VignetteMurBienvenue], cle: String) {
         if let donnees = try? JSONEncoder().encode(jeu) {
             UserDefaults.standard.set(donnees, forKey: cle)
         }
@@ -1040,12 +1069,17 @@ struct BienvenueView: View {
 
     /// Pose métadonnées ET pixels dans la même transaction, sans fondu. Une
     /// case du mur n'existe donc jamais avant sa vraie image.
-    private func poser(_ jeu: [Vignette], images: [String: UIImage]) {
+    private func poser(
+        _ jeu: [VignetteMurBienvenue],
+        images: [String: UIImage],
+        cle: String?
+    ) {
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
             imagesMur = images
             vignettes = jeu
+            cleMurAffichee = cle
             if !jeu.isEmpty { debutMur = Date() }
         }
     }
